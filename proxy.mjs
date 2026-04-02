@@ -118,7 +118,7 @@ function sendRequest(provider, url, payload) {
   });
 }
 
-async function handleMessages(req, res, provider, model) {
+async function handleMessages(req, res, provider, model, isFreeTierModel) {
   const chunks = [];
   req.on('data', c => chunks.push(c));
   await new Promise(r => req.on('end', r));
@@ -135,6 +135,16 @@ async function handleMessages(req, res, provider, model) {
 
   const originalModel = parsed.model;
   if (model) parsed.model = model;
+
+  // Free-only enforcement: block paid models
+  if (isFreeTierModel && !isFreeTierModel(parsed.model)) {
+    console.log(`${C.red('[FREE-ONLY]')} Blocked paid model: ${parsed.model}`);
+    res.writeHead(403, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({
+      error: { type: 'model_blocked', message: `Model "${parsed.model}" is not free. Use --model with a :free model or disable --free-only.` }
+    }));
+    return;
+  }
 
   sanitizeBody(parsed);
 
@@ -214,7 +224,34 @@ function proxyToAnthropic(req, res) {
   });
 }
 
-export function createProxy(provider, { port = 9090, model, maxPortRetries = 10 } = {}) {
+export function createProxy(provider, { port = 9090, model, maxPortRetries = 10, freeOnly = false, freeModels = [], token = null, rpm = 60 } = {}) {
+  // Rate limiting state
+  const rateWindow = {};
+
+  function checkRateLimit(ip) {
+    const now = Date.now();
+    const minute = Math.floor(now / 60000);
+    const key = `${ip}:${minute}`;
+    rateWindow[key] = (rateWindow[key] || 0) + 1;
+    // Clean old entries
+    for (const k of Object.keys(rateWindow)) {
+      if (!k.endsWith(`:${minute}`)) delete rateWindow[k];
+    }
+    return rateWindow[key] <= rpm;
+  }
+
+  function checkAuth(req) {
+    if (!token) return true;
+    const authHeader = req.headers['authorization'] || req.headers['x-api-key'] || '';
+    return authHeader === `Bearer ${token}` || authHeader === token;
+  }
+
+  function isFreeTierModel(modelId) {
+    if (!freeOnly) return true;
+    if (!modelId) return !!model; // using default model which was already validated
+    return modelId.endsWith(':free') || freeModels.includes(modelId);
+  }
+
   const server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url.split('?')[0].replace(/\/+$/, '') === '/health') {
       res.writeHead(200, { 'content-type': 'application/json' });
@@ -230,7 +267,21 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10 
     }
 
     if (isProviderRoute(req.url)) {
-      handleMessages(req, res, provider, model);
+      // Auth check
+      if (!checkAuth(req)) {
+        res.writeHead(401, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: { type: 'auth_error', message: 'Invalid or missing token. Set Authorization: Bearer <token>' } }));
+        return;
+      }
+      // Rate limit check
+      const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
+      if (!checkRateLimit(clientIp)) {
+        console.log(`${C.red('[RATE]')} Limit exceeded for ${clientIp}`);
+        res.writeHead(429, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: { type: 'rate_limit', message: `Rate limit: ${rpm} requests/minute exceeded` } }));
+        return;
+      }
+      handleMessages(req, res, provider, model, isFreeTierModel);
     } else {
       console.log(`${C.yellow('[PASSTHROUGH]')} ${req.method} ${req.url}`);
       proxyToAnthropic(req, res);
@@ -247,6 +298,15 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10 
     console.log(`     Retries: ${MAX_RETRIES} with exponential backoff`);
     if (model) {
       console.log(`     Model override: ${C.cyan(model)}`);
+    }
+    if (freeOnly) {
+      console.log(`     ${C.green('\u2713')} Free models only (no charges)`);
+    }
+    if (token) {
+      console.log(`     ${C.green('\u2713')} Token auth enabled`);
+    }
+    if (rpm < 9999) {
+      console.log(`     ${C.green('\u2713')} Rate limit: ${rpm} req/min`);
     }
     console.log('');
     console.log(`  ${C.green('Run in another terminal:')}`);

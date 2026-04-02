@@ -11,8 +11,21 @@ import { createProxy, loadEnv } from './proxy.mjs';
 
 const PROVIDERS = ['openrouter', 'ollama'];
 
+// Known free models on OpenRouter (zero cost)
+export const FREE_MODELS = [
+  'google/gemini-2.5-flash:free',
+  'google/gemma-3-27b-it:free',
+  'meta-llama/llama-4-maverick:free',
+  'meta-llama/llama-4-scout:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'mistralai/mistral-small-3.1-24b-instruct:free',
+  'deepseek/deepseek-chat-v3-0324:free',
+  'qwen/qwen-2.5-72b-instruct:free',
+  'microsoft/phi-4-reasoning:free',
+];
+
 export function parseArgs(argv) {
-  const opts = { provider: 'auto', port: 9090, model: null, help: false };
+  const opts = { provider: 'auto', port: 9090, model: null, help: false, freeOnly: false, token: null, rpm: 60 };
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -22,8 +35,18 @@ export function parseArgs(argv) {
       opts.model = argv[++i] || null;
     } else if (arg === '--port' || arg === '-p') {
       opts.port = parseInt(argv[++i], 10) || 9090;
+    } else if (arg === '--free-only' || arg === '--free') {
+      opts.freeOnly = true;
+    } else if (arg === '--token' || arg === '-t') {
+      opts.token = argv[++i] || null;
+    } else if (arg === '--rpm') {
+      opts.rpm = parseInt(argv[++i], 10) || 60;
     } else if (!arg.startsWith('-') && PROVIDERS.includes(arg)) {
       opts.provider = arg;
+    } else if (!arg.startsWith('-') && arg === 'remote') {
+      opts.provider = 'openrouter';
+      opts.freeOnly = true; // remote defaults to free-only for safety
+      if (!opts.token) opts.token = process.env.ANYMODEL_TOKEN || null;
     }
   }
 
@@ -56,21 +79,33 @@ function printHelp() {
   \x1b[1mProviders:\x1b[0m
     openrouter    Route through OpenRouter (needs OPENROUTER_API_KEY)
     ollama        Route through local Ollama instance
+    remote        OpenRouter with --free-only + auth (for shared/deployed use)
 
   \x1b[1mOptions:\x1b[0m
-    --model, -m   Model to use (e.g., google/gemini-2.5-flash)
-    --port, -p    Proxy port (default: 9090)
-    --help, -h    Show this help
+    --model, -m     Model to use (e.g., google/gemini-2.5-flash:free)
+    --port, -p      Proxy port (default: 9090)
+    --free-only     Only allow free models (default for 'remote' mode)
+    --token, -t     Require auth token for requests
+    --rpm           Rate limit: requests per minute (default: 60)
+    --help, -h      Show this help
 
   \x1b[1mExamples:\x1b[0m
-    anymodel                                    # auto-detect provider
-    anymodel openrouter                         # use OpenRouter
-    anymodel ollama --model llama3              # use Ollama with llama3
-    anymodel --model google/gemini-2.5-flash    # specific model via OpenRouter
+    anymodel                                      # auto-detect provider
+    anymodel openrouter                           # use OpenRouter
+    anymodel --model google/gemini-2.5-flash      # specific model
+    anymodel remote --token mysecret              # shared proxy, free models only
+    anymodel --free-only                          # local, free models only
+
+  \x1b[1mFree Models:\x1b[0m
+    google/gemini-2.5-flash:free     Best free coding model
+    meta-llama/llama-4-maverick:free Llama 4 — open weight
+    deepseek/deepseek-chat-v3-0324:free  DeepSeek V3
+    mistralai/mistral-small-3.1-24b-instruct:free  Mistral Small
 
   \x1b[1mEnvironment:\x1b[0m
     OPENROUTER_API_KEY   Your OpenRouter API key (https://openrouter.ai/keys)
     OPENROUTER_MODEL     Default model override
+    ANYMODEL_TOKEN       Default auth token for remote mode
     PROXY_PORT           Default port override
 
   https://anymodel.dev
@@ -117,10 +152,34 @@ async function main() {
   const { default: provider } = await import(`./providers/${providerName}.mjs`);
 
   // Model override: CLI flag > env var > none
-  const model = opts.model || process.env.OPENROUTER_MODEL || null;
+  let model = opts.model || process.env.OPENROUTER_MODEL || null;
   const port = opts.port || parseInt(process.env.PROXY_PORT, 10) || 9090;
 
-  createProxy(provider, { port, model });
+  // Free-only mode: if no model specified, default to best free model
+  if (opts.freeOnly && !model) {
+    model = FREE_MODELS[0]; // google/gemini-2.5-flash:free
+    console.log(`${C.cyan('[FREE]')} No model specified, defaulting to ${C.bold(model)}`);
+  }
+
+  // Free-only validation
+  if (opts.freeOnly && model && !model.endsWith(':free') && !FREE_MODELS.includes(model)) {
+    console.error(`${C.red('Error:')} --free-only is active but model "${model}" is not free.`);
+    console.error('');
+    console.error('  Free models (append :free or use these IDs):');
+    for (const m of FREE_MODELS.slice(0, 5)) {
+      console.error(`    ${m}`);
+    }
+    console.error('');
+    console.error('  Disable with: anymodel openrouter --model your-model (without --free-only)');
+    process.exit(1);
+  }
+
+  if (opts.token) {
+    console.log(`${C.cyan('[AUTH]')} Token authentication enabled`);
+  }
+
+  const { FREE_MODELS: fm } = await import('./cli.mjs');
+  createProxy(provider, { port, model, freeOnly: opts.freeOnly, freeModels: fm, token: opts.token, rpm: opts.rpm });
 }
 
 // Only run main when executed directly (not imported for testing)

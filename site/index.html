@@ -496,21 +496,36 @@ npx anymodel ollama --model llama3" aria-label="Copy example">Copy</button>
 
         <div class="example-card fade-in">
           <div class="example-header">
-            <span class="example-tag">Config</span>
-            <h3>.env file setup</h3>
+            <span class="example-tag" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">Free</span>
+            <h3>Free models only (zero cost)</h3>
           </div>
-          <pre><code><span class="hl-comment"># Create a .env in your project root</span>
-<span class="hl-cmd">cat</span> > .env << 'EOF'
-OPENROUTER_API_KEY=sk-or-v1-your-key
-OPENROUTER_MODEL=google/gemini-2.5-flash
-PROXY_PORT=9090
-EOF
+          <pre><code><span class="hl-comment"># Use --free-only to restrict to $0 models</span>
+<span class="hl-cmd">npx</span> anymodel --free-only
 
-<span class="hl-comment"># anymodel auto-loads .env</span>
-<span class="hl-cmd">npx</span> anymodel</code></pre>
-          <button class="copy-btn" data-copy='OPENROUTER_API_KEY=sk-or-v1-your-key
-OPENROUTER_MODEL=google/gemini-2.5-flash
-PROXY_PORT=9090' aria-label="Copy example">Copy</button>
+<span class="hl-comment"># Or pick a specific free model</span>
+<span class="hl-cmd">npx</span> anymodel --model google/gemini-2.5-flash:free
+<span class="hl-cmd">npx</span> anymodel --model meta-llama/llama-4-maverick:free
+<span class="hl-cmd">npx</span> anymodel --model deepseek/deepseek-chat-v3-0324:free
+
+<span class="hl-comment"># Paid models are blocked in free-only mode.</span></code></pre>
+          <button class="copy-btn" data-copy="npx anymodel --free-only" aria-label="Copy example">Copy</button>
+        </div>
+
+        <div class="example-card fade-in">
+          <div class="example-header">
+            <span class="example-tag" style="background: rgba(168, 85, 247, 0.15); color: #a855f7;">Remote</span>
+            <h3>Shared proxy for teams</h3>
+          </div>
+          <pre><code><span class="hl-comment"># Deploy as a shared proxy (free models, auth, rate limit)</span>
+<span class="hl-cmd">npx</span> anymodel remote --token my-team-secret
+
+<span class="hl-comment"># Team members connect from any machine:</span>
+<span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://your-server:9090 \
+<span class="hl-cmd">ANTHROPIC_API_KEY</span>=my-team-secret \
+claude
+
+<span class="hl-comment"># Defaults: free-only, 60 req/min, token required.</span></code></pre>
+          <button class="copy-btn" data-copy="npx anymodel remote --token my-team-secret" aria-label="Copy example">Copy</button>
         </div>
       </div>
     </div>
