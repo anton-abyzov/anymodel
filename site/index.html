@@ -146,54 +146,22 @@
   <section id="how-it-works" class="section-alt">
     <div class="container">
       <div class="section-label fade-in">How It Works</div>
-      <h2 class="section-title fade-in">Two paths. Pick what fits.</h2>
-      <p class="section-desc fade-in">Use the hosted remote proxy for zero setup, or run locally for full control.</p>
+      <h2 class="section-title fade-in">Two steps. Your key, your models.</h2>
+      <p class="section-desc fade-in">Get a free <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent-cyan)">OpenRouter API key</a>, then run one command. You control which models you use and pay for (free models cost $0).</p>
 
-      <div class="paths-container fade-in">
-        <div class="path-tabs">
-          <button class="path-tab active" data-path="remote">Remote (easiest)</button>
-          <button class="path-tab" data-path="local">Local (more control)</button>
+      <div class="steps-grid" style="grid-template-columns: 1fr 1fr;">
+        <div class="step fade-in">
+          <div class="step-number">1</div>
+          <h3>Set Your OpenRouter Key</h3>
+          <div class="step-cmd"><code>export OPENROUTER_API_KEY=sk-or-v1-...</code><button class="copy-btn copy-btn-sm" data-copy="export OPENROUTER_API_KEY=sk-or-v1-..." aria-label="Copy">Copy</button></div>
+          <p>Free at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. No credit card needed for free models. Your key stays local — never shared.</p>
         </div>
-
-        <div class="path-panel active" data-path="remote">
-          <div class="steps-grid" style="grid-template-columns: 1fr 1fr;">
-            <div class="step">
-              <div class="step-number">1</div>
-              <h3>Run Claude Code</h3>
-              <div class="step-cmd"><code>ANTHROPIC_BASE_URL=https://api.anymodel.dev \
-ANTHROPIC_API_KEY=anymodel-remote-token-2026 \
-claude</code><button class="copy-btn copy-btn-sm" data-copy="ANTHROPIC_BASE_URL=https://api.anymodel.dev ANTHROPIC_API_KEY=anymodel-remote-token-2026 claude" aria-label="Copy">Copy</button></div>
-              <p>Point Claude Code at the remote proxy. Free models, no API key needed.</p>
-            </div>
-            <div class="step">
-              <div class="step-number">2</div>
-              <h3>That's it.</h3>
-              <p>Free models, no install, no proxy to run. Works on any machine with Claude Code installed.</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="path-panel" data-path="local">
-          <div class="steps-grid">
-            <div class="step">
-              <div class="step-number">1</div>
-              <h3>Set Your API Key</h3>
-              <div class="step-cmd"><code>export OPENROUTER_API_KEY=sk-or-v1-...</code><button class="copy-btn copy-btn-sm" data-copy="export OPENROUTER_API_KEY=sk-or-v1-..." aria-label="Copy">Copy</button></div>
-              <p>Get a free key at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. Or skip this for local Ollama.</p>
-            </div>
-            <div class="step">
-              <div class="step-number">2</div>
-              <h3>Start the Proxy</h3>
-              <div class="step-cmd"><code>npx anymodel</code><button class="copy-btn copy-btn-sm" data-copy="npx anymodel" aria-label="Copy">Copy</button></div>
-              <p>Auto-detects your provider. Starts on <code>:9090</code> (finds next free port if busy).</p>
-            </div>
-            <div class="step">
-              <div class="step-number">3</div>
-              <h3>Launch Claude Code</h3>
-              <div class="step-cmd"><code>ANTHROPIC_BASE_URL=http://localhost:9090 claude</code><button class="copy-btn copy-btn-sm" data-copy="ANTHROPIC_BASE_URL=http://localhost:9090 claude" aria-label="Copy">Copy</button></div>
-              <p>Your key, your models, full Claude Code features.</p>
-            </div>
-          </div>
+        <div class="step fade-in">
+          <div class="step-number">2</div>
+          <h3>Run anymodel</h3>
+          <div class="step-cmd"><code>npx anymodel</code><button class="copy-btn copy-btn-sm" data-copy="npx anymodel" aria-label="Copy">Copy</button></div>
+          <p>Starts the proxy, auto-detects your key, and launches your AI tool. Done.</p>
+          <p style="font-size:0.78rem; color: var(--text-muted); margin-top:6px;">Then in another terminal: <code>ANTHROPIC_BASE_URL=http://localhost:9090 claude</code></p>
         </div>
       </div>
 
