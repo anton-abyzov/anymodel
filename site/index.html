@@ -99,6 +99,8 @@
         <a href="#models">Models</a>
         <a href="#docs">Docs</a>
         <a href="#examples">Examples</a>
+        <a href="#guides">Guides</a>
+        <a href="#faq">FAQ</a>
         <a href="https://github.com/anton-abyzov/anymodel" target="_blank" rel="noopener" class="nav-github">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
         </a>
@@ -156,7 +158,8 @@
             <div class="terminal-body terminal-sm">$ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-your-key</span> \
   npx anymodel
 
-<span style="color:var(--accent-emerald)">\u2713</span> Connected via api.anymodel.dev</div>
+<span style="color:var(--accent-emerald)">&#x2713;</span> Connected via api.anymodel.dev
+  Your key &#x2192; OpenRouter &#x2192; any model</div>
           </div>
 
           <div class="hiw-step">
@@ -612,10 +615,10 @@ ANYMODEL_TOKEN=my-secret" aria-label="Copy example">Copy</button>
         <h2 class="section-title">No install needed. Or install locally.</h2>
         <p class="section-desc" style="margin: 0 auto 32px;">Use the hosted remote proxy instantly, or run locally with npx.</p>
 
-        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 8px;">Remote proxy (no install):</p>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 8px;">Quickest start (remote proxy):</p>
         <div class="install-cmd">
           <span class="dollar">$</span>
-          <span style="font-size: 0.85em;">ANTHROPIC_BASE_URL=https://api.anymodel.dev claude</span>
+          <span>OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel</span>
           <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel" aria-label="Copy remote command">Copy</button>
         </div>
 
@@ -663,6 +666,129 @@ ANYMODEL_TOKEN=my-secret" aria-label="Copy example">Copy</button>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ SETUP GUIDES ═══ -->
+  <section id="guides" class="section-alt">
+    <div class="container">
+      <div class="section-label fade-in">Setup Guides</div>
+      <h2 class="section-title fade-in">Get running in 2 minutes.</h2>
+
+      <div class="guides-grid">
+        <!-- OpenRouter Guide -->
+        <div class="guide-card fade-in">
+          <h3 style="color: var(--accent-cyan);">Get Your OpenRouter Key</h3>
+          <div class="guide-steps">
+            <div class="guide-step">
+              <span class="guide-num">1</span>
+              <div>Go to <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> and sign up (Google/GitHub login works)</div>
+            </div>
+            <div class="guide-step">
+              <span class="guide-num">2</span>
+              <div>Click <strong>"Create Key"</strong> &mdash; give it any name</div>
+            </div>
+            <div class="guide-step">
+              <span class="guide-num">3</span>
+              <div>Copy the key (starts with <code>sk-or-v1-</code>)</div>
+            </div>
+            <div class="guide-step">
+              <span class="guide-num">4</span>
+              <div>Save it in your project:
+                <pre style="margin-top:6px;"><code># Add to .env file
+OPENROUTER_API_KEY=sk-or-v1-your-key-here</code></pre>
+              </div>
+            </div>
+          </div>
+          <p class="guide-note">Free tier: no credit card needed. 29 free models at $0. Add credit ($5+) for paid models and higher rate limits.</p>
+        </div>
+
+        <!-- Ollama Guide -->
+        <div class="guide-card fade-in">
+          <h3 style="color: var(--accent-emerald);">Set Up Ollama (Local Models)</h3>
+          <div class="guide-steps">
+            <div class="guide-step">
+              <span class="guide-num">1</span>
+              <div>Install Ollama:
+                <pre style="margin-top:6px;"><code># macOS
+brew install ollama
+
+# Linux
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Windows: download from ollama.com</code></pre>
+              </div>
+            </div>
+            <div class="guide-step">
+              <span class="guide-num">2</span>
+              <div>Pull a coding model:
+                <pre style="margin-top:6px;"><code>ollama pull qwen3-coder:30b</code></pre>
+                <p style="font-size:0.78rem; color:var(--text-muted);">Other options: <code>llama3</code>, <code>deepseek-r1:32b</code>, <code>qwen3.5</code></p>
+              </div>
+            </div>
+            <div class="guide-step">
+              <span class="guide-num">3</span>
+              <div>Start the proxy + app:
+                <pre style="margin-top:6px;"><code># Terminal 1:
+npx anymodel proxy ollama --model qwen3-coder:30b
+
+# Terminal 2:
+ANTHROPIC_BASE_URL=http://localhost:9090 node cli.js</code></pre>
+              </div>
+            </div>
+          </div>
+          <p class="guide-note">Fully offline. Nothing leaves your machine. Requires 16GB+ RAM for 30B models, 8GB for smaller ones.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FAQ ═══ -->
+  <section id="faq">
+    <div class="container">
+      <div class="section-label fade-in">FAQ</div>
+      <h2 class="section-title fade-in">Common questions.</h2>
+
+      <div class="faq-list">
+        <details class="faq-item fade-in">
+          <summary>Is this free?</summary>
+          <p>anymodel itself is free and open source (MIT). OpenRouter has 29 free models at $0 cost &mdash; no credit card needed. Paid models cost per-token through your own OpenRouter account.</p>
+        </details>
+
+        <details class="faq-item fade-in">
+          <summary>Does my API key get stored on anymodel servers?</summary>
+          <p>No. In remote mode, your OpenRouter key passes through the proxy to OpenRouter and is never stored, logged, or cached. In local mode, your key stays entirely on your machine. The proxy is open source &mdash; you can verify this yourself.</p>
+        </details>
+
+        <details class="faq-item fade-in">
+          <summary>Do I need a Claude subscription?</summary>
+          <p>For authentication: yes, Claude Code requires a Claude account (free or paid) to start. For model usage: no &mdash; anymodel routes the actual AI calls through OpenRouter or Ollama, so you're not using Anthropic API credits.</p>
+        </details>
+
+        <details class="faq-item fade-in">
+          <summary>Which model should I use?</summary>
+          <p><strong>Best free coding model:</strong> <code>qwen/qwen3-coder:free</code> &mdash; 480B MoE, excellent at code.<br>
+          <strong>Best reasoning:</strong> <code>nvidia/nemotron-3-super-120b-a12b:free</code> &mdash; chain-of-thought thinking.<br>
+          <strong>Largest context:</strong> <code>qwen/qwen3.6-plus:free</code> &mdash; 1M tokens.<br>
+          <strong>Best local:</strong> <code>qwen3-coder:30b</code> via Ollama.</p>
+        </details>
+
+        <details class="faq-item fade-in">
+          <summary>What's the difference between remote and local?</summary>
+          <p><strong>Remote:</strong> The proxy runs at <code>api.anymodel.dev</code>. One command, no install. Your key is sent to OpenRouter through the proxy.<br>
+          <strong>Local:</strong> The proxy runs on your machine (<code>:9090</code>). Two terminals. Everything stays local. Also supports Ollama for fully offline use.</p>
+        </details>
+
+        <details class="faq-item fade-in">
+          <summary>Can I use <code>npx</code> or do I need <code>npm install</code>?</summary>
+          <p><code>npx anymodel</code> works without installing. If <code>npx</code> fails (some <code>.npmrc</code> configs interfere), install globally instead: <code>npm i -g anymodel</code>. Both work the same way.</p>
+        </details>
+
+        <details class="faq-item fade-in">
+          <summary>What does the proxy actually do?</summary>
+          <p>It sits between Claude Code and OpenRouter. When Claude Code sends a request, the proxy strips Anthropic-specific fields (<code>cache_control</code>, <code>betas</code>, <code>thinking</code>, etc.), normalizes <code>tool_choice</code>, handles retries with exponential backoff, and forwards the cleaned request to OpenRouter. The response streams back unchanged.</p>
+        </details>
       </div>
     </div>
   </section>
