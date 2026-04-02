@@ -702,12 +702,12 @@ curl -fsSL https://ollama.com/install.sh | sh
             </div>
             <div class="guide-step">
               <span class="guide-num">3</span>
-              <div>Start the proxy + connect:
-                <pre style="margin-top:6px;"><code># Terminal 1:
+              <div>Start the proxy, then connect:
+                <pre style="margin-top:6px;"><code># Terminal 1 — start proxy:
 npx anymodel proxy ollama --model qwen3-coder:30b
 
-# Terminal 2:
-ANTHROPIC_BASE_URL=http://localhost:9090 claude</code></pre>
+# Terminal 2 — use it:
+npx anymodel qwen</code></pre>
               </div>
             </div>
           </div>
