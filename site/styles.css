@@ -773,6 +773,7 @@ section { padding: 120px 0; }
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(255,255,255,0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1567,4 +1568,16 @@ html[data-theme="light"] .guide-step pre {
 html[data-theme="light"] .guide-step pre code {
   background: none;
   color: #d4d4d8;
+}
+
+/* Model icon SVG colors — make all visible on dark bg */
+.model-icon img {
+  filter: brightness(0) invert(1);
+}
+/* In light mode, keep them dark */
+html[data-theme="light"] .model-icon {
+  background: rgba(0,0,0,0.06);
+}
+html[data-theme="light"] .model-icon img {
+  filter: none;
 }
