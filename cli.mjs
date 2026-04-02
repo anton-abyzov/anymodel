@@ -3,11 +3,12 @@
 // anymodel CLI — Universal AI model proxy + client launcher
 //
 // Usage:
-//   npx anymodel                              # full experience: proxy + client
-//   npx anymodel proxy                        # just the proxy server
+//   npx anymodel                              # proxy only (auto-detect provider)
+//   npx anymodel claude                       # proxy + Claude Code client
+//   npx anymodel claude --model X             # proxy + Claude Code with specific model
 //   npx anymodel proxy openrouter             # proxy with OpenRouter
 //   npx anymodel proxy ollama                 # proxy with Ollama
-//   npx anymodel --model qwen/qwen3-coder:free  # full experience with specific model
+//   npx anymodel --model qwen/qwen3-coder:free  # proxy with specific model
 
 import { spawn, execSync } from 'child_process';
 import { existsSync } from 'fs';
@@ -104,13 +105,9 @@ ${C.magenta('  anymodel')} — AI coding assistant with any model
     --help, -h      Show this help
 
   ${C.bold('How it works:')}
-    ${C.bold('anymodel')}       = starts proxy in background + launches client
-    ${C.bold('anymodel proxy')} = starts just the proxy (connect your own client)
-
-  ${C.bold('Client auto-detection:')}
-    1. ${C.cyan('./cli.js')} in current directory (your fork)
-    2. ${C.cyan('claude')} in PATH (Anthropic's global install)
-    3. If neither found, proxy starts and prints connect instructions
+    ${C.bold('anymodel')}         = starts proxy only (auto-detects provider from env)
+    ${C.bold('anymodel claude')}  = starts proxy + launches Claude Code as client
+    ${C.bold('anymodel proxy')}   = starts proxy with explicit provider selection
 
   ${C.bold('Free Models (all $0):')}
     qwen/qwen3-coder:free                 Best for coding
@@ -387,6 +384,7 @@ const firstArg = rawArgs[0];
 
 // Detect mode
 const isProxyMode = firstArg === 'proxy' || PROVIDERS.includes(firstArg) || firstArg === 'remote';
+const isClientMode = firstArg === 'claude';
 
 const isMain = process.argv[1] && (
   process.argv[1].endsWith('/cli.mjs') ||
@@ -395,12 +393,15 @@ const isMain = process.argv[1] && (
 );
 
 if (isMain) {
-  if (isProxyMode) {
+  if (isClientMode) {
+    // `anymodel claude` — proxy + Claude Code client
+    startFull(rawArgs.slice(1));
+  } else if (isProxyMode) {
     // `anymodel proxy ...` or `anymodel openrouter` or `anymodel remote`
     const proxyArgs = firstArg === 'proxy' ? rawArgs.slice(1) : rawArgs;
     startProxyOnly(proxyArgs);
   } else {
-    // `anymodel` or `anymodel --model X` — full experience
-    startFull(rawArgs);
+    // `anymodel` or `anymodel --model X` — proxy only
+    startProxyOnly(rawArgs);
   }
 }
