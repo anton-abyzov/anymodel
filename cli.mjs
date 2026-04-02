@@ -353,15 +353,15 @@ async function startProxyOnly(args) {
 
   const { default: provider } = await import(`./providers/${providerName}.mjs`);
 
-  let model = opts.model || process.env.OPENROUTER_MODEL || null;
+  const DEFAULT_PROXY_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
+  let model = opts.model || process.env.OPENROUTER_MODEL || DEFAULT_PROXY_MODEL;
   const port = opts.port || parseInt(process.env.PROXY_PORT, 10) || 9090;
 
-  if (opts.freeOnly && !model) {
-    model = FREE_MODELS[0];
-    console.log(`${C.cyan('[FREE]')} Defaulting to ${C.bold(model)}`);
+  if (!opts.model && !process.env.OPENROUTER_MODEL) {
+    console.log(`${C.cyan('[MODEL]')} Defaulting to ${C.bold(model)}`);
   }
 
-  if (opts.freeOnly && model && !model.endsWith(':free') && !FREE_MODELS.includes(model)) {
+  if (opts.freeOnly && !model.endsWith(':free') && !FREE_MODELS.includes(model)) {
     console.error(`${C.red('Error:')} --free-only is active but model "${model}" is not free.`);
     console.error('  Use a :free model or disable --free-only');
     process.exit(1);
