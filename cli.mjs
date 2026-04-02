@@ -193,6 +193,9 @@ async function startFull(args) {
   const DEFAULT_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
   const modelLabel = opts.model || DEFAULT_MODEL;
 
+  const maskedKey = openrouterKey.slice(0, 12) + '...' + openrouterKey.slice(-4);
+  console.log(`${C.green('[anymodel]')} OpenRouter key loaded: ${C.cyan(maskedKey)}`);
+
   // Try remote proxy first
   if (!opts.provider || opts.provider === 'auto') {
     console.log(`${C.cyan('[anymodel]')} Checking remote proxy...`);
@@ -211,7 +214,7 @@ async function startFull(args) {
         console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelLabel)}`);
         const client = findClient();
         if (client) {
-          console.log(`${C.green('[anymodel]')} Launching ${C.bold(client.label)}`);
+          console.log(`${C.green("[anymodel]")} Launching ${C.bold(client.label)}`);
           console.log('');
           const clientChild = spawn(client.cmd, client.args, {
             stdio: 'inherit',
@@ -285,11 +288,11 @@ async function startFull(args) {
     return;
   }
 
-  // Determine model label for the banner — show the ACTUAL model, not "auto"
-  const modelLabel = opts.model || process.env.OPENROUTER_MODEL || FREE_MODELS[0];
+  // Determine model label for local proxy banner
+  const localModelLabel = opts.model || process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
 
-  console.log(`${C.green('[anymodel]')} Launching ${C.bold(client.label)}`);
-  console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelLabel)}`);
+  console.log(`${C.green("[anymodel]")} Launching ${C.bold(client.label)}`);
+  console.log(`${C.green('[anymodel]')} Model: ${C.cyan(localModelLabel)}`);
   console.log('');
 
   // Launch client with ANTHROPIC_BASE_URL and ANYMODEL_MODEL set
@@ -298,7 +301,7 @@ async function startFull(args) {
     env: {
       ...process.env,
       ANTHROPIC_BASE_URL: `http://localhost:${actualPort}`,
-      ANYMODEL_MODEL: modelLabel,
+      ANYMODEL_MODEL: localModelLabel,
     },
   });
 
