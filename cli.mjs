@@ -19,6 +19,7 @@ const PROVIDERS = ['openrouter', 'ollama'];
 
 // Verified free models on OpenRouter (zero cost) — from live /v1/models API
 export const FREE_MODELS = [
+  'openrouter/free',                                 // Auto-selects best free model
   'qwen/qwen3-coder:free',
   'qwen/qwen3.6-plus:free',
   'openai/gpt-oss-120b:free',
@@ -193,7 +194,7 @@ async function startFull(args) {
         });
         if (ok) {
           console.log(`${C.green('[anymodel]')} Remote proxy available at ${C.bold('api.anymodel.dev')}`);
-          const modelLabel = opts.model || 'nvidia/nemotron-3-super-120b:free';
+          const modelLabel = opts.model || 'openrouter/free (auto-selects best free model)';
           const client = findClient();
           if (client) {
             console.log(`${C.green('[anymodel]')} Launching ${C.bold(client.label)}`);

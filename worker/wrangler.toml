@@ -10,7 +10,7 @@ routes = [
 [vars]
 FREE_ONLY = "true"
 RPM = "60"
-DEFAULT_FREE_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
+DEFAULT_FREE_MODEL = "openrouter/free"
 
 # Secrets (set via `wrangler secret put`):
 # OPENROUTER_API_KEY

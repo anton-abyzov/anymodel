@@ -3,6 +3,7 @@
 // Uses fetch() API — no Node.js http/https modules
 
 export const FREE_MODELS = [
+  'openrouter/free',
   'qwen/qwen3-coder:free',
   'qwen/qwen3.6-plus:free',
   'openai/gpt-oss-120b:free',
