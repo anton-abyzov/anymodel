@@ -29,8 +29,8 @@
   <text x="368" y="462" font-family="monospace" font-size="13" fill="#555">  /v1/messages → OpenRouter</text>
   <text x="368" y="494" font-family="monospace" font-size="13" fill="#06b6d4">Ready.</text>
   <!-- Title -->
-  <text x="600" y="200" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="64" font-weight="800" fill="url(#g)">Claude Code. Any Model.</text>
-  <text x="600" y="260" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="22" fill="#888">Run Claude Code with GPT, Gemini, Llama, or any AI model.</text>
+  <text x="600" y="200" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="64" font-weight="800" fill="url(#g)">Any Tool. Any Model.</text>
+  <text x="600" y="260" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="22" fill="#888">Route any AI tool through GPT, Gemini, Llama, or any LLM provider.</text>
   <!-- Badge -->
   <text x="600" y="590" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="16" fill="#555">anymodel.dev</text>
 </svg>

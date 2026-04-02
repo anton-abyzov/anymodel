@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// anymodel CLI — Run Claude Code with any AI model
+// anymodel CLI — Universal AI model proxy
 // Usage:
 //   npx anymodel                          # auto-detect provider
 //   npx anymodel openrouter               # use OpenRouter
@@ -41,7 +41,7 @@ export async function detectProvider() {
 
 function printHelp() {
   console.log(`
-\x1b[35m  anymodel\x1b[0m — Run Claude Code with any AI model
+\x1b[35m  anymodel\x1b[0m — Universal AI model proxy for any LLM
 
   \x1b[1mUsage:\x1b[0m
     anymodel [provider] [options]

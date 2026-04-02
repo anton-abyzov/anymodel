@@ -62,7 +62,7 @@ export function sanitizeBody(body) {
     });
   }
 
-  // Normalize tool_choice: providers expect object, Claude Code may send string
+  // Normalize tool_choice: providers expect object, clients may send string
   if (typeof body.tool_choice === 'string') {
     body.tool_choice = { type: body.tool_choice };
   }

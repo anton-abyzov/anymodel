@@ -3,10 +3,11 @@ function typeTerminal() {
   const el = document.getElementById('terminal-typed');
   if (!el) return;
   const lines = [
-    '$ npx anymodel openrouter',
+    '$ npx anymodel --model google/gemini-2.5-flash',
     '',
-    '\u2194 anymodel proxy on :9090',
+    '\u2194 anymodel v1.0.0 proxy on :9090',
     '  /v1/messages \u2192 OpenRouter (google/gemini-2.5-flash)',
+    '  /health      \u2192 status endpoint',
     '  everything else \u2192 passthrough',
     '',
     'Ready. Point your AI tool at localhost:9090'
@@ -20,7 +21,7 @@ function typeTerminal() {
     if (i <= text.length) {
       el.textContent = text.slice(0, i);
       i++;
-      setTimeout(tick, i === 1 ? 0 : text[i - 2] === '\n' ? 120 : 28);
+      setTimeout(tick, i === 1 ? 0 : text[i - 2] === '\n' ? 100 : 22);
     }
   }
   tick();
@@ -37,7 +38,7 @@ function initScrollAnimations() {
         }
       });
     },
-    { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
+    { threshold: 0.08, rootMargin: '0px 0px -60px 0px' }
   );
   document.querySelectorAll('.fade-in').forEach((el) => observer.observe(el));
 }
@@ -49,7 +50,9 @@ function initSmoothScroll() {
       const target = document.querySelector(link.getAttribute('href'));
       if (target) {
         e.preventDefault();
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const navH = document.querySelector('.nav')?.offsetHeight || 0;
+        const y = target.getBoundingClientRect().top + window.pageYOffset - navH - 16;
+        window.scrollTo({ top: y, behavior: 'smooth' });
       }
     });
   });
@@ -73,9 +76,28 @@ function initCopyButtons() {
   });
 }
 
+// Nav scroll effect
+function initNavScroll() {
+  const nav = document.querySelector('.nav');
+  if (!nav) return;
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        nav.style.borderBottomColor = window.scrollY > 50
+          ? 'rgba(255,255,255,0.06)'
+          : 'transparent';
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   typeTerminal();
   initScrollAnimations();
   initSmoothScroll();
   initCopyButtons();
+  initNavScroll();
 });
