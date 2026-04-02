@@ -15,7 +15,7 @@ export default {
         'authorization': `Bearer ${apiKey}`,
         'anthropic-version': '2023-06-01',
         'content-length': Buffer.byteLength(payload),
-        'http-referer': 'https://github.com/antonoly/anymodel',
+        'http-referer': 'https://github.com/anton-abyzov/anymodel',
         'x-title': 'anymodel',
       },
     };

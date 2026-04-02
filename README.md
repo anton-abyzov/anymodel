@@ -3,7 +3,7 @@
 **Universal AI model proxy — route any coding tool through OpenRouter, Ollama, or any LLM provider.**
 
 [![npm version](https://img.shields.io/npm/v/anymodel)](https://www.npmjs.com/package/anymodel)
-[![license](https://img.shields.io/npm/l/anymodel)](https://github.com/antonoly/anymodel/blob/main/LICENSE)
+[![license](https://img.shields.io/npm/l/anymodel)](https://github.com/anton-abyzov/anymodel/blob/main/LICENSE)
 [![node](https://img.shields.io/node/v/anymodel)](https://nodejs.org)
 
 Use **any model** with your AI coding tools — GPT-4o, Gemini, Llama, Mistral, DeepSeek, and hundreds more. anymodel is a lightweight proxy that sits between your tools and your preferred AI provider, translating requests on the fly.
@@ -163,7 +163,7 @@ curl http://localhost:9091/health
 
 - [anymodel.dev](https://anymodel.dev) — Project homepage
 - [OpenRouter](https://openrouter.ai) — Multi-model API gateway
-- [GitHub](https://github.com/antonoly/anymodel) — Source code
+- [GitHub](https://github.com/anton-abyzov/anymodel) — Source code
 - [Remote Proxy](https://api.anymodel.dev/health) — Live Cloudflare Worker
 
 ## Origin
