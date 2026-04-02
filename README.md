@@ -130,6 +130,10 @@ Options:
 - [OpenRouter](https://openrouter.ai) — Multi-model API gateway
 - [GitHub](https://github.com/antonoly/anymodel) — Source code
 
+## Origin
+
+anymodel is based on the original `openrouter-proxy.mjs` by [Anton Abyzov](https://github.com/antonoly), built as a standalone tool to make AI model routing accessible to everyone.
+
 ## License
 
-MIT &copy; 2025 [antonoly](https://github.com/antonoly)
+MIT &copy; 2025-2026 [Anton Abyzov (antonoly)](https://github.com/antonoly)
