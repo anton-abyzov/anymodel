@@ -140,11 +140,29 @@ export async function handleRequest(request, env) {
     }), { headers: { 'content-type': 'application/json' } });
   }
 
-  // Only handle /v1/messages
+  // Passthrough non-message requests to api.anthropic.com (auth, bootstrap, feature flags)
   if (!url.pathname.startsWith('/v1/messages')) {
-    return new Response(JSON.stringify({
-      error: { type: 'not_found', message: 'Only /v1/messages and /health are supported' }
-    }), { status: 404, headers: { 'content-type': 'application/json' } });
+    const anthropicUrl = `https://api.anthropic.com${url.pathname}${url.search}`;
+    const passthroughHeaders = new Headers(request.headers);
+    passthroughHeaders.set('host', 'api.anthropic.com');
+    passthroughHeaders.delete('cf-connecting-ip');
+    passthroughHeaders.delete('cf-ray');
+    passthroughHeaders.delete('cf-ipcountry');
+    try {
+      const upstream = await fetch(anthropicUrl, {
+        method: request.method,
+        headers: passthroughHeaders,
+        body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
+      });
+      return new Response(upstream.body, {
+        status: upstream.status,
+        headers: upstream.headers,
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({
+        error: { type: 'proxy_error', message: `Passthrough to Anthropic failed: ${e.message}` }
+      }), { status: 502, headers: { 'content-type': 'application/json' } });
+    }
   }
 
   // Auth check
