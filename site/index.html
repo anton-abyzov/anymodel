@@ -219,47 +219,45 @@ $ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> 
         </div>
       </div>
 
-      <!-- Architecture diagram — two paths -->
-      <div class="arch-dual fade-in">
-        <!-- Path A: Remote -->
-        <div class="arch-path">
-          <div class="arch-path-label" style="color: var(--accent-cyan);">REMOTE</div>
-          <div class="arch-diagram">
-            <div class="arch-box">
-              <span style="font-size:1.2rem;">&#9654;</span>
+      <!-- Architecture diagram — compact side-by-side -->
+      <div class="arch-side fade-in">
+        <div class="arch-half">
+          <div class="arch-half-label" style="color: var(--accent-cyan);">REMOTE</div>
+          <div class="arch-flow">
+            <div class="arch-node">
+              <svg width="28" height="28" viewBox="0 0 40 40"><rect x="4" y="8" width="32" height="24" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><line x1="4" y1="14" x2="36" y2="14" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="11" r="1.5" fill="#ef4444"/><circle cx="13" cy="11" r="1.5" fill="#eab308"/><circle cx="18" cy="11" r="1.5" fill="#22c55e"/></svg>
               <span>Claude Code</span>
             </div>
-            <div class="arch-arrow">&rarr;</div>
-            <div class="arch-box arch-box-highlight">
-              <span style="font-size:1.2rem;">&#9670;</span>
+            <span class="arch-arr">&#x2192;</span>
+            <div class="arch-node arch-node-hl">
+              <svg width="24" height="24" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="none" stroke="var(--accent-blue)" stroke-width="2"/><path d="M14 20 L18 20 L20 15 L22 25 L24 18 L26 18" fill="none" stroke="var(--accent-blue)" stroke-width="2" stroke-linecap="round"/></svg>
               <span>api.anymodel.dev</span>
             </div>
-            <div class="arch-arrow">&rarr;</div>
-            <div class="arch-box">
-              <span style="font-size:1.2rem;">&#9729;</span>
+            <span class="arch-arr">&#x2192;</span>
+            <div class="arch-node">
+              <svg width="24" height="24" viewBox="0 0 40 40"><circle cx="20" cy="14" r="8" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="14" cy="22" r="6" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="26" cy="22" r="6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
               <span>OpenRouter</span>
             </div>
           </div>
         </div>
 
-        <div class="arch-path-sep">or</div>
+        <div class="arch-divider"><span>or</span></div>
 
-        <!-- Path B: Local -->
-        <div class="arch-path">
-          <div class="arch-path-label">LOCAL</div>
-          <div class="arch-diagram">
-            <div class="arch-box">
-              <span style="font-size:1.2rem;">&#9654;</span>
+        <div class="arch-half">
+          <div class="arch-half-label">LOCAL</div>
+          <div class="arch-flow">
+            <div class="arch-node">
+              <svg width="28" height="28" viewBox="0 0 40 40"><rect x="4" y="8" width="32" height="24" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><line x1="4" y1="14" x2="36" y2="14" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="11" r="1.5" fill="#ef4444"/><circle cx="13" cy="11" r="1.5" fill="#eab308"/><circle cx="18" cy="11" r="1.5" fill="#22c55e"/></svg>
               <span>node cli.js</span>
             </div>
-            <div class="arch-arrow">&rarr;</div>
-            <div class="arch-box arch-box-highlight">
-              <span style="font-size:1.2rem;">&#9670;</span>
-              <span>localhost:9090</span>
+            <span class="arch-arr">&#x2192;</span>
+            <div class="arch-node arch-node-hl">
+              <svg width="24" height="24" viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="none" stroke="var(--accent-blue)" stroke-width="2"/><path d="M14 20 L18 20 L20 15 L22 25 L24 18 L26 18" fill="none" stroke="var(--accent-blue)" stroke-width="2" stroke-linecap="round"/></svg>
+              <span>:9090</span>
             </div>
-            <div class="arch-arrow">&rarr;</div>
-            <div class="arch-box">
-              <span style="font-size:1.2rem;">&#9729;</span>
+            <span class="arch-arr">&#x2192;</span>
+            <div class="arch-node">
+              <svg width="24" height="24" viewBox="0 0 40 40"><circle cx="20" cy="14" r="8" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="14" cy="22" r="6" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="26" cy="22" r="6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
               <span>OpenRouter / Ollama</span>
             </div>
           </div>
@@ -285,7 +283,7 @@ $ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> 
             </div>
           </div>
           <p>Claude Opus 4.6, Sonnet 4.6, Haiku 4.5. The models Claude Code was built for &mdash; now accessible through OpenRouter at a fraction of the cost.</p>
-          <code class="model-id">anthropic/claude-sonnet-4.6</code>
+          <code class="model-id">anthropic/claude-opus-4.6</code>
         </div>
 
         <div class="model-card fade-in">
@@ -551,7 +549,7 @@ $ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> 
 <span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://localhost:9090 claude
 
 <span class="hl-comment"># Or use Claude models via OpenRouter</span>
-<span class="hl-cmd">npx</span> anymodel --model anthropic/claude-sonnet-4.6</code></pre>
+<span class="hl-cmd">npx</span> anymodel --model anthropic/claude-opus-4.6</code></pre>
           <button class="copy-btn" data-copy="npx anymodel --model google/gemini-2.5-flash
 # Then in another terminal:
 ANTHROPIC_BASE_URL=http://localhost:9090 claude" aria-label="Copy example">Copy</button>
