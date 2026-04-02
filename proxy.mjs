@@ -150,7 +150,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
 
   const payload = JSON.stringify(parsed);
   const modelDisplay = model ? `${originalModel} \u2192 ${model}` : originalModel;
-  console.log(`${C.cyan(`[${provider.name.toUpperCase()}]`)} ${req.method} ${req.url} model=${modelDisplay} stream=${parsed.stream}`);
+  console.log(`${C.cyan(`[${provider.name.toUpperCase()}]`)} ${req.method} ${req.url} model=${modelDisplay}${parsed.stream ? ' stream=true' : ''}`);
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
