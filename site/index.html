@@ -152,19 +152,21 @@
       <div class="steps-grid">
         <div class="step fade-in">
           <div class="step-number">1</div>
-          <h3>Install</h3>
-          <code>npx anymodel</code>
-          <p>Runs instantly. No global install needed.</p>
+          <h3>Set Your API Key</h3>
+          <div class="step-cmd"><code>export OPENROUTER_API_KEY=sk-or-v1-...</code><button class="copy-btn copy-btn-sm" data-copy="export OPENROUTER_API_KEY=sk-or-v1-..." aria-label="Copy">Copy</button></div>
+          <p>Get a free key at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. Or skip this for local Ollama.</p>
         </div>
         <div class="step fade-in">
           <div class="step-number">2</div>
-          <h3>Proxy Starts</h3>
-          <p>Checks for <code>OPENROUTER_API_KEY</code> in your env or <code>.env</code> file &rarr; uses OpenRouter. No key? Checks for Ollama at <code>localhost:11434</code>. Or specify with <code>--model</code>.</p>
+          <h3>Start the Proxy</h3>
+          <div class="step-cmd"><code>npx anymodel</code><button class="copy-btn copy-btn-sm" data-copy="npx anymodel" aria-label="Copy">Copy</button></div>
+          <p>Auto-detects your provider. Starts on <code>:9090</code> (finds next free port if busy).</p>
         </div>
         <div class="step fade-in">
           <div class="step-number">3</div>
-          <h3>Use Any Model</h3>
-          <p>Set <code>ANTHROPIC_BASE_URL=http://localhost:9090</code> and launch Claude Code or any compatible tool. The proxy handles the rest.</p>
+          <h3>Launch Claude Code</h3>
+          <div class="step-cmd"><code>ANTHROPIC_BASE_URL=http://localhost:9090 claude</code><button class="copy-btn copy-btn-sm" data-copy="ANTHROPIC_BASE_URL=http://localhost:9090 claude" aria-label="Copy">Copy</button></div>
+          <p>That's it. Claude Code now runs through any model you chose. Full features, any provider.</p>
         </div>
       </div>
 

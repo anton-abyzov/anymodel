@@ -401,6 +401,36 @@ section { padding: 120px 0; }
   display: inline-block;
   margin-bottom: 8px;
 }
+.step-cmd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+.step-cmd code {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow-x: auto;
+}
+.copy-btn-sm {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  flex-shrink: 0;
+}
+.step a {
+  color: var(--accent-cyan);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 
 /* Architecture diagram */
 .arch-diagram {
