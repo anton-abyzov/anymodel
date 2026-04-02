@@ -564,6 +564,41 @@ section { padding: 120px 0; }
   text-underline-offset: 2px;
 }
 
+/* ════ Why section ════ */
+.why-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-top: 40px;
+}
+.why-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  text-align: center;
+}
+.why-icon {
+  font-size: 1.8rem;
+  margin-bottom: 12px;
+}
+.why-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.why-card p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.why-card code {
+  font-size: 0.78rem;
+  background: var(--bg-tertiary);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
 /* Side-by-side architecture diagram */
 .arch-side {
   display: grid;
@@ -1369,6 +1404,7 @@ footer {
   .features-grid { grid-template-columns: 1fr; }
   .docs-grid { grid-template-columns: 1fr; }
   .examples-grid { grid-template-columns: 1fr; }
+  .why-grid { grid-template-columns: 1fr 1fr; }
   .guides-grid { grid-template-columns: 1fr; }
   .footer-inner { flex-direction: column; gap: 32px; }
   .footer-links { gap: 40px; }
