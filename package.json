@@ -1,19 +1,40 @@
 {
   "name": "anymodel",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Universal AI model proxy — route any coding tool through OpenRouter, Ollama, or any LLM provider",
   "type": "module",
-  "bin": { "anymodel": "./cli.mjs" },
+  "bin": {
+    "anymodel": "./cli.mjs"
+  },
   "main": "proxy.mjs",
-  "files": ["cli.mjs", "proxy.mjs", "providers/", "README.md", "LICENSE"],
+  "files": [
+    "cli.mjs",
+    "proxy.mjs",
+    "providers/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "start": "node cli.mjs"
   },
-  "keywords": ["openrouter", "ollama", "llm", "proxy", "ai", "cli", "model-router"],
+  "keywords": [
+    "openrouter",
+    "ollama",
+    "llm",
+    "proxy",
+    "ai",
+    "cli",
+    "model-router"
+  ],
   "author": "antonoly",
   "license": "MIT",
-  "repository": { "type": "git", "url": "https://github.com/antonoly/anymodel" },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/antonoly/anymodel"
+  },
   "homepage": "https://anymodel.dev",
-  "engines": { "node": ">=18.0.0" }
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }
