@@ -173,6 +173,48 @@ async function startFull(args) {
   if (opts.help) { printHelp(); process.exit(0); }
 
   const port = opts.port || parseInt(process.env.PROXY_PORT, 10) || 9090;
+  const remoteUrl = process.env.ANYMODEL_REMOTE_URL || 'https://anymodel-proxy.anton-abyzov.workers.dev';
+  const remoteToken = process.env.ANYMODEL_TOKEN || '';
+
+  // Try remote proxy first (free, no local setup needed)
+  if (!opts.provider || opts.provider === 'auto') {
+    console.log(`${C.cyan('[anymodel]')} Checking remote proxy...`);
+    try {
+      const http = await import('http');
+      const https = await import('https');
+      const ok = await new Promise((resolve) => {
+        const req = https.default.get(`${remoteUrl}/health`, { timeout: 3000 }, (res) => {
+          res.resume();
+          resolve(res.statusCode === 200);
+        });
+        req.on('error', () => resolve(false));
+        req.setTimeout(3000, () => { req.destroy(); resolve(false); });
+      });
+      if (ok && remoteToken) {
+        console.log(`${C.green('[anymodel]')} Remote proxy available at ${C.bold(remoteUrl)}`);
+        const modelLabel = opts.model || 'auto (free remote)';
+        const client = findClient();
+        if (client) {
+          console.log(`${C.green('[anymodel]')} Launching ${C.bold(client.label)}`);
+          console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelLabel)}`);
+          console.log('');
+          const clientChild = spawn(client.cmd, client.args, {
+            stdio: 'inherit',
+            env: {
+              ...process.env,
+              ANTHROPIC_BASE_URL: remoteUrl,
+              ANTHROPIC_API_KEY: remoteToken,
+              ANYMODEL_MODEL: modelLabel,
+            },
+          });
+          clientChild.on('exit', (code) => process.exit(code || 0));
+          process.on('SIGINT', () => { clientChild.kill('SIGTERM'); process.exit(0); });
+          return;
+        }
+      }
+    } catch {}
+    console.log(`${C.yellow('[anymodel]')} Remote not available, starting local proxy...`);
+  }
 
   // Build proxy args
   const proxyArgs = ['proxy'];
@@ -228,13 +270,21 @@ async function startFull(args) {
     return;
   }
 
+  // Determine model label for the banner
+  const modelLabel = opts.model || process.env.OPENROUTER_MODEL || 'auto (free)';
+
   console.log(`${C.green('[anymodel]')} Launching ${C.bold(client.label)}`);
+  console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelLabel)}`);
   console.log('');
 
-  // Launch client with ANTHROPIC_BASE_URL set
+  // Launch client with ANTHROPIC_BASE_URL and ANYMODEL_MODEL set
   const clientChild = spawn(client.cmd, client.args, {
     stdio: 'inherit',
-    env: { ...process.env, ANTHROPIC_BASE_URL: `http://localhost:${actualPort}` },
+    env: {
+      ...process.env,
+      ANTHROPIC_BASE_URL: `http://localhost:${actualPort}`,
+      ANYMODEL_MODEL: modelLabel,
+    },
   });
 
   // Clean shutdown: when client exits, kill proxy
