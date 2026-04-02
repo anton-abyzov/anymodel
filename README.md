@@ -117,11 +117,46 @@ anymodel [provider] [options]
 Providers:
   openrouter    Route through OpenRouter
   ollama        Route through local Ollama
+  remote        OpenRouter with free-only + auth (for shared/deployed use)
 
 Options:
-  --model, -m   Model to use (e.g., google/gemini-2.5-flash)
-  --port, -p    Proxy port (default: 9090)
-  --help, -h    Show help
+  --model, -m     Model to use (e.g., google/gemini-2.5-flash:free)
+  --port, -p      Proxy port (default: 9090)
+  --free-only     Only allow free models (default for remote)
+  --token, -t     Require auth token for requests
+  --rpm           Rate limit: requests per minute (default: 60)
+  --help, -h      Show help
+```
+
+## Remote / Cloudflare Worker
+
+anymodel includes a Cloudflare Worker for running the proxy at the edge — zero server management, global latency.
+
+**Live endpoint:** `https://anymodel-proxy.anton-abyzov.workers.dev`
+
+```bash
+# Connect Claude Code to the remote proxy
+ANTHROPIC_BASE_URL=https://anymodel-proxy.anton-abyzov.workers.dev \
+ANTHROPIC_API_KEY=your-token \
+claude
+```
+
+### Deploy your own
+
+```bash
+cd worker/
+wrangler secret put OPENROUTER_API_KEY    # your OpenRouter key
+wrangler secret put ANYMODEL_TOKEN        # auth token for clients
+wrangler deploy                           # deploys to *.workers.dev
+```
+
+Features: free-only models by default, token auth, 60 req/min rate limiting, streaming, CORS.
+
+### Test locally
+
+```bash
+ANYMODEL_TOKEN=test node worker/serve-local.mjs
+curl http://localhost:9091/health
 ```
 
 ## Links
@@ -129,6 +164,7 @@ Options:
 - [anymodel.dev](https://anymodel.dev) — Project homepage
 - [OpenRouter](https://openrouter.ai) — Multi-model API gateway
 - [GitHub](https://github.com/antonoly/anymodel) — Source code
+- [Remote Proxy](https://anymodel-proxy.anton-abyzov.workers.dev/health) — Live Cloudflare Worker
 
 ## Origin
 

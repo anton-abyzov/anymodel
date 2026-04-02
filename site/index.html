@@ -366,11 +366,15 @@
 <span class="hl-label">Providers:</span>
   openrouter    Route through OpenRouter
   ollama        Route through local Ollama
+  remote        Free-only + auth (for deployment)
 
 <span class="hl-label">Options:</span>
-  --model, -m   Model ID (e.g., google/gemini-2.5-flash)
-  --port, -p    Proxy port (default: 9090)
-  --help, -h    Show help</code></pre>
+  --model, -m     Model ID (e.g., google/gemini-2.5-flash:free)
+  --port, -p      Proxy port (default: 9090)
+  --free-only     Only allow free models
+  --token, -t     Require auth token
+  --rpm           Rate limit per minute (default: 60)
+  --help, -h      Show help</code></pre>
           </div>
         </div>
 
