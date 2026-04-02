@@ -216,7 +216,7 @@ function proxyToAnthropic(req, res) {
 
 export function createProxy(provider, { port = 9090, model } = {}) {
   const server = http.createServer((req, res) => {
-    if (req.method === 'GET' && req.url === '/health') {
+    if (req.method === 'GET' && req.url.split('?')[0].replace(/\/+$/, '') === '/health') {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({
         status: 'ok',

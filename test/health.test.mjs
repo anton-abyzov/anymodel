@@ -85,4 +85,42 @@ describe('GET /health', () => {
     assert.ok(!isNaN(parsed.getTime()), 'timestamp is not a valid date');
     assert.equal(body.timestamp, parsed.toISOString());
   });
+
+  it('matches /health with query string', async () => {
+    const res = await fetch(port, '/health?verbose=true');
+    assert.equal(res.status, 200);
+  });
+
+  it('matches /health with trailing slash', async () => {
+    const res = await fetch(port, '/health/');
+    assert.equal(res.status, 200);
+  });
+});
+
+describe('GET /health without model', () => {
+  let server;
+  let port;
+
+  before(async () => {
+    server = createProxy(mockProvider, { port: 0 });
+    await new Promise(resolve => {
+      if (server.listening) {
+        port = server.address().port;
+        resolve();
+      } else {
+        server.on('listening', () => {
+          port = server.address().port;
+          resolve();
+        });
+      }
+    });
+  });
+
+  after(() => server.close());
+
+  it('model field is null when no model configured', async () => {
+    const res = await fetch(port, '/health');
+    const body = JSON.parse(res.body);
+    assert.equal(body.model, null);
+  });
 });
