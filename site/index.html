@@ -634,60 +634,30 @@ ANYMODEL_TOKEN=my-secret" aria-label="Copy example">Copy</button>
   <!-- INSTALL -->
   <section id="install">
     <div class="container">
-      <div class="install-hero fade-in">
+      <div class="fade-in" style="text-align:center;">
         <div class="section-label">Get Started</div>
-        <h2 class="section-title">No install needed. Or install locally.</h2>
-        <p class="section-desc" style="margin: 0 auto 32px;">Use the hosted remote proxy instantly, or run locally with npx.</p>
+        <h2 class="section-title">One command to start.</h2>
+        <p class="section-desc" style="margin-bottom:40px;">Get your free <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent-cyan)">OpenRouter key</a>, then run:</p>
 
-        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 8px;">Quickest start (remote proxy):</p>
-        <div class="install-cmd">
-          <span class="dollar">$</span>
-          <span>OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel</span>
-          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel" aria-label="Copy remote command">Copy</button>
+        <div class="install-terminal fade-in">
+          <div class="terminal" style="max-width:600px; margin:0 auto;">
+            <div class="terminal-bar">
+              <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+              <span class="terminal-title">Terminal</span>
+            </div>
+            <div class="terminal-body" style="min-height:auto; padding:20px 24px; font-size:0.85rem; text-align:left;">$ OPENROUTER_API_KEY=<span style="color:#06b6d4">sk-or-v1-your-key</span> npx anymodel</div>
+          </div>
+          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel" aria-label="Copy" style="margin:12px auto 0; display:block;">Copy command</button>
         </div>
 
-        <div class="install-alt">
-          <span>or run locally:</span>
-          <div class="install-cmd install-cmd-small">
-            <span class="dollar">$</span>
-            <span>npx anymodel</span>
-            <button class="copy-btn" data-copy="npx anymodel" aria-label="Copy npx command">Copy</button>
+        <div class="install-opts fade-in" style="display:flex; justify-content:center; gap:32px; margin-top:32px; flex-wrap:wrap;">
+          <div style="text-align:center;">
+            <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Or install globally:</p>
+            <code style="font-size:0.82rem;">npm i -g anymodel</code>
           </div>
-        </div>
-
-        <div class="install-alt">
-          <span>or install globally:</span>
-          <div class="install-cmd install-cmd-small">
-            <span class="dollar">$</span>
-            <span>npm i -g anymodel</span>
-            <button class="copy-btn" data-copy="npm i -g anymodel" aria-label="Copy global install">Copy</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="quickstart fade-in">
-        <h3>Quickstart</h3>
-        <div class="quickstart-steps">
-          <div class="qs-step">
-            <span class="qs-num">1</span>
-            <div>
-              <p>Try the remote proxy (no install):</p>
-              <code>OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel</code>
-            </div>
-          </div>
-          <div class="qs-step">
-            <span class="qs-num">2</span>
-            <div>
-              <p>Or install locally with a specific model:</p>
-              <code>npx anymodel --model qwen/qwen3-coder:free</code>
-            </div>
-          </div>
-          <div class="qs-step">
-            <span class="qs-num">3</span>
-            <div>
-              <p>Launch Claude Code (local mode):</p>
-              <code>ANTHROPIC_BASE_URL=http://localhost:9090 claude</code>
-            </div>
+          <div style="text-align:center;">
+            <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">With a specific model:</p>
+            <code style="font-size:0.82rem;">npx anymodel --model qwen/qwen3-coder:free</code>
           </div>
         </div>
       </div>
