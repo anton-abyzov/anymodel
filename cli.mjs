@@ -210,11 +210,11 @@ async function startFull(args) {
         req.setTimeout(3000, () => { req.destroy(); resolve(false); });
       });
       if (ok) {
-        console.log(`${C.green('[anymodel]')} Remote proxy at ${C.bold('api.anymodel.dev')}`);
+        console.log(`${C.green('[anymodel]')} Proxy: ${C.bold('remote')} (api.anymodel.dev)`);
         console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelLabel)}`);
         const client = findClient();
         if (client) {
-          console.log(`${C.green("[anymodel]")} Launching ${C.bold(client.label)}`);
+          console.log(`${C.green('[anymodel]')} Starting...`);
           console.log('');
           const clientChild = spawn(client.cmd, client.args, {
             stdio: 'inherit',
@@ -291,8 +291,9 @@ async function startFull(args) {
   // Determine model label for local proxy banner
   const localModelLabel = opts.model || process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
 
-  console.log(`${C.green("[anymodel]")} Launching ${C.bold(client.label)}`);
+  console.log(`${C.green('[anymodel]')} Proxy: ${C.bold('local')} (localhost:${actualPort})`);
   console.log(`${C.green('[anymodel]')} Model: ${C.cyan(localModelLabel)}`);
+  console.log(`${C.green('[anymodel]')} Starting...`);
   console.log('');
 
   // Launch client with ANTHROPIC_BASE_URL and ANYMODEL_MODEL set
