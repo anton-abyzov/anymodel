@@ -193,7 +193,7 @@ async function startFull(args) {
         });
         if (ok) {
           console.log(`${C.green('[anymodel]')} Remote proxy available at ${C.bold('api.anymodel.dev')}`);
-          const modelLabel = opts.model || 'auto (free)';
+          const modelLabel = opts.model || 'nvidia/nemotron-3-super-120b:free';
           const client = findClient();
           if (client) {
             console.log(`${C.green('[anymodel]')} Launching ${C.bold(client.label)}`);
