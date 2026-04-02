@@ -1,0 +1,12 @@
+name = "anymodel-proxy"
+main = "index.mjs"
+compatibility_date = "2024-12-01"
+
+[vars]
+FREE_ONLY = "true"
+RPM = "60"
+# MODEL = "google/gemini-2.5-flash:free"  # uncomment to force a default model
+
+# Secrets (set via `wrangler secret put`):
+# OPENROUTER_API_KEY
+# ANYMODEL_TOKEN
