@@ -3,12 +3,17 @@ function typeTerminal() {
   const el = document.getElementById('terminal-typed');
   if (!el) return;
   const lines = [
-    '$ ANTHROPIC_BASE_URL=https://api.anymodel.dev claude',
+    '# Terminal 1 \u2014 start the proxy:',
+    '$ export OPENROUTER_API_KEY=sk-or-v1-...',
+    '$ npx anymodel',
     '',
-    '\u2713 Claude Code connected \u2014 using free models via anymodel proxy',
+    '\u2194 anymodel proxy on :9090',
+    '  /v1/messages \u2192 OpenRouter (qwen/qwen3-coder:free)',
     '',
-    '$ Or run locally:',
-    '$ npx anymodel --model qwen/qwen3-coder:free'
+    '# Terminal 2 \u2014 use Claude Code:',
+    '$ ANTHROPIC_BASE_URL=http://localhost:9090 claude',
+    '',
+    '\u2713 anymodel v1.4.0 \u2014 qwen/qwen3-coder:free'
   ];
   const text = lines.join('\n');
   let i = 0;
