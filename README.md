@@ -55,19 +55,44 @@ npx anymodel --model google/gemini-2.5-pro
 ## How It Works
 
 ```
-REMOTE:  Claude Code → api.anymodel.dev → OpenRouter → any model
-LOCAL:   node cli.js → localhost:9090   → OpenRouter / Ollama
+REMOTE:  anymodel → api.anymodel.dev → OpenRouter → any model
+LOCAL:   node cli.js → localhost:9090 → OpenRouter / Ollama / OpenAI-compatible
 ```
 
-The proxy intercepts `/v1/messages`, strips Anthropic-specific fields (`cache_control`, `betas`, `thinking`, `metadata`), normalizes `tool_choice`, retries with exponential backoff, and streams the response back.
+The proxy intercepts `/v1/messages`, translates formats if needed, strips incompatible fields, retries with backoff, and streams back.
+
+### OpenAI-Compatible Provider
+
+Use **any OpenAI-compatible API** — OpenAI, Azure, Together, Groq, local vLLM, LMStudio:
+
+```bash
+# Terminal 1: proxy with OpenAI translation
+OPENAI_API_KEY=sk-your-key \
+  npx anymodel proxy openai --model gpt-4o
+
+# Terminal 2: run the app
+ANTHROPIC_BASE_URL=http://localhost:9090 node cli.js
+```
+
+The proxy translates between Anthropic Messages API ↔ OpenAI Chat Completions:
+- Messages, tool calls, streaming — all translated bidirectionally
+- Tool use (`tool_use`/`tool_result`) ↔ function calling (`tool_calls`/`tool`)
+- SSE streaming format conversion
+
+Custom endpoint (vLLM, LMStudio, etc.):
+```bash
+OPENAI_API_KEY=none OPENAI_BASE_URL=http://localhost:8080/v1 \
+  npx anymodel proxy openai --model llama3
+```
 
 ## CLI Reference
 
 ```
 anymodel                              # remote (uses api.anymodel.dev)
 anymodel proxy                        # local proxy on :9090
-anymodel proxy openrouter             # local, OpenRouter provider
-anymodel proxy ollama                 # local, Ollama provider
+anymodel proxy openrouter             # local, OpenRouter (Anthropic format)
+anymodel proxy ollama                 # local, Ollama
+anymodel proxy openai                 # local, OpenAI-compatible (translates format)
 
 Options:
   --model, -m     Model (e.g., qwen/qwen3-coder:free)
@@ -84,6 +109,8 @@ Options:
 |----------|-------------|
 | `OPENROUTER_API_KEY` | Your OpenRouter key ([get one free](https://openrouter.ai/keys)) |
 | `OPENROUTER_MODEL` | Default model override |
+| `OPENAI_API_KEY` | Key for OpenAI-compatible APIs |
+| `OPENAI_BASE_URL` | Custom endpoint (default: `https://api.openai.com/v1`) |
 | `PROXY_PORT` | Proxy port (default: `9090`) |
 
 anymodel auto-loads `.env` from the current directory.
