@@ -216,6 +216,19 @@ function proxyToAnthropic(req, res) {
 
 export function createProxy(provider, { port = 9090, model } = {}) {
   const server = http.createServer((req, res) => {
+    if (req.method === 'GET' && req.url === '/health') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({
+        status: 'ok',
+        version: pkg.version,
+        provider: provider.name,
+        model: model || null,
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+      }));
+      return;
+    }
+
     if (isProviderRoute(req.url)) {
       handleMessages(req, res, provider, model);
     } else {
