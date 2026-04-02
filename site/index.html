@@ -114,61 +114,8 @@
         <h1 class="fade-in"><span class="gradient-text">Claude Code.</span><br><span class="gradient-text">Any Model.</span></h1>
         <p class="hero-sub fade-in">Run <strong>Claude Code</strong> with <strong>Claude</strong>, <strong>Gemini</strong>, <strong>GPT</strong>, <strong>Llama</strong>, <strong>DeepSeek</strong>, or any of 200+ models via <strong>OpenRouter</strong>. You bring your own key &mdash; free models cost $0.</p>
 
-        <div class="hero-compare fade-in">
-          <!-- LEFT: Remote -->
-          <div class="hero-col">
-            <div class="hero-col-label" style="color: var(--accent-cyan);">REMOTE <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; one command</span></div>
-            <div class="terminal">
-              <div class="terminal-bar">
-                <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
-                <span class="terminal-title">Terminal</span>
-              </div>
-              <div class="terminal-body terminal-sm">$ ANTHROPIC_BASE_URL=https://api.anymodel.dev \
-  ANTHROPIC_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-your-key</span> \
-  npx anymodel
-
-<span style="color:var(--accent-emerald)">\u2713</span> anymodel \u2014 qwen/qwen3-coder:free
-  Your key \u2192 OpenRouter \u2192 any model</div>
-            </div>
-            <p class="hero-col-note">No install. No proxy to run. Your <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter key</a> goes directly to OpenRouter &mdash; never stored.</p>
-          </div>
-
-          <!-- SEPARATOR -->
-          <div class="hero-sep">
-            <div class="hero-sep-line"></div>
-            <span class="hero-sep-label">or</span>
-            <div class="hero-sep-line"></div>
-          </div>
-
-          <!-- RIGHT: Local -->
-          <div class="hero-col">
-            <div class="hero-col-label">LOCAL <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; full control</span></div>
-            <div class="terminal terminal-stacked">
-              <div class="terminal-bar">
-                <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
-                <span class="terminal-title">Terminal 1 &mdash; Proxy</span>
-              </div>
-              <div class="terminal-body terminal-sm">$ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> \
-  npx anymodel proxy
-
-<span style="color:var(--accent-cyan)">\u2194</span> proxy on :9090 \u2192 OpenRouter</div>
-            </div>
-            <div class="terminal terminal-stacked" style="margin-top:8px;">
-              <div class="terminal-bar">
-                <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
-                <span class="terminal-title">Terminal 2 &mdash; anymodel</span>
-              </div>
-              <div class="terminal-body terminal-sm">$ ANTHROPIC_BASE_URL=http://localhost:9090 \
-  node cli.js
-
-<span style="color:var(--accent-emerald)">\u2713</span> anymodel v1.4.0 \u2014 local</div>
-            </div>
-            <p class="hero-col-note">Clone <a href="https://github.com/antonoly/claude-code-anymodel" target="_blank" rel="noopener">the repo</a>, run proxy + app. Everything on your machine. Works with Ollama too.</p>
-          </div>
-        </div>
-
         <div class="cta-group fade-in">
-          <a href="#install" class="btn-primary">Get Started</a>
+          <a href="#how-it-works" class="btn-primary">Get Started</a>
           <a href="#docs" class="btn-secondary">Read the Docs &rarr;</a>
         </div>
 
@@ -192,26 +139,73 @@
       <h2 class="section-title fade-in">Pick your setup. Both use your own key.</h2>
       <p class="section-desc fade-in">Get a free <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent-cyan)">OpenRouter API key</a> (no credit card for free models). Your key &mdash; your models &mdash; your machine.</p>
 
-      <div class="steps-grid" style="grid-template-columns: 1fr 1fr; gap: 24px;">
-        <div class="step fade-in" style="border: 1px solid var(--accent-cyan); border-radius: var(--radius-lg); padding: 24px; background: rgba(6,182,212,0.03);">
-          <div class="step-number" style="background: var(--accent-cyan);">A</div>
-          <h3>Remote Proxy <span style="font-size:0.75rem; color:var(--accent-cyan);">&mdash; simplest</span></h3>
-          <p style="margin-bottom:12px;">One command. No npm, no install, no proxy to run. Just set your OpenRouter key and go.</p>
-          <div class="step-cmd"><code>ANTHROPIC_BASE_URL=https://api.anymodel.dev ANTHROPIC_API_KEY=sk-or-v1-your-key claude</code><button class="copy-btn copy-btn-sm" data-copy="ANTHROPIC_BASE_URL=https://api.anymodel.dev ANTHROPIC_API_KEY=sk-or-v1-your-key claude" aria-label="Copy">Copy</button></div>
-          <p style="font-size:0.78rem; color:var(--text-muted); margin-top:8px;">The remote proxy at <code>api.anymodel.dev</code> uses YOUR key to call OpenRouter. Nothing stored server-side.</p>
+      <div class="hiw-compare fade-in">
+        <!-- LEFT: Remote -->
+        <div class="hiw-col">
+          <div class="hiw-col-label" style="color: var(--accent-cyan);">REMOTE <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; one command, no install</span></div>
+
+          <div class="hiw-step">
+            <span class="hiw-step-num">1</span>
+            <span class="hiw-step-text">Run this single command:</span>
+          </div>
+          <div class="terminal terminal-stacked">
+            <div class="terminal-bar">
+              <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+              <span class="terminal-title">Terminal</span>
+            </div>
+            <div class="terminal-body terminal-sm">$ ANTHROPIC_BASE_URL=https://api.anymodel.dev \
+  ANTHROPIC_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-your-key</span> \
+  npx anymodel</div>
+          </div>
+
+          <div class="hiw-step">
+            <span class="hiw-step-num">2</span>
+            <span class="hiw-step-text">Done. anymodel connects to the remote proxy, launches the app.</span>
+          </div>
+
+          <p class="hiw-col-note">Your <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter key</a> goes directly to OpenRouter via the proxy. Nothing stored.</p>
         </div>
-        <div class="step fade-in" style="border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px;">
-          <div class="step-number">B</div>
-          <h3>Local Proxy <span style="font-size:0.75rem; color:var(--text-muted);">&mdash; full control</span></h3>
-          <p style="margin-bottom:12px;">Run the proxy on your machine. Two terminals. Everything stays local.</p>
-          <div class="step-cmd"><code>OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy</code><button class="copy-btn copy-btn-sm" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy" aria-label="Copy">Copy</button></div>
-          <p style="font-size:0.78rem; color:var(--text-muted); margin:6px 0;">Then in another terminal:</p>
-          <div class="step-cmd"><code>ANTHROPIC_BASE_URL=http://localhost:9090 claude</code><button class="copy-btn copy-btn-sm" data-copy="ANTHROPIC_BASE_URL=http://localhost:9090 claude" aria-label="Copy">Copy</button></div>
-          <p style="font-size:0.78rem; color:var(--text-muted); margin-top:8px;">Pick a model: <code>npx anymodel proxy --model qwen/qwen3-coder:free</code></p>
+
+        <!-- SEPARATOR -->
+        <div class="hiw-sep">
+          <div class="hiw-sep-line"></div>
+          <span class="hiw-sep-label">or</span>
+          <div class="hiw-sep-line"></div>
+        </div>
+
+        <!-- RIGHT: Local -->
+        <div class="hiw-col">
+          <div class="hiw-col-label">LOCAL <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; full control, two terminals</span></div>
+
+          <div class="hiw-step">
+            <span class="hiw-step-num">1</span>
+            <span class="hiw-step-text">Start the proxy:</span>
+          </div>
+          <div class="terminal terminal-stacked">
+            <div class="terminal-bar">
+              <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+              <span class="terminal-title">Terminal 1 &mdash; Proxy</span>
+            </div>
+            <div class="terminal-body terminal-sm">$ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> \
+  npx anymodel proxy</div>
+          </div>
+
+          <div class="hiw-step">
+            <span class="hiw-step-num">2</span>
+            <span class="hiw-step-text">Launch the app:</span>
+          </div>
+          <div class="terminal terminal-stacked">
+            <div class="terminal-bar">
+              <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+              <span class="terminal-title">Terminal 2 &mdash; App</span>
+            </div>
+            <div class="terminal-body terminal-sm">$ ANTHROPIC_BASE_URL=http://localhost:9090 \
+  node cli.js</div>
+          </div>
+
+          <p class="hiw-col-note">Clone <a href="https://github.com/antonoly/claude-code-anymodel" target="_blank" rel="noopener">the repo</a>. Everything on your machine. Works with Ollama too.</p>
         </div>
       </div>
-
-      <p class="fade-in" style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-top:20px;">Both work with your existing <code>claude</code> install. No cloning needed. Free models cost $0.</p>
 
       <!-- Architecture diagram -->
       <div class="arch-diagram fade-in">
