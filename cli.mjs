@@ -192,7 +192,7 @@ async function startFull(args) {
       });
       if (ok && remoteToken) {
         console.log(`${C.green('[anymodel]')} Remote proxy available at ${C.bold(remoteUrl)}`);
-        const modelLabel = opts.model || 'auto (free remote)';
+        const modelLabel = opts.model || 'nvidia/nemotron-3-super-120b-a12b:free';
         const client = findClient();
         if (client) {
           console.log(`${C.green('[anymodel]')} Launching ${C.bold(client.label)}`);
@@ -270,8 +270,8 @@ async function startFull(args) {
     return;
   }
 
-  // Determine model label for the banner
-  const modelLabel = opts.model || process.env.OPENROUTER_MODEL || 'auto (free)';
+  // Determine model label for the banner — show the ACTUAL model, not "auto"
+  const modelLabel = opts.model || process.env.OPENROUTER_MODEL || FREE_MODELS[0];
 
   console.log(`${C.green('[anymodel]')} Launching ${C.bold(client.label)}`);
   console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelLabel)}`);
