@@ -1,19 +1,17 @@
 #!/usr/bin/env node
 
-// anymodel CLI — Universal AI model proxy + client launcher
+// anymodel CLI — Run Claude Code with any AI model
 //
 // Usage:
-//   npx anymodel                              # proxy only (auto-detect provider)
-//   npx anymodel claude                       # proxy + Claude Code client
-//   npx anymodel gpt                          # proxy with GPT-4o
-//   npx anymodel gemini                       # proxy with Gemini 2.5 Flash
-//   npx anymodel qwen                         # proxy with Qwen3 Coder (free)
-//   npx anymodel --model qwen/qwen3-coder:free  # proxy with specific model
-//   npx anymodel proxy ollama                 # proxy with Ollama
+//   npx anymodel                              # show usage
+//   npx anymodel claude                       # run Claude Code directly
+//   npx anymodel proxy                        # start proxy (requires OPENROUTER_API_KEY)
+//   npx anymodel gpt                          # connect to running proxy with GPT-4o
+//   npx anymodel gemini                       # connect to running proxy with Gemini
+//   npx anymodel proxy ollama                 # start proxy with Ollama
 
 import { spawn, execSync } from 'child_process';
 import { existsSync } from 'fs';
-import { fileURLToPath } from 'url';
 import { join } from 'path';
 import { createProxy, loadEnv } from './proxy.mjs';
 
@@ -95,36 +93,37 @@ export async function detectProvider(model) {
   return null;
 }
 
+function printQuickUsage() {
+  console.log(`
+${C.magenta('anymodel')} — run Claude Code with any AI model
+
+${C.bold('Commands:')}
+  anymodel claude          Run Claude Code (no proxy needed)
+  anymodel proxy           Start the proxy (requires OPENROUTER_API_KEY)
+  anymodel <preset>        Connect to proxy with a model preset
+
+${C.bold('Model presets:')} gpt, gemini, qwen, llama, deepseek, nemotron
+
+${C.bold('Quick start:')}
+  npx anymodel claude                        ${C.cyan('# Use Claude directly')}
+  npx anymodel proxy                         ${C.cyan('# Start proxy first')}
+  npx anymodel gpt                           ${C.cyan('# Then use a model')}
+
+Run ${C.bold('anymodel --help')} for full options.
+`);
+}
+
 function printHelp() {
   console.log(`
-${C.magenta('  anymodel')} — AI coding assistant with any model
+${C.magenta('  anymodel')} — run Claude Code with any AI model
 
-  ${C.bold('Usage:')}
-    anymodel                                      ${C.cyan('# proxy only (auto-detect provider)')}
-    anymodel claude                               ${C.cyan('# proxy + Claude Code client')}
-    anymodel gpt                                  ${C.cyan('# proxy with GPT-4o')}
-    anymodel gemini                               ${C.cyan('# proxy with Gemini 2.5 Flash')}
-    anymodel qwen                                 ${C.cyan('# proxy with Qwen3 Coder (free)')}
-    anymodel llama                                ${C.cyan('# proxy with Llama 3.3 70B (free)')}
-    anymodel deepseek                             ${C.cyan('# proxy with DeepSeek R1')}
-    anymodel nemotron                             ${C.cyan('# proxy with Nemotron 120B (free)')}
-    anymodel proxy ollama                         ${C.cyan('# proxy with local Ollama')}
-    anymodel proxy openai                         ${C.cyan('# proxy with OpenAI-compatible API')}
-    anymodel proxy remote --token secret          ${C.cyan('# proxy for deployment')}
-
-  ${C.bold('Options:')}
-    --model, -m     Model to use (e.g., qwen/qwen3-coder:free)
-    --port, -p      Proxy port (default: 9090)
-    --free-only     Only allow free models
-    --token, -t     Require auth token for requests
-    --rpm           Rate limit: requests per minute (default: 60)
-    --help, -h      Show this help
-
-  ${C.bold('How it works:')}
-    ${C.bold('anymodel')}         = starts proxy only (auto-detects provider from env)
-    ${C.bold('anymodel claude')}  = starts proxy + launches Claude Code as client
-    ${C.bold('anymodel <preset>')} = starts proxy with a preset model (gpt, gemini, qwen, etc.)
-    ${C.bold('anymodel proxy')}   = starts proxy with explicit provider selection
+  ${C.bold('Commands:')}
+    anymodel claude                               ${C.cyan('# run Claude Code directly (no proxy)')}
+    anymodel proxy                                ${C.cyan('# start proxy (auto-detect provider)')}
+    anymodel proxy ollama                         ${C.cyan('# start proxy with local Ollama')}
+    anymodel proxy openai                         ${C.cyan('# start proxy with OpenAI-compatible API')}
+    anymodel proxy remote --token secret          ${C.cyan('# start proxy for deployment')}
+    anymodel <preset>                             ${C.cyan('# connect to running proxy with preset')}
 
   ${C.bold('Model Presets:')}
     gpt       → openai/gpt-4o
@@ -134,8 +133,28 @@ ${C.magenta('  anymodel')} — AI coding assistant with any model
     deepseek  → deepseek/deepseek-r1
     nemotron  → nvidia/nemotron-3-super-120b:free ${C.cyan('(free)')}
 
+  ${C.bold('Proxy Options:')} (only apply to ${C.bold('anymodel proxy')})
+    --model, -m     Model to use (e.g., qwen/qwen3-coder:free)
+    --port, -p      Proxy port (default: 9090)
+    --free-only     Only allow free models
+    --token, -t     Require auth token for requests
+    --rpm           Rate limit: requests per minute (default: 60)
+
+  ${C.bold('General Options:')}
+    --port, -p      Port to check/connect (for presets, default: 9090)
+    --help, -h      Show this help
+
+  ${C.bold('Workflow:')}
+    ${C.cyan('Terminal 1:')} OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy
+    ${C.cyan('Terminal 2:')} npx anymodel gpt
+
+  ${C.bold('How it works:')}
+    ${C.bold('anymodel claude')}   = runs Claude Code directly (no proxy, no API key needed)
+    ${C.bold('anymodel proxy')}    = starts the proxy server (OPENROUTER_API_KEY required)
+    ${C.bold('anymodel <preset>')} = connects to a running proxy and launches Claude Code
+
   ${C.bold('Environment:')}
-    OPENROUTER_API_KEY   Your OpenRouter API key
+    OPENROUTER_API_KEY   Your OpenRouter API key (for ${C.bold('proxy')} command)
     OPENROUTER_MODEL     Default model override
     OPENAI_API_KEY       API key for OpenAI-compatible endpoints
     OPENAI_BASE_URL      Base URL (default: https://api.openai.com/v1)
@@ -188,167 +207,83 @@ async function waitForProxy(port, maxAttempts = 50) {
   return false;
 }
 
-// ── Mode 1: Full experience (proxy + client) ────────
-async function startFull(args) {
-  loadEnv();
-  const opts = parseArgs(args);
-
-  if (opts.help) { printHelp(); process.exit(0); }
-
-  const port = opts.port || parseInt(process.env.PROXY_PORT, 10) || 9090;
-  const remoteUrl = process.env.ANYMODEL_REMOTE_URL || 'https://anymodel-proxy.anton-abyzov.workers.dev';
-  const remoteToken = process.env.ANYMODEL_TOKEN || '';
-
-  // OPENROUTER_API_KEY is required
-  const openrouterKey = process.env.OPENROUTER_API_KEY || '';
-  if (!openrouterKey) {
-    console.error(`${C.red('Error:')} OPENROUTER_API_KEY is required.`);
+// ── Mode 1: Launch Claude Code directly (no proxy) ──
+function launchClaude() {
+  const client = findClient();
+  if (!client) {
+    console.error(`${C.red('Error:')} Claude Code not found.`);
     console.error('');
-    console.error(`  Get your free key at ${C.cyan('https://openrouter.ai/keys')}`);
+    console.error(`  Install it with:`);
+    console.error(`    ${C.bold('npm i -g @anthropic-ai/claude-code')}`);
     console.error('');
     console.error(`  Then run:`);
-    console.error(`  ${C.bold('OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel')}`);
+    console.error(`    ${C.bold('npx anymodel claude')}`);
     console.error('');
     process.exit(1);
   }
 
-  const DEFAULT_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
-  const modelLabel = opts.model || DEFAULT_MODEL;
+  console.log(`${C.green('[anymodel]')} Launching Claude Code (${client.label})...`);
+  console.log('');
 
-  const maskedKey = openrouterKey.slice(0, 12) + '...' + openrouterKey.slice(-4);
-  console.log(`${C.green('[anymodel]')} OpenRouter key loaded: ${C.cyan(maskedKey)}`);
-
-  // Try remote proxy first
-  if (!opts.provider || opts.provider === 'auto') {
-    console.log(`${C.cyan('[anymodel]')} Checking remote proxy...`);
-    try {
-      const https = await import('https');
-      const ok = await new Promise((resolve) => {
-        const req = https.default.get(`${remoteUrl}/health`, { timeout: 3000 }, (res) => {
-          res.resume();
-          resolve(res.statusCode === 200);
-        });
-        req.on('error', () => resolve(false));
-        req.setTimeout(3000, () => { req.destroy(); resolve(false); });
-      });
-      if (ok) {
-        console.log(`${C.green('[anymodel]')} Proxy: ${C.bold('remote')} (api.anymodel.dev)`);
-        console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelLabel)}`);
-        const client = findClient();
-        if (client) {
-          console.log(`${C.green('[anymodel]')} Starting...`);
-          console.log('');
-          const clientChild = spawn(client.cmd, client.args, {
-            stdio: 'inherit',
-            env: {
-              ...process.env,
-              ANTHROPIC_BASE_URL: remoteUrl,
-              ANTHROPIC_API_KEY: openrouterKey,
-              ANYMODEL_MODEL: modelLabel,
-            },
-          });
-          clientChild.on('exit', (code) => process.exit(code || 0));
-          process.on('SIGINT', () => { clientChild.kill('SIGTERM'); process.exit(0); });
-          return;
-        }
-      }
-    } catch {}
-    console.log(`${C.yellow('[anymodel]')} Remote not available, starting local proxy...`);
-  }
-
-  // Build proxy args
-  const proxyArgs = ['proxy'];
-  if (opts.model) proxyArgs.push('--model', opts.model);
-  if (opts.freeOnly) proxyArgs.push('--free-only');
-  if (opts.port) proxyArgs.push('--port', String(opts.port));
-  if (opts.provider !== 'auto') proxyArgs.push(opts.provider);
-
-  // Start proxy as child process with IPC for port discovery
-  const __filename = fileURLToPath(import.meta.url);
-  const proxyChild = spawn(process.execPath, [__filename, ...proxyArgs], {
-    stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
+  const clientChild = spawn(client.cmd, client.args, {
+    stdio: 'inherit',
     env: process.env,
   });
 
-  proxyChild.on('error', (err) => {
-    console.error(`${C.red('[ERROR]')} Failed to start proxy: ${err.message}`);
-    process.exit(1);
-  });
+  clientChild.on('exit', (code) => process.exit(code || 0));
+  process.on('SIGINT', () => { clientChild.kill('SIGTERM'); process.exit(0); });
+}
 
-  // Wait for proxy to report its actual port via IPC
-  console.log(`${C.cyan('[anymodel]')} Starting proxy...`);
-  const actualPort = await new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error('Proxy startup timeout')), 15000);
-    proxyChild.on('message', (msg) => {
-      if (msg.type === 'port') { clearTimeout(timeout); resolve(msg.port); }
-    });
-    proxyChild.on('exit', (code) => {
-      clearTimeout(timeout);
-      reject(new Error(`Proxy exited with code ${code}`));
-    });
-  }).catch(err => {
-    console.error(`${C.red('[ERROR]')} ${err.message}. Check OPENROUTER_API_KEY in your .env`);
-    proxyChild.kill();
-    process.exit(1);
-  });
+// ── Mode 2: Connect to running proxy with a preset ──
+async function connectPreset(presetName, args) {
+  const opts = parseArgs(args);
+  const port = opts.port || parseInt(process.env.PROXY_PORT, 10) || 9090;
+  const modelId = MODEL_PRESETS[presetName];
 
-  // Find client
-  const client = findClient();
-  if (!client) {
-    console.log('');
-    console.log(`${C.green('[anymodel]')} Proxy running. No Claude Code client found.`);
-    console.log('');
-    console.log(`  ${C.bold('Install Claude Code and re-run:')}`);
-    console.log(`    npm i -g @anthropic-ai/claude-code`);
-    console.log(`    npx anymodel claude`);
-    console.log('');
-    console.log(`  ${C.bold('Or connect manually in another terminal:')}`);
-    if (process.platform === 'win32') {
-      console.log(`    set ANTHROPIC_BASE_URL=http://localhost:${actualPort}`);
-      console.log(`    claude`);
-    } else {
-      console.log(`    ANTHROPIC_BASE_URL=http://localhost:${actualPort} claude`);
-    }
-    console.log('');
-    // Keep proxy running — user will connect manually
-    return;
+  // Check if proxy is running
+  const proxyUp = await waitForProxy(port, 1);
+  if (!proxyUp) {
+    console.error(`${C.red('Error:')} Proxy not running on :${port}.`);
+    console.error('');
+    console.error(`  Start the proxy first:`);
+    console.error(`    ${C.bold(`OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy`)}`);
+    console.error('');
+    console.error(`  Then in another terminal:`);
+    console.error(`    ${C.bold(`npx anymodel ${presetName}`)}`);
+    console.error('');
+    process.exit(1);
   }
 
-  // Determine model label for local proxy banner
-  const localModelLabel = opts.model || process.env.OPENROUTER_MODEL || DEFAULT_MODEL;
+  // Find Claude Code client
+  const client = findClient();
+  if (!client) {
+    console.error(`${C.red('Error:')} Claude Code not found.`);
+    console.error('');
+    console.error(`  Install it with:`);
+    console.error(`    ${C.bold('npm i -g @anthropic-ai/claude-code')}`);
+    console.error('');
+    process.exit(1);
+  }
 
-  console.log(`${C.green('[anymodel]')} Proxy: ${C.bold('local')} (localhost:${actualPort})`);
-  console.log(`${C.green('[anymodel]')} Model: ${C.cyan(localModelLabel)}`);
-  console.log(`${C.green('[anymodel]')} Starting...`);
+  console.log(`${C.green('[anymodel]')} Proxy: ${C.bold('localhost:' + port)}`);
+  console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelId)}`);
+  console.log(`${C.green('[anymodel]')} Starting Claude Code...`);
   console.log('');
 
-  // Launch client with ANTHROPIC_BASE_URL and ANYMODEL_MODEL set
   const clientChild = spawn(client.cmd, client.args, {
     stdio: 'inherit',
     env: {
       ...process.env,
-      ANTHROPIC_BASE_URL: `http://localhost:${actualPort}`,
-      ANYMODEL_MODEL: localModelLabel,
+      ANTHROPIC_BASE_URL: `http://localhost:${port}`,
+      ANYMODEL_MODEL: modelId,
     },
   });
 
-  // Clean shutdown: when client exits, kill proxy
-  clientChild.on('exit', (code) => {
-    proxyChild.kill();
-    process.exit(code || 0);
-  });
-
-  // Handle Ctrl+C
-  const cleanup = () => {
-    clientChild.kill('SIGTERM');
-    proxyChild.kill('SIGTERM');
-    setTimeout(() => process.exit(0), 500);
-  };
-  process.on('SIGINT', cleanup);
-  process.on('SIGTERM', cleanup);
+  clientChild.on('exit', (code) => process.exit(code || 0));
+  process.on('SIGINT', () => { clientChild.kill('SIGTERM'); process.exit(0); });
 }
 
-// ── Mode 2: Proxy only (current behavior) ────────────
+// ── Mode 3: Proxy only ──────────────────────────────
 async function startProxyOnly(args) {
   loadEnv();
   const opts = parseArgs(args);
@@ -408,9 +343,11 @@ const rawArgs = process.argv.slice(2);
 const firstArg = rawArgs[0];
 
 // Detect mode
+const isHelpFlag = rawArgs.includes('--help') || rawArgs.includes('-h');
 const isProxyMode = firstArg === 'proxy' || PROVIDERS.includes(firstArg) || firstArg === 'remote';
 const isClientMode = firstArg === 'claude';
 const isPreset = firstArg && MODEL_PRESETS[firstArg];
+const isBare = rawArgs.length === 0;
 
 const isMain = process.argv[1] && (
   process.argv[1].endsWith('/cli.mjs') ||
@@ -419,18 +356,27 @@ const isMain = process.argv[1] && (
 );
 
 if (isMain) {
-  if (isClientMode) {
-    // `anymodel claude` — proxy + Claude Code client
-    startFull(rawArgs.slice(1));
-  } else if (isPreset) {
-    // `anymodel gpt` / `anymodel gemini` / etc. — proxy with preset model
-    startProxyOnly(['--model', MODEL_PRESETS[firstArg], ...rawArgs.slice(1)]);
+  if (isBare) {
+    // `anymodel` — show quick usage
+    printQuickUsage();
+  } else if (isHelpFlag && !isProxyMode) {
+    // `anymodel --help` — show full help (but let proxy mode handle its own --help)
+    printHelp();
+  } else if (isClientMode) {
+    // `anymodel claude` — launch Claude Code directly (no proxy)
+    launchClaude();
   } else if (isProxyMode) {
     // `anymodel proxy ...` or `anymodel openrouter` or `anymodel remote`
     const proxyArgs = firstArg === 'proxy' ? rawArgs.slice(1) : rawArgs;
     startProxyOnly(proxyArgs);
+  } else if (isPreset) {
+    // `anymodel gpt` / `anymodel gemini` / etc. — connect to running proxy
+    connectPreset(firstArg, rawArgs.slice(1));
   } else {
-    // `anymodel` or `anymodel --model X` — proxy only
-    startProxyOnly(rawArgs);
+    // Unknown command — show quick usage
+    console.error(`${C.red('Error:')} Unknown command "${firstArg}"`);
+    console.error('');
+    printQuickUsage();
+    process.exit(1);
   }
 }
