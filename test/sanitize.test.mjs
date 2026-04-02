@@ -1,0 +1,113 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { sanitizeBody } from '../proxy.mjs';
+
+describe('sanitizeBody', () => {
+  it('strips top-level Anthropic-specific fields', () => {
+    const body = {
+      model: 'claude-3-opus',
+      messages: [],
+      betas: ['beta1'],
+      metadata: { user_id: '123' },
+      speed: 'fast',
+      output_config: { format: 'json' },
+      context_management: { enabled: true },
+      thinking: { type: 'enabled', budget_tokens: 5000 },
+    };
+    const result = sanitizeBody(body);
+    assert.equal(result.betas, undefined);
+    assert.equal(result.metadata, undefined);
+    assert.equal(result.speed, undefined);
+    assert.equal(result.output_config, undefined);
+    assert.equal(result.context_management, undefined);
+    assert.equal(result.thinking, undefined);
+    // Preserves non-Anthropic fields
+    assert.equal(result.model, 'claude-3-opus');
+    assert.deepEqual(result.messages, []);
+  });
+
+  it('strips cache_control from system blocks', () => {
+    const body = {
+      system: [
+        { type: 'text', text: 'You are helpful', cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: 'Be concise' },
+      ],
+    };
+    const result = sanitizeBody(body);
+    assert.deepEqual(result.system, [
+      { type: 'text', text: 'You are helpful' },
+      { type: 'text', text: 'Be concise' },
+    ]);
+  });
+
+  it('strips cache_control from message content blocks', () => {
+    const body = {
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Hello', cache_control: { type: 'ephemeral' } },
+            { type: 'text', text: 'World' },
+          ],
+        },
+      ],
+    };
+    const result = sanitizeBody(body);
+    assert.deepEqual(result.messages[0].content, [
+      { type: 'text', text: 'Hello' },
+      { type: 'text', text: 'World' },
+    ]);
+  });
+
+  it('handles messages with string content (no-op)', () => {
+    const body = {
+      messages: [{ role: 'user', content: 'Hello' }],
+    };
+    const result = sanitizeBody(body);
+    assert.equal(result.messages[0].content, 'Hello');
+  });
+
+  it('strips Anthropic-only tool fields', () => {
+    const body = {
+      tools: [
+        {
+          name: 'get_weather',
+          description: 'Get weather',
+          input_schema: { type: 'object' },
+          cache_control: { type: 'ephemeral' },
+          defer_loading: true,
+          eager_input_streaming: true,
+          strict: true,
+        },
+      ],
+    };
+    const result = sanitizeBody(body);
+    assert.deepEqual(result.tools, [
+      { name: 'get_weather', description: 'Get weather', input_schema: { type: 'object' } },
+    ]);
+  });
+
+  it('normalizes tool_choice string to object', () => {
+    const body = { tool_choice: 'auto' };
+    const result = sanitizeBody(body);
+    assert.deepEqual(result.tool_choice, { type: 'auto' });
+  });
+
+  it('preserves tool_choice when already an object', () => {
+    const body = { tool_choice: { type: 'tool', name: 'get_weather' } };
+    const result = sanitizeBody(body);
+    assert.deepEqual(result.tool_choice, { type: 'tool', name: 'get_weather' });
+  });
+
+  it('handles empty body gracefully', () => {
+    const result = sanitizeBody({});
+    assert.deepEqual(result, {});
+  });
+
+  it('handles body with no system/messages/tools', () => {
+    const body = { model: 'test', max_tokens: 100 };
+    const result = sanitizeBody(body);
+    assert.equal(result.model, 'test');
+    assert.equal(result.max_tokens, 100);
+  });
+});

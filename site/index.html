@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>anymodel — Run Claude Code with Any AI Model</title>
+  <meta name="description" content="Run Claude Code with GPT, Gemini, Llama, or any AI model. One command, zero dependencies. Works with OpenRouter, Ollama, and more.">
+  <link rel="canonical" href="https://anymodel.dev">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="anymodel — Run Claude Code with Any AI Model">
+  <meta property="og:description" content="Run Claude Code with GPT, Gemini, Llama, or any AI model. One command, zero dependencies.">
+  <meta property="og:url" content="https://anymodel.dev">
+  <meta property="og:image" content="https://anymodel.dev/assets/og.svg">
+  <meta property="og:site_name" content="anymodel">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="anymodel — Run Claude Code with Any AI Model">
+  <meta name="twitter:description" content="Run Claude Code with GPT, Gemini, Llama, or any AI model. One command, zero dependencies.">
+  <meta name="twitter:image" content="https://anymodel.dev/assets/og.svg">
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "anymodel",
+    "operatingSystem": "Cross-platform",
+    "applicationCategory": "DeveloperApplication",
+    "description": "CLI proxy that lets you run Claude Code with any AI model via OpenRouter, Ollama, or any compatible provider.",
+    "url": "https://anymodel.dev",
+    "downloadUrl": "https://www.npmjs.com/package/anymodel",
+    "license": "https://opensource.org/licenses/MIT",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ═══ HERO ═══ -->
+  <section class="hero" id="hero">
+    <div class="container">
+      <div class="hero-content">
+        <h1><span class="gradient-text">Claude Code. Any Model.</span></h1>
+        <p class="hero-sub">Run Claude Code with GPT, Gemini, Llama, or any AI model. One command.</p>
+
+        <div class="terminal fade-in">
+          <div class="terminal-bar">
+            <span class="terminal-dot"></span>
+            <span class="terminal-dot"></span>
+            <span class="terminal-dot"></span>
+          </div>
+          <div class="terminal-body"><span id="terminal-typed" style="visibility:hidden"></span><span class="cursor"></span></div>
+        </div>
+
+        <div class="cta-group fade-in">
+          <a href="#install" class="btn-primary">Get Started</a>
+          <a href="https://github.com/antonoly/anymodel" target="_blank" rel="noopener" class="btn-secondary">View on GitHub &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ HOW IT WORKS ═══ -->
+  <section id="how-it-works">
+    <div class="container">
+      <div class="section-label fade-in">How It Works</div>
+      <h2 class="section-title fade-in">Three steps. That's it.</h2>
+      <p class="section-desc fade-in">No config files. No complex setup. Just one command.</p>
+
+      <div class="steps-grid">
+        <div class="step fade-in">
+          <div class="step-number">1</div>
+          <h3>Install</h3>
+          <p><code>npx anymodel</code></p>
+          <p>One command, zero deps</p>
+        </div>
+        <div class="step fade-in">
+          <div class="step-number">2</div>
+          <h3>Proxy starts</h3>
+          <p>Routes AI requests through your chosen provider automatically</p>
+        </div>
+        <div class="step fade-in">
+          <div class="step-number">3</div>
+          <h3>Use Claude Code</h3>
+          <p>Full Claude Code experience, powered by any model</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ PROVIDERS ═══ -->
+  <section id="providers">
+    <div class="container">
+      <div class="section-label fade-in">Providers</div>
+      <h2 class="section-title fade-in">Works with everything.</h2>
+      <p class="section-desc fade-in">OpenRouter, Ollama, or any OpenAI-compatible endpoint.</p>
+
+      <div class="providers-grid">
+        <div class="provider-card fade-in">
+          <div class="provider-icon" aria-hidden="true">&#9672;</div>
+          <h3>OpenRouter</h3>
+          <p>Hundreds of models. Free tier available. One API key for everything.</p>
+        </div>
+        <div class="provider-card fade-in">
+          <div class="provider-icon" aria-hidden="true">&#9881;</div>
+          <h3>Ollama</h3>
+          <p>Run models locally. Completely private. No API key needed.</p>
+        </div>
+        <div class="provider-card fade-in">
+          <div class="provider-icon" aria-hidden="true">&#9830;</div>
+          <h3>Google Gemini</h3>
+          <p>Gemini Pro &amp; Flash via OpenRouter. Great price-to-performance.</p>
+        </div>
+        <div class="provider-card fade-in">
+          <div class="provider-icon" aria-hidden="true">&#9638;</div>
+          <h3>Meta Llama</h3>
+          <p>Llama 3, CodeLlama. Run via OpenRouter or locally with Ollama.</p>
+        </div>
+        <div class="provider-card fade-in">
+          <div class="provider-icon" aria-hidden="true">&#9670;</div>
+          <h3>Mistral</h3>
+          <p>Mixtral, Codestral. European models via OpenRouter.</p>
+        </div>
+        <div class="provider-card fade-in">
+          <div class="provider-icon" aria-hidden="true">&#11042;</div>
+          <h3>OpenAI GPT</h3>
+          <p>GPT-4o, o1, o3. Full OpenAI lineup through OpenRouter.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FEATURES ═══ -->
+  <section id="features">
+    <div class="container">
+      <div class="section-label fade-in">Features</div>
+      <h2 class="section-title fade-in">Built for developers.</h2>
+      <p class="section-desc fade-in">Everything you need, nothing you don't.</p>
+
+      <div class="features-grid">
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">&#9744;</span>
+          <h3>Zero Dependencies</h3>
+          <p>Only Node.js built-ins. No bloat, no supply chain risk.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">&#8635;</span>
+          <h3>Auto-Detection</h3>
+          <p>Finds your provider and configuration automatically.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">&#9888;</span>
+          <h3>Field Sanitization</h3>
+          <p>Strips Anthropic-only fields seamlessly. No request errors.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">&#8634;</span>
+          <h3>Smart Retries</h3>
+          <p>Exponential backoff on rate limits. Never lose a request.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">&#9733;</span>
+          <h3>Any Model</h3>
+          <p>200+ models via OpenRouter. Pick whatever fits your task.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">&#9749;</span>
+          <h3>Local &amp; Private</h3>
+          <p>Run with Ollama. Nothing leaves your machine.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ INSTALL ═══ -->
+  <section id="install">
+    <div class="container">
+      <div class="install-hero fade-in">
+        <div class="section-label">Get Started</div>
+        <h2 class="section-title">One command away.</h2>
+
+        <div class="install-cmd">
+          <span class="dollar">$</span>
+          <span>npx anymodel</span>
+          <button class="copy-btn" data-copy="npx anymodel" aria-label="Copy install command">Copy</button>
+        </div>
+      </div>
+
+      <div class="code-blocks">
+        <div class="code-block fade-in">
+          <div class="code-block-header">
+            <span>Usage</span>
+            <button class="copy-btn" data-copy="npx anymodel openrouter" aria-label="Copy usage examples">Copy</button>
+          </div>
+          <pre><span class="cmd">npx anymodel openrouter</span>          <span class="comment"># OpenRouter</span>
+<span class="cmd">npx anymodel ollama</span>              <span class="comment"># Local Ollama</span>
+<span class="cmd">npx anymodel --model llama3</span>      <span class="comment"># Specific model</span></pre>
+        </div>
+        <div class="code-block fade-in">
+          <div class="code-block-header">
+            <span>Environment</span>
+            <button class="copy-btn" data-copy='export OPENROUTER_API_KEY="your-key"' aria-label="Copy environment setup">Copy</button>
+          </div>
+          <pre><span class="cmd">export OPENROUTER_API_KEY=</span>"your-key"
+
+<span class="comment"># Get a free key:</span>
+<span class="comment"># openrouter.ai/keys</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer>
+    <div class="container">
+      <div class="footer-inner">
+        <div class="footer-links">
+          <a href="https://github.com/antonoly/anymodel" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://www.npmjs.com/package/anymodel" target="_blank" rel="noopener">npm</a>
+          <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">Get OpenRouter Key</a>
+        </div>
+        <span class="footer-tagline">Made for developers who want choice. MIT License.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
