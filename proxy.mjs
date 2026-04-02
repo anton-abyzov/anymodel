@@ -107,7 +107,8 @@ export function loadEnv(dir) {
 }
 
 function sendRequest(provider, url, payload) {
-  const opts = provider.buildRequest(url, payload, process.env.OPENROUTER_API_KEY);
+  const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
+  const opts = provider.buildRequest(url, payload, apiKey);
 
   return new Promise((resolve, reject) => {
     const transport = opts.port === 443 || opts.protocol === 'https:' ? https : http;
@@ -148,9 +149,12 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
 
   sanitizeBody(parsed);
 
-  const payload = JSON.stringify(parsed);
+  // If provider has format translation (e.g., openai), apply it
+  const isStreaming = parsed.stream;
+  const requestBody = provider.transformRequest ? provider.transformRequest(parsed) : parsed;
+  const payload = JSON.stringify(requestBody);
   const modelDisplay = model ? `${originalModel} \u2192 ${model}` : originalModel;
-  console.log(`${C.cyan(`[${provider.name.toUpperCase()}]`)} ${req.method} ${req.url} model=${modelDisplay}${parsed.stream ? ' stream=true' : ''}`);
+  console.log(`${C.cyan(`[${provider.name.toUpperCase()}]`)} ${req.method} ${req.url} model=${modelDisplay}${isStreaming ? ' stream=true' : ''}`);
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -187,6 +191,35 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
       }
 
       console.log(`${C.green(`[${provider.name.toUpperCase()}]`)} 200 \u2190 streaming response (attempt ${attempt})`);
+
+      // If provider needs response translation (e.g., openai)
+      if (provider.transformResponse && !isStreaming) {
+        // Non-streaming: read full body, translate, send as Anthropic format
+        const respChunks = [];
+        upstream.on('data', c => respChunks.push(c));
+        await new Promise(r => upstream.on('end', r));
+        const respBody = JSON.parse(Buffer.concat(respChunks).toString());
+        const translated = provider.transformResponse(respBody);
+        const translatedPayload = JSON.stringify(translated);
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(translatedPayload);
+        return;
+      }
+
+      if (provider.createStreamTranslator && isStreaming) {
+        // Streaming: pipe through translator to convert SSE format
+        const translator = provider.createStreamTranslator();
+        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'connection': 'keep-alive' });
+        upstream.on('data', chunk => {
+          const translated = translator.transform(chunk.toString());
+          if (translated) res.write(translated);
+        });
+        upstream.on('end', () => res.end());
+        upstream.on('error', () => res.end());
+        return;
+      }
+
+      // Default: pipe through as-is (openrouter, ollama)
       res.writeHead(200, upstream.headers);
       upstream.pipe(res);
       return;

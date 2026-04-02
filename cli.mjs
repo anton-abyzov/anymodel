@@ -15,7 +15,7 @@ import { fileURLToPath } from 'url';
 import { join } from 'path';
 import { createProxy, loadEnv } from './proxy.mjs';
 
-const PROVIDERS = ['openrouter', 'ollama'];
+const PROVIDERS = ['openrouter', 'ollama', 'openai'];
 
 // Verified free models on OpenRouter (zero cost) — from live /v1/models API
 export const FREE_MODELS = [
@@ -77,6 +77,7 @@ export async function detectProvider(model) {
     return 'openrouter';
   }
   if (process.env.OPENROUTER_API_KEY) return 'openrouter';
+  if (process.env.OPENAI_API_KEY) return 'openai';
   const { default: ollama } = await import('./providers/ollama.mjs');
   if (await ollama.detect()) return 'ollama';
   return null;
@@ -91,6 +92,7 @@ ${C.magenta('  anymodel')} — AI coding assistant with any model
     anymodel proxy                                ${C.cyan('# just the proxy server')}
     anymodel proxy openrouter                     ${C.cyan('# proxy with OpenRouter')}
     anymodel proxy ollama                         ${C.cyan('# proxy with Ollama')}
+    anymodel proxy openai                         ${C.cyan('# proxy with OpenAI-compatible API')}
     anymodel proxy remote --token secret          ${C.cyan('# proxy for deployment')}
 
   ${C.bold('Options:')}
@@ -119,6 +121,8 @@ ${C.magenta('  anymodel')} — AI coding assistant with any model
   ${C.bold('Environment:')}
     OPENROUTER_API_KEY   Your OpenRouter API key
     OPENROUTER_MODEL     Default model override
+    OPENAI_API_KEY       API key for OpenAI-compatible endpoints
+    OPENAI_BASE_URL      Base URL (default: https://api.openai.com/v1)
     ANYMODEL_TOKEN       Auth token for remote mode
     PROXY_PORT           Default port override
 
@@ -337,6 +341,9 @@ async function startProxyOnly(args) {
       console.error('');
       console.error('  Set OPENROUTER_API_KEY for OpenRouter:');
       console.error('    export OPENROUTER_API_KEY=sk-or-...');
+      console.error('');
+      console.error('  Set OPENAI_API_KEY for OpenAI-compatible endpoints:');
+      console.error('    export OPENAI_API_KEY=sk-...');
       console.error('');
       console.error('  Or start Ollama for local models:');
       console.error('    ollama serve');
