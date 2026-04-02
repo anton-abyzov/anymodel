@@ -3,19 +3,19 @@
   --bg-primary: #09090b;
   --bg-secondary: #0f0f12;
   --bg-tertiary: #16161a;
-  --bg-card: rgba(255, 255, 255, 0.025);
-  --bg-card-hover: rgba(255, 255, 255, 0.04);
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-card-hover: rgba(255, 255, 255, 0.06);
   --text-primary: #fafafa;
-  --text-secondary: #71717a;
-  --text-muted: #52525b;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
   --accent-purple: #a855f7;
   --accent-blue: #3b82f6;
   --accent-cyan: #06b6d4;
   --accent-emerald: #10b981;
   --gradient: linear-gradient(135deg, #a855f7 0%, #6366f1 35%, #3b82f6 65%, #06b6d4 100%);
   --gradient-subtle: linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(59, 130, 246, 0.15), rgba(6, 182, 212, 0.15));
-  --border: rgba(255, 255, 255, 0.06);
-  --border-hover: rgba(255, 255, 255, 0.12);
+  --border: rgba(255, 255, 255, 0.10);
+  --border-hover: rgba(255, 255, 255, 0.18);
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
   --radius-xl: 20px;
@@ -1011,7 +1011,7 @@ section { padding: 120px 0; }
   margin-top: 40px;
 }
 .guide-card {
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 28px;
@@ -1025,7 +1025,7 @@ section { padding: 120px 0; }
   display: flex;
   gap: 12px;
   font-size: 0.88rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   line-height: 1.6;
 }
 .guide-num {
@@ -1046,13 +1046,14 @@ section { padding: 120px 0; }
 .guide-step a { color: var(--accent-cyan); text-decoration: underline; text-underline-offset: 2px; }
 .guide-step code { font-size: 0.78rem; background: var(--bg-primary); padding: 1px 5px; border-radius: 4px; }
 .guide-step pre {
-  background: var(--bg-primary);
+  background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  line-height: 1.6;
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: var(--text-primary);
   overflow-x: auto;
 }
 .guide-step pre code { background: none; padding: 0; }
@@ -1074,7 +1075,7 @@ section { padding: 120px 0; }
   gap: 8px;
 }
 .faq-item {
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -1105,8 +1106,9 @@ section { padding: 120px 0; }
 .faq-item p {
   padding: 0 20px 16px;
   font-size: 0.88rem;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   line-height: 1.7;
+  opacity: 0.85;
 }
 .faq-item code {
   font-family: var(--font-mono);
