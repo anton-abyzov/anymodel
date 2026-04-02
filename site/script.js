@@ -3,14 +3,14 @@ function typeTerminal() {
   const el = document.getElementById('terminal-typed');
   if (!el) return;
   const lines = [
-    '$ npx anymodel --model google/gemini-2.5-flash',
+    '$ npx anymodel --model google/gemini-2.5-flash:free',
     '',
-    '\u2194 anymodel v1.0.0 proxy on :9090',
-    '  /v1/messages \u2192 OpenRouter (google/gemini-2.5-flash)',
-    '  /health      \u2192 status endpoint',
-    '  everything else \u2192 passthrough',
+    '\u2194 anymodel proxy on :9090',
+    '  /v1/messages \u2192 OpenRouter (gemini-2.5-flash:free)',
     '',
-    'Ready. Point your AI tool at localhost:9090'
+    '$ ANTHROPIC_BASE_URL=http://localhost:9090 claude',
+    '',
+    '\u2713 Claude Code running with Gemini 2.5 Flash (free)'
   ];
   const text = lines.join('\n');
   let i = 0;
