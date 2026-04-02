@@ -1,6 +1,9 @@
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { calcDelay, MAX_RETRIES } from '../proxy.mjs';
+import { writeFileSync, mkdirSync, rmSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import { calcDelay, isProviderRoute, loadEnv, MAX_RETRIES } from '../proxy.mjs';
 
 describe('retry logic', () => {
   it('exports MAX_RETRIES as 3', () => {
@@ -38,5 +41,49 @@ describe('request routing', () => {
   });
 });
 
-// Import after tests are defined so the describe blocks register
-import { isProviderRoute } from '../proxy.mjs';
+describe('loadEnv', () => {
+  let tmpDir;
+
+  beforeEach(() => {
+    tmpDir = join(tmpdir(), `anymodel-test-${Date.now()}`);
+    mkdirSync(tmpDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    rmSync(tmpDir, { recursive: true, force: true });
+    delete process.env.ANYMODEL_TEST_PLAIN;
+    delete process.env.ANYMODEL_TEST_DQ;
+    delete process.env.ANYMODEL_TEST_SQ;
+  });
+
+  it('strips double quotes from .env values', () => {
+    writeFileSync(join(tmpDir, '.env'), 'ANYMODEL_TEST_DQ="hello-world"\n');
+    loadEnv(tmpDir);
+    assert.equal(process.env.ANYMODEL_TEST_DQ, 'hello-world');
+  });
+
+  it('strips single quotes from .env values', () => {
+    writeFileSync(join(tmpDir, '.env'), "ANYMODEL_TEST_SQ='hello-world'\n");
+    loadEnv(tmpDir);
+    assert.equal(process.env.ANYMODEL_TEST_SQ, 'hello-world');
+  });
+
+  it('loads unquoted values as-is', () => {
+    writeFileSync(join(tmpDir, '.env'), 'ANYMODEL_TEST_PLAIN=hello-world\n');
+    loadEnv(tmpDir);
+    assert.equal(process.env.ANYMODEL_TEST_PLAIN, 'hello-world');
+  });
+
+  it('skips comments and blank lines', () => {
+    writeFileSync(join(tmpDir, '.env'), '# comment\n\nANYMODEL_TEST_PLAIN=ok\n');
+    loadEnv(tmpDir);
+    assert.equal(process.env.ANYMODEL_TEST_PLAIN, 'ok');
+  });
+
+  it('does not override existing env vars', () => {
+    process.env.ANYMODEL_TEST_PLAIN = 'original';
+    writeFileSync(join(tmpDir, '.env'), 'ANYMODEL_TEST_PLAIN=overridden\n');
+    loadEnv(tmpDir);
+    assert.equal(process.env.ANYMODEL_TEST_PLAIN, 'original');
+  });
+});

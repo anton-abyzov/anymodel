@@ -5,6 +5,8 @@ import http from 'http';
 import https from 'https';
 import { readFileSync } from 'fs';
 
+const pkg = JSON.parse(readFileSync(new URL('package.json', import.meta.url), 'utf8'));
+
 export const MAX_RETRIES = 3;
 
 // ANSI colors
@@ -29,7 +31,7 @@ export function sanitizeBody(body) {
   // Strip cache_control from system blocks
   if (Array.isArray(body.system)) {
     body.system = body.system.map(block => {
-      if (typeof block === 'object' && block.cache_control) {
+      if (block && typeof block === 'object' && block.cache_control) {
         const { cache_control, ...rest } = block;
         return rest;
       }
@@ -42,7 +44,7 @@ export function sanitizeBody(body) {
     for (const msg of body.messages) {
       if (Array.isArray(msg.content)) {
         msg.content = msg.content.map(block => {
-          if (typeof block === 'object' && block.cache_control) {
+          if (block && typeof block === 'object' && block.cache_control) {
             const { cache_control, ...rest } = block;
             return rest;
           }
@@ -82,10 +84,10 @@ export function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
-// Load .env file if present
+// Load .env file if present (from given dir, or cwd)
 export function loadEnv(dir) {
   try {
-    const envPath = dir ? `${dir}/.env` : new URL('.env', import.meta.url);
+    const envPath = dir ? `${dir}/.env` : `${process.cwd()}/.env`;
     const envFile = readFileSync(envPath, 'utf8');
     for (const line of envFile.split('\n')) {
       const trimmed = line.trim();
@@ -93,7 +95,11 @@ export function loadEnv(dir) {
       const eq = trimmed.indexOf('=');
       if (eq > 0) {
         const key = trimmed.slice(0, eq).trim();
-        const val = trimmed.slice(eq + 1).trim();
+        let val = trimmed.slice(eq + 1).trim();
+        // Strip surrounding quotes
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
         if (!process.env[key]) process.env[key] = val;
       }
     }
@@ -104,7 +110,7 @@ function sendRequest(provider, url, payload) {
   const opts = provider.buildRequest(url, payload, process.env.OPENROUTER_API_KEY);
 
   return new Promise((resolve, reject) => {
-    const transport = opts.port === 443 ? https : http;
+    const transport = opts.port === 443 || opts.protocol === 'https:' ? https : http;
     const req = transport.request(opts, upstream => resolve(upstream));
     req.on('error', reject);
     req.write(payload);
@@ -182,7 +188,7 @@ async function handleMessages(req, res, provider, model) {
         res.end(JSON.stringify({ error: { type: 'proxy_error', message: e.message } }));
         return;
       }
-      await sleep(1000 * attempt);
+      await sleep(calcDelay(attempt));
     }
   }
 }
@@ -220,7 +226,7 @@ export function createProxy(provider, { port = 9090, model } = {}) {
 
   server.listen(port, () => {
     console.log('');
-    console.log(C.magenta(`  anymodel v1.0.0`));
+    console.log(C.magenta(`  anymodel v${pkg.version}`));
     console.log('');
     console.log(`  ${C.cyan('\u2194')}  Proxy on :${port}`);
     console.log(`     /v1/messages \u2192 ${C.bold(provider.name)} ${provider.displayInfo(model)}`);

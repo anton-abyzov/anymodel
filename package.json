@@ -5,6 +5,7 @@
   "type": "module",
   "bin": { "anymodel": "./cli.mjs" },
   "main": "proxy.mjs",
+  "files": ["cli.mjs", "proxy.mjs", "providers/", "README.md", "LICENSE"],
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "start": "node cli.mjs"

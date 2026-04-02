@@ -110,4 +110,23 @@ describe('sanitizeBody', () => {
     assert.equal(result.model, 'test');
     assert.equal(result.max_tokens, 100);
   });
+
+  it('handles null content blocks without throwing', () => {
+    const body = {
+      system: [null, { type: 'text', text: 'ok', cache_control: { type: 'ephemeral' } }],
+      messages: [
+        { role: 'user', content: [null, { type: 'text', text: 'hi' }] },
+      ],
+    };
+    const result = sanitizeBody(body);
+    assert.equal(result.system[0], null);
+    assert.deepEqual(result.system[1], { type: 'text', text: 'ok' });
+    assert.equal(result.messages[0].content[0], null);
+    assert.deepEqual(result.messages[0].content[1], { type: 'text', text: 'hi' });
+  });
+
+  it('preserves tool_choice when null or undefined', () => {
+    assert.deepEqual(sanitizeBody({ tool_choice: null }), { tool_choice: null });
+    assert.deepEqual(sanitizeBody({}), {});
+  });
 });
