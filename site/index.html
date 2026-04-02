@@ -502,12 +502,13 @@ npx anymodel ollama --model llama3" aria-label="Copy example">Copy</button>
           <pre><code><span class="hl-comment"># Use --free-only to restrict to $0 models</span>
 <span class="hl-cmd">npx</span> anymodel --free-only
 
-<span class="hl-comment"># Or pick a specific free model</span>
+<span class="hl-comment"># Best free coding models (all $0, with tool use):</span>
+<span class="hl-cmd">npx</span> anymodel --model qwen/qwen3-coder:free
 <span class="hl-cmd">npx</span> anymodel --model google/gemini-2.5-flash:free
-<span class="hl-cmd">npx</span> anymodel --model meta-llama/llama-4-maverick:free
+<span class="hl-cmd">npx</span> anymodel --model openai/gpt-oss-120b:free
 <span class="hl-cmd">npx</span> anymodel --model deepseek/deepseek-chat-v3-0324:free
 
-<span class="hl-comment"># Paid models are blocked in free-only mode.</span></code></pre>
+<span class="hl-comment"># Paid models are blocked. 29 free models available.</span></code></pre>
           <button class="copy-btn" data-copy="npx anymodel --free-only" aria-label="Copy example">Copy</button>
         </div>
 

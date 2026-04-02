@@ -11,17 +11,18 @@ import { createProxy, loadEnv } from './proxy.mjs';
 
 const PROVIDERS = ['openrouter', 'ollama'];
 
-// Known free models on OpenRouter (zero cost)
+// Known free models on OpenRouter (zero cost, with tool use support)
 export const FREE_MODELS = [
-  'google/gemini-2.5-flash:free',
-  'google/gemma-3-27b-it:free',
-  'meta-llama/llama-4-maverick:free',
-  'meta-llama/llama-4-scout:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'mistralai/mistral-small-3.1-24b-instruct:free',
-  'deepseek/deepseek-chat-v3-0324:free',
-  'qwen/qwen-2.5-72b-instruct:free',
-  'microsoft/phi-4-reasoning:free',
+  'qwen/qwen3-coder:free',                          // Best free coding model (480B MoE)
+  'google/gemini-2.5-flash:free',                    // Fast, great at code (94.2% HumanEval)
+  'qwen/qwen3.6-plus-preview:free',                  // Newest, 1M context
+  'openai/gpt-oss-120b:free',                        // OpenAI open-source 120B
+  'deepseek/deepseek-chat-v3-0324:free',             // DeepSeek V3
+  'meta-llama/llama-4-maverick:free',                // Llama 4 open weight
+  'meta-llama/llama-4-scout:free',                   // Llama 4 lighter
+  'qwen/qwen3-235b-a22b:free',                       // 235B MoE reasoning
+  'google/gemini-3-flash-preview-20251217:free',      // Gemini 3 Flash preview
+  'mistralai/mistral-small-3.1-24b-instruct:free',   // Mistral Small
 ];
 
 export function parseArgs(argv) {
@@ -96,11 +97,12 @@ function printHelp() {
     anymodel remote --token mysecret              # shared proxy, free models only
     anymodel --free-only                          # local, free models only
 
-  \x1b[1mFree Models:\x1b[0m
-    google/gemini-2.5-flash:free     Best free coding model
-    meta-llama/llama-4-maverick:free Llama 4 — open weight
+  \x1b[1mFree Models (all $0, with tool use):\x1b[0m
+    qwen/qwen3-coder:free            Best for coding (480B MoE)
+    google/gemini-2.5-flash:free     Fast, 94% HumanEval
+    openai/gpt-oss-120b:free         OpenAI open-source 120B
     deepseek/deepseek-chat-v3-0324:free  DeepSeek V3
-    mistralai/mistral-small-3.1-24b-instruct:free  Mistral Small
+    meta-llama/llama-4-maverick:free Open weight Llama 4
 
   \x1b[1mEnvironment:\x1b[0m
     OPENROUTER_API_KEY   Your OpenRouter API key (https://openrouter.ai/keys)
