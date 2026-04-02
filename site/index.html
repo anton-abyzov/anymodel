@@ -119,12 +119,12 @@
         <div class="step fade-in">
           <div class="step-number">2</div>
           <h3>Proxy Starts</h3>
-          <p>Auto-detects your provider. Starts a local proxy on port 9090.</p>
+          <p>Checks for <code>OPENROUTER_API_KEY</code> in your env or <code>.env</code> file &rarr; uses OpenRouter. No key? Checks for Ollama at <code>localhost:11434</code>. Or specify with <code>--model</code>.</p>
         </div>
         <div class="step fade-in">
           <div class="step-number">3</div>
           <h3>Use Any Model</h3>
-          <p>Point your AI tool at the proxy. Full compatibility, any model you want.</p>
+          <p>Set <code>ANTHROPIC_BASE_URL=http://localhost:9090</code> and launch Claude Code or any compatible tool. The proxy handles the rest.</p>
         </div>
       </div>
 
