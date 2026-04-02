@@ -112,26 +112,58 @@
       <div class="hero-content">
         <div class="hero-badge fade-in">Open Source &middot; Zero Dependencies &middot; Free Models Available</div>
         <h1 class="fade-in"><span class="gradient-text">Claude Code.</span><br><span class="gradient-text">Any Model.</span></h1>
-        <p class="hero-sub fade-in">Run <strong>Claude Code</strong> with <strong>Gemini</strong>, <strong>GPT</strong>, <strong>Llama</strong>, <strong>DeepSeek</strong>, or any of 200+ models via <strong>OpenRouter</strong>. You bring your own key &mdash; free models cost $0.</p>
+        <p class="hero-sub fade-in">Run <strong>Claude Code</strong> with <strong>Claude</strong>, <strong>Gemini</strong>, <strong>GPT</strong>, <strong>Llama</strong>, <strong>DeepSeek</strong>, or any of 200+ models via <strong>OpenRouter</strong>. You bring your own key &mdash; free models cost $0.</p>
 
-        <div class="dual-terminal fade-in">
-          <div class="terminal terminal-left">
-            <div class="terminal-bar">
-              <span class="terminal-dot"></span>
-              <span class="terminal-dot"></span>
-              <span class="terminal-dot"></span>
-              <span class="terminal-title">Remote &mdash; one command, no install</span>
+        <div class="hero-compare fade-in">
+          <!-- LEFT: Remote -->
+          <div class="hero-col">
+            <div class="hero-col-label" style="color: var(--accent-cyan);">REMOTE <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; one command</span></div>
+            <div class="terminal">
+              <div class="terminal-bar">
+                <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+                <span class="terminal-title">Terminal</span>
+              </div>
+              <div class="terminal-body terminal-sm">$ ANTHROPIC_BASE_URL=https://api.anymodel.dev \
+  ANTHROPIC_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-your-key</span> \
+  npx anymodel
+
+<span style="color:var(--accent-emerald)">\u2713</span> anymodel \u2014 qwen/qwen3-coder:free
+  Your key \u2192 OpenRouter \u2192 any model</div>
             </div>
-            <div class="terminal-body"><span id="term1-typed" style="visibility:hidden"></span><span class="cursor"></span></div>
+            <p class="hero-col-note">No install. No proxy to run. Your <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter key</a> goes directly to OpenRouter &mdash; never stored.</p>
           </div>
-          <div class="terminal terminal-right">
-            <div class="terminal-bar">
-              <span class="terminal-dot"></span>
-              <span class="terminal-dot"></span>
-              <span class="terminal-dot"></span>
-              <span class="terminal-title">Local &mdash; full control, two terminals</span>
+
+          <!-- SEPARATOR -->
+          <div class="hero-sep">
+            <div class="hero-sep-line"></div>
+            <span class="hero-sep-label">or</span>
+            <div class="hero-sep-line"></div>
+          </div>
+
+          <!-- RIGHT: Local -->
+          <div class="hero-col">
+            <div class="hero-col-label">LOCAL <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; full control</span></div>
+            <div class="terminal terminal-stacked">
+              <div class="terminal-bar">
+                <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+                <span class="terminal-title">Terminal 1 &mdash; Proxy</span>
+              </div>
+              <div class="terminal-body terminal-sm">$ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> \
+  npx anymodel proxy
+
+<span style="color:var(--accent-cyan)">\u2194</span> proxy on :9090 \u2192 OpenRouter</div>
             </div>
-            <div class="terminal-body"><span id="term2-typed" style="visibility:hidden"></span><span class="cursor cursor-delayed"></span></div>
+            <div class="terminal terminal-stacked" style="margin-top:8px;">
+              <div class="terminal-bar">
+                <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+                <span class="terminal-title">Terminal 2 &mdash; anymodel</span>
+              </div>
+              <div class="terminal-body terminal-sm">$ ANTHROPIC_BASE_URL=http://localhost:9090 \
+  node cli.js
+
+<span style="color:var(--accent-emerald)">\u2713</span> anymodel v1.4.0 \u2014 local</div>
+            </div>
+            <p class="hero-col-note">Clone <a href="https://github.com/antonoly/claude-code-anymodel" target="_blank" rel="noopener">the repo</a>, run proxy + app. Everything on your machine. Works with Ollama too.</p>
           </div>
         </div>
 

@@ -249,12 +249,48 @@ section { padding: 120px 0; }
 }
 
 /* Terminal mockup */
-.dual-terminal {
+.hero-compare {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  max-width: 900px;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0;
+  max-width: 960px;
   margin: 0 auto 40px;
+  align-items: start;
+}
+.hero-col { padding: 0 16px; }
+.hero-col-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+  text-align: center;
+}
+.hero-col-note {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 12px;
+  text-align: center;
+  line-height: 1.5;
+}
+.hero-col-note a { color: var(--accent-cyan); text-decoration: underline; text-underline-offset: 2px; }
+.hero-sep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  align-self: stretch;
+}
+.hero-sep-line {
+  flex: 1;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, var(--border-hover), transparent);
+}
+.hero-sep-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 .terminal {
   background: var(--bg-tertiary);
@@ -264,12 +300,16 @@ section { padding: 120px 0; }
   text-align: left;
   box-shadow: var(--shadow-glow), 0 24px 48px rgba(0,0,0,0.4);
 }
-.terminal-right {
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 30px rgba(59,130,246,0.08), 0 24px 48px rgba(0,0,0,0.4);
+.terminal-stacked {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
 }
-.cursor-delayed {
-  animation-delay: 2.5s;
+.terminal-sm {
+  font-size: 0.72rem;
+  padding: 14px 16px;
+  min-height: auto;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 .terminal-bar {
   display: flex;
@@ -1015,7 +1055,9 @@ footer {
 @media (max-width: 768px) {
   section { padding: 80px 0; }
   .nav-links a:not(.nav-github) { display: none; }
-  .dual-terminal { grid-template-columns: 1fr; }
+  .hero-compare { grid-template-columns: 1fr; gap: 24px; }
+  .hero-sep { flex-direction: row; padding: 8px 0; }
+  .hero-sep-line { height: 1px; width: 100%; flex: 1; background: linear-gradient(to right, transparent, var(--border-hover), transparent); }
   .steps-grid { grid-template-columns: 1fr !important; gap: 40px; }
   .steps-grid::before { display: none; }
   .models-grid { grid-template-columns: 1fr; }

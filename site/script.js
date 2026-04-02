@@ -1,47 +1,5 @@
-// Dual terminal typing effect
-function typeTerminal() {
-  const el1 = document.getElementById('term1-typed');
-  const el2 = document.getElementById('term2-typed');
-  if (!el1 || !el2) return;
-
-  const left = [
-    '$ ANTHROPIC_BASE_URL=https://api.anymodel.dev \\',
-    '  ANTHROPIC_API_KEY=sk-or-v1-your-key \\',
-    '  claude',
-    '',
-    '\u2713 Connected via anymodel remote proxy',
-    '  Your key \u2192 OpenRouter \u2192 any model'
-  ].join('\n');
-
-  const right = [
-    '# Terminal 1:',
-    '$ OPENROUTER_API_KEY=sk-or-... npx anymodel proxy',
-    '',
-    '\u2194 proxy on :9090 \u2192 OpenRouter',
-    '',
-    '# Terminal 2:',
-    '$ ANTHROPIC_BASE_URL=http://localhost:9090 claude'
-  ].join('\n');
-
-  function typeIn(el, text, speed, cb) {
-    let i = 0;
-    el.textContent = '';
-    el.style.visibility = 'visible';
-    function tick() {
-      if (i <= text.length) {
-        el.textContent = text.slice(0, i);
-        i++;
-        setTimeout(tick, i === 1 ? 0 : text[i - 2] === '\n' ? 120 : speed);
-      } else if (cb) cb();
-    }
-    tick();
-  }
-
-  // Type left terminal first, then right
-  typeIn(el1, left, 18, function() {
-    setTimeout(function() { typeIn(el2, right, 22); }, 400);
-  });
-}
+// Terminal content is now static HTML — no typing animation needed
+function typeTerminal() {}
 
 // Path tabs
 function initPathTabs() {
