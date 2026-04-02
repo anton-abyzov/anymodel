@@ -948,6 +948,55 @@ footer {
   color: var(--text-muted);
 }
 
+/* ── Path Tabs ───────────────────────────────────── */
+.paths-container {
+  margin-top: 40px;
+}
+.path-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 0;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  padding: 4px 4px 0;
+  border: 1px solid var(--border);
+  border-bottom: none;
+}
+.path-tab {
+  flex: 1;
+  padding: 12px 20px;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+.path-tab:hover {
+  color: var(--text-secondary);
+}
+.path-tab.active {
+  color: var(--text-primary);
+  background: var(--bg-card);
+}
+.path-panel {
+  display: none;
+  padding: 32px 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+.path-panel.active {
+  display: block;
+}
+.path-panel .steps-grid {
+  margin-top: 0;
+}
+
 /* ════════════════════════════════════════════════════
    RESPONSIVE
    ════════════════════════════════════════════════════ */

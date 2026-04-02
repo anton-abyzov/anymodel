@@ -3,14 +3,12 @@ function typeTerminal() {
   const el = document.getElementById('terminal-typed');
   if (!el) return;
   const lines = [
-    '$ npx anymodel --model google/gemini-2.5-flash:free',
+    '$ ANTHROPIC_BASE_URL=https://anymodel-proxy.anton-abyzov.workers.dev claude',
     '',
-    '\u2194 anymodel proxy on :9090',
-    '  /v1/messages \u2192 OpenRouter (gemini-2.5-flash:free)',
+    '\u2713 Claude Code connected \u2014 using free models via anymodel proxy',
     '',
-    '$ ANTHROPIC_BASE_URL=http://localhost:9090 claude',
-    '',
-    '\u2713 Claude Code running with Gemini 2.5 Flash (free)'
+    '$ Or run locally:',
+    '$ npx anymodel --model google/gemini-2.5-flash:free'
   ];
   const text = lines.join('\n');
   let i = 0;
@@ -25,6 +23,22 @@ function typeTerminal() {
     }
   }
   tick();
+}
+
+// Path tabs
+function initPathTabs() {
+  document.querySelectorAll('.path-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const group = tab.closest('.paths-container');
+      if (!group) return;
+      const id = tab.getAttribute('data-path');
+      group.querySelectorAll('.path-tab').forEach((t) => t.classList.remove('active'));
+      group.querySelectorAll('.path-panel').forEach((p) => p.classList.remove('active'));
+      tab.classList.add('active');
+      const panel = group.querySelector('.path-panel[data-path="' + id + '"]');
+      if (panel) panel.classList.add('active');
+    });
+  });
 }
 
 // Fade-in on scroll
@@ -96,6 +110,7 @@ function initNavScroll() {
 
 document.addEventListener('DOMContentLoaded', () => {
   typeTerminal();
+  initPathTabs();
   initScrollAnimations();
   initSmoothScroll();
   initCopyButtons();
