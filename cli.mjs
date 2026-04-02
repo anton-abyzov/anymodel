@@ -177,46 +177,58 @@ async function startFull(args) {
   const remoteUrl = process.env.ANYMODEL_REMOTE_URL || 'https://anymodel-proxy.anton-abyzov.workers.dev';
   const remoteToken = process.env.ANYMODEL_TOKEN || '';
 
-  // Try remote proxy when OPENROUTER_API_KEY is set (simplest path)
+  // OPENROUTER_API_KEY is required
+  const openrouterKey = process.env.OPENROUTER_API_KEY || '';
+  if (!openrouterKey) {
+    console.error(`${C.red('Error:')} OPENROUTER_API_KEY is required.`);
+    console.error('');
+    console.error(`  Get your free key at ${C.cyan('https://openrouter.ai/keys')}`);
+    console.error('');
+    console.error(`  Then run:`);
+    console.error(`  ${C.bold('OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel')}`);
+    console.error('');
+    process.exit(1);
+  }
+
+  const DEFAULT_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
+  const modelLabel = opts.model || DEFAULT_MODEL;
+
+  // Try remote proxy first
   if (!opts.provider || opts.provider === 'auto') {
-    const openrouterKey = process.env.OPENROUTER_API_KEY || '';
-    if (openrouterKey.startsWith('sk-or-')) {
-      console.log(`${C.cyan('[anymodel]')} Checking remote proxy...`);
-      try {
-        const https = await import('https');
-        const ok = await new Promise((resolve) => {
-          const req = https.default.get(`${remoteUrl}/health`, { timeout: 3000 }, (res) => {
-            res.resume();
-            resolve(res.statusCode === 200);
-          });
-          req.on('error', () => resolve(false));
-          req.setTimeout(3000, () => { req.destroy(); resolve(false); });
+    console.log(`${C.cyan('[anymodel]')} Checking remote proxy...`);
+    try {
+      const https = await import('https');
+      const ok = await new Promise((resolve) => {
+        const req = https.default.get(`${remoteUrl}/health`, { timeout: 3000 }, (res) => {
+          res.resume();
+          resolve(res.statusCode === 200);
         });
-        if (ok) {
-          console.log(`${C.green('[anymodel]')} Remote proxy available at ${C.bold('api.anymodel.dev')}`);
-          const modelLabel = opts.model || 'openrouter/free (auto-selects best free model)';
-          const client = findClient();
-          if (client) {
-            console.log(`${C.green('[anymodel]')} Launching ${C.bold(client.label)}`);
-            console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelLabel)}`);
-            console.log('');
-            const clientChild = spawn(client.cmd, client.args, {
-              stdio: 'inherit',
-              env: {
-                ...process.env,
-                ANTHROPIC_BASE_URL: remoteUrl,
-                ANTHROPIC_API_KEY: openrouterKey,  // BYOK: user's own key
-                ANYMODEL_MODEL: modelLabel,
-              },
-            });
-            clientChild.on('exit', (code) => process.exit(code || 0));
-            process.on('SIGINT', () => { clientChild.kill('SIGTERM'); process.exit(0); });
-            return;
-          }
+        req.on('error', () => resolve(false));
+        req.setTimeout(3000, () => { req.destroy(); resolve(false); });
+      });
+      if (ok) {
+        console.log(`${C.green('[anymodel]')} Remote proxy at ${C.bold('api.anymodel.dev')}`);
+        console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelLabel)}`);
+        const client = findClient();
+        if (client) {
+          console.log(`${C.green('[anymodel]')} Launching ${C.bold(client.label)}`);
+          console.log('');
+          const clientChild = spawn(client.cmd, client.args, {
+            stdio: 'inherit',
+            env: {
+              ...process.env,
+              ANTHROPIC_BASE_URL: remoteUrl,
+              ANTHROPIC_API_KEY: openrouterKey,
+              ANYMODEL_MODEL: modelLabel,
+            },
+          });
+          clientChild.on('exit', (code) => process.exit(code || 0));
+          process.on('SIGINT', () => { clientChild.kill('SIGTERM'); process.exit(0); });
+          return;
         }
-      } catch {}
-      console.log(`${C.yellow('[anymodel]')} Remote not available, starting local proxy...`);
-    }
+      }
+    } catch {}
+    console.log(`${C.yellow('[anymodel]')} Remote not available, starting local proxy...`);
   }
 
   // Build proxy args
