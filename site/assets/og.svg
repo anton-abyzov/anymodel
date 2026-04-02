@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="50%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#111113"/>
+      <stop offset="100%" stop-color="#0a0a0b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Dot pattern -->
+  <pattern id="dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+    <circle cx="12" cy="12" r="0.8" fill="rgba(255,255,255,0.04)"/>
+  </pattern>
+  <rect width="1200" height="630" fill="url(#dots)"/>
+  <!-- Glow -->
+  <ellipse cx="600" cy="280" rx="400" ry="250" fill="rgba(168,85,247,0.06)"/>
+  <!-- Terminal box -->
+  <rect x="340" y="340" width="520" height="180" rx="12" fill="#111113" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+  <circle cx="364" cy="362" r="5" fill="#ff5f57"/>
+  <circle cx="382" cy="362" r="5" fill="#febc2e"/>
+  <circle cx="400" cy="362" r="5" fill="#28c840"/>
+  <line x1="340" y1="378" x2="860" y2="378" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="368" y="410" font-family="monospace" font-size="15" fill="#888">$ npx anymodel</text>
+  <text x="368" y="440" font-family="monospace" font-size="13" fill="#555">↔ anymodel proxy on :9090</text>
+  <text x="368" y="462" font-family="monospace" font-size="13" fill="#555">  /v1/messages → OpenRouter</text>
+  <text x="368" y="494" font-family="monospace" font-size="13" fill="#06b6d4">Ready.</text>
+  <!-- Title -->
+  <text x="600" y="200" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="64" font-weight="800" fill="url(#g)">Claude Code. Any Model.</text>
+  <text x="600" y="260" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="22" fill="#888">Run Claude Code with GPT, Gemini, Llama, or any AI model.</text>
+  <!-- Badge -->
+  <text x="600" y="590" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="16" fill="#555">anymodel.dev</text>
+</svg>
