@@ -379,7 +379,7 @@
         <div class="feature-card fade-in">
           <span class="feature-icon" aria-hidden="true">&#128274;</span>
           <h3>Token Auth</h3>
-          <p>Secure your proxy with <code>--token</code>. Clients pass it via <code>ANTHROPIC_API_KEY</code>.</p>
+          <p>Secure your proxy with <code>--token</code>. Protect shared deployments from unauthorized use.</p>
         </div>
         <div class="feature-card fade-in">
           <span class="feature-icon" aria-hidden="true">&#9881;</span>
@@ -503,12 +503,12 @@
             <span class="example-tag" style="background: rgba(168, 85, 247, 0.15); color: #a855f7;">Remote</span>
             <h3>Use free models instantly</h3>
           </div>
-          <pre><code><span class="hl-comment"># No install. No API key. Just run Claude Code:</span>
-<span class="hl-cmd">ANTHROPIC_BASE_URL</span>=https://api.anymodel.dev \
-<span class="hl-cmd">ANTHROPIC_API_KEY</span>=anymodel-remote-token-2026 \
-claude
+          <pre><code><span class="hl-comment"># Just your OpenRouter key. One command.</span>
+<span class="hl-cmd">OPENROUTER_API_KEY</span>=sk-or-v1-your-key \
+  npx anymodel
 
-<span class="hl-comment"># That's it. Free models, zero setup.</span></code></pre>
+<span class="hl-comment"># Connects to api.anymodel.dev automatically.</span>
+<span class="hl-comment"># Your key goes directly to OpenRouter.</span></code></pre>
           <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel" aria-label="Copy example">Copy</button>
         </div>
 
@@ -553,15 +553,14 @@ ANTHROPIC_BASE_URL=http://localhost:9090 claude" aria-label="Copy example">Copy<
             <span class="example-tag" style="background: rgba(168, 85, 247, 0.15); color: #a855f7;">Remote</span>
             <h3>Remote proxy for teams</h3>
           </div>
-          <pre><code><span class="hl-comment"># Deploy as a shared proxy (free models, auth, rate limit)</span>
+          <pre><code><span class="hl-comment"># Deploy a shared proxy for your team</span>
 <span class="hl-cmd">npx</span> anymodel remote --token my-team-secret
 
-<span class="hl-comment"># Team members connect from any machine:</span>
-<span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://your-server:9090 \
-<span class="hl-cmd">ANTHROPIC_API_KEY</span>=my-team-secret \
-claude
+<span class="hl-comment"># Team members just set their OpenRouter key:</span>
+<span class="hl-cmd">OPENROUTER_API_KEY</span>=sk-or-v1-their-key \
+  npx anymodel
 
-<span class="hl-comment"># Defaults: free-only, 60 req/min, token required.</span></code></pre>
+<span class="hl-comment"># Free-only, 60 req/min, token auth.</span></code></pre>
           <button class="copy-btn" data-copy="npx anymodel remote --token my-team-secret" aria-label="Copy example">Copy</button>
         </div>
 
