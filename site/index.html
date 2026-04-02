@@ -139,8 +139,8 @@
   <section id="how-it-works" class="section-alt">
     <div class="container">
       <div class="section-label fade-in">How It Works</div>
-      <h2 class="section-title fade-in">Pick your setup. Both use your own key.</h2>
-      <p class="section-desc fade-in">Get a free <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent-cyan)">OpenRouter API key</a> (no credit card for free models). Your key &mdash; your models &mdash; your machine.</p>
+      <h2 class="section-title fade-in">One key. Two ways to run.</h2>
+      <p class="section-desc fade-in">Get a free <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent-cyan)">OpenRouter API key</a> (no credit card for free models), then pick remote or local.</p>
 
       <div class="hiw-compare fade-in">
         <!-- LEFT: Remote -->
@@ -185,6 +185,9 @@ $ npx anymodel --model qwen/qwen3-coder:free</div>
         <div class="hiw-col">
           <div class="hiw-col-label">LOCAL <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; full control, two terminals</span></div>
 
+          <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:12px;">First, clone the repo:</p>
+          <div class="step-cmd" style="margin-bottom:16px; font-size:0.75rem;"><code>git clone https://github.com/antonoly/claude-code-anymodel &amp;&amp; cd claude-code-anymodel</code><button class="copy-btn copy-btn-sm" data-copy="git clone https://github.com/antonoly/claude-code-anymodel && cd claude-code-anymodel" aria-label="Copy">Copy</button></div>
+
           <div class="hiw-step">
             <span class="hiw-step-num">1</span>
             <span class="hiw-step-text">Start the proxy:</span>
@@ -211,7 +214,7 @@ $ npx anymodel --model qwen/qwen3-coder:free</div>
   node cli.js</div>
           </div>
 
-          <p class="hiw-col-note">Clone <a href="https://github.com/antonoly/claude-code-anymodel" target="_blank" rel="noopener">the repo</a>. Everything on your machine. Works with Ollama too.</p>
+          <p class="hiw-col-note">Everything on your machine. Works offline with <a href="#guides">Ollama</a> too.</p>
         </div>
       </div>
 
