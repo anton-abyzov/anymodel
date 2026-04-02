@@ -1196,9 +1196,10 @@ section { padding: 120px 0; }
   font-size: 0.92rem;
   cursor: pointer;
   list-style: none;
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
+  gap: 16px;
   user-select: none;
 }
 .faq-item summary::after {
