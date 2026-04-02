@@ -5,18 +5,22 @@ function typeTerminal() {
   if (!el1 || !el2) return;
 
   const left = [
-    '$ export OPENROUTER_API_KEY=sk-or-v1-...',
-    '$ npx anymodel proxy',
+    '$ ANTHROPIC_BASE_URL=https://api.anymodel.dev \\',
+    '  ANTHROPIC_API_KEY=sk-or-v1-your-key \\',
+    '  claude',
     '',
-    '\u2194 anymodel proxy on :9090',
-    '  /v1/messages \u2192 OpenRouter'
+    '\u2713 Connected via anymodel remote proxy',
+    '  Your key \u2192 OpenRouter \u2192 any model'
   ].join('\n');
 
   const right = [
-    '$ ANTHROPIC_BASE_URL=http://localhost:9090 claude',
+    '# Terminal 1:',
+    '$ OPENROUTER_API_KEY=sk-or-... npx anymodel proxy',
     '',
-    '\u2713 Claude Code running with any model',
-    '  Model: qwen/qwen3-coder:free'
+    '\u2194 proxy on :9090 \u2192 OpenRouter',
+    '',
+    '# Terminal 2:',
+    '$ ANTHROPIC_BASE_URL=http://localhost:9090 claude'
   ].join('\n');
 
   function typeIn(el, text, speed, cb) {

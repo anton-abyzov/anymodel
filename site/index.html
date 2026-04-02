@@ -120,7 +120,7 @@
               <span class="terminal-dot"></span>
               <span class="terminal-dot"></span>
               <span class="terminal-dot"></span>
-              <span class="terminal-title">Terminal 1 &mdash; Proxy</span>
+              <span class="terminal-title">Remote &mdash; one command, no install</span>
             </div>
             <div class="terminal-body"><span id="term1-typed" style="visibility:hidden"></span><span class="cursor"></span></div>
           </div>
@@ -129,7 +129,7 @@
               <span class="terminal-dot"></span>
               <span class="terminal-dot"></span>
               <span class="terminal-dot"></span>
-              <span class="terminal-title">Terminal 2 &mdash; Claude Code</span>
+              <span class="terminal-title">Local &mdash; full control, two terminals</span>
             </div>
             <div class="terminal-body"><span id="term2-typed" style="visibility:hidden"></span><span class="cursor cursor-delayed"></span></div>
           </div>
@@ -157,26 +157,29 @@
   <section id="how-it-works" class="section-alt">
     <div class="container">
       <div class="section-label fade-in">How It Works</div>
-      <h2 class="section-title fade-in">Two terminals. Two commands.</h2>
-      <p class="section-desc fade-in">You need a free <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent-cyan)">OpenRouter API key</a> and Node.js 18+. No cloning, no config files. Your key stays on your machine.</p>
+      <h2 class="section-title fade-in">Pick your setup. Both use your own key.</h2>
+      <p class="section-desc fade-in">Get a free <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent-cyan)">OpenRouter API key</a> (no credit card for free models). Your key &mdash; your models &mdash; your machine.</p>
 
       <div class="steps-grid" style="grid-template-columns: 1fr 1fr; gap: 24px;">
-        <div class="step fade-in" style="border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px;">
-          <div class="step-number">1</div>
-          <h3>Terminal 1 &mdash; Start the proxy</h3>
-          <div class="step-cmd"><code>export OPENROUTER_API_KEY=sk-or-v1-...</code><button class="copy-btn copy-btn-sm" data-copy="export OPENROUTER_API_KEY=sk-or-v1-..." aria-label="Copy">Copy</button></div>
-          <div class="step-cmd"><code>npx anymodel proxy</code><button class="copy-btn copy-btn-sm" data-copy="npx anymodel proxy" aria-label="Copy">Copy</button></div>
-          <p>Get your key free at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. The proxy starts on <code>:9090</code> and translates requests for any model.</p>
+        <div class="step fade-in" style="border: 1px solid var(--accent-cyan); border-radius: var(--radius-lg); padding: 24px; background: rgba(6,182,212,0.03);">
+          <div class="step-number" style="background: var(--accent-cyan);">A</div>
+          <h3>Remote Proxy <span style="font-size:0.75rem; color:var(--accent-cyan);">&mdash; simplest</span></h3>
+          <p style="margin-bottom:12px;">One command. No npm, no install, no proxy to run. Just set your OpenRouter key and go.</p>
+          <div class="step-cmd"><code>ANTHROPIC_BASE_URL=https://api.anymodel.dev ANTHROPIC_API_KEY=sk-or-v1-your-key claude</code><button class="copy-btn copy-btn-sm" data-copy="ANTHROPIC_BASE_URL=https://api.anymodel.dev ANTHROPIC_API_KEY=sk-or-v1-your-key claude" aria-label="Copy">Copy</button></div>
+          <p style="font-size:0.78rem; color:var(--text-muted); margin-top:8px;">The remote proxy at <code>api.anymodel.dev</code> uses YOUR key to call OpenRouter. Nothing stored server-side.</p>
         </div>
-        <div class="step fade-in" style="border: 1px solid var(--accent-blue); border-radius: var(--radius-lg); padding: 24px; background: rgba(59,130,246,0.03);">
-          <div class="step-number">2</div>
-          <h3>Terminal 2 &mdash; Use Claude Code</h3>
+        <div class="step fade-in" style="border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px;">
+          <div class="step-number">B</div>
+          <h3>Local Proxy <span style="font-size:0.75rem; color:var(--text-muted);">&mdash; full control</span></h3>
+          <p style="margin-bottom:12px;">Run the proxy on your machine. Two terminals. Everything stays local.</p>
+          <div class="step-cmd"><code>OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy</code><button class="copy-btn copy-btn-sm" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy" aria-label="Copy">Copy</button></div>
+          <p style="font-size:0.78rem; color:var(--text-muted); margin:6px 0;">Then in another terminal:</p>
           <div class="step-cmd"><code>ANTHROPIC_BASE_URL=http://localhost:9090 claude</code><button class="copy-btn copy-btn-sm" data-copy="ANTHROPIC_BASE_URL=http://localhost:9090 claude" aria-label="Copy">Copy</button></div>
-          <p>Point Claude Code at the proxy. It now uses whatever model you chose &mdash; GPT, Gemini, Llama, or any of 200+ models. Full features, any provider.</p>
+          <p style="font-size:0.78rem; color:var(--text-muted); margin-top:8px;">Pick a model: <code>npx anymodel proxy --model qwen/qwen3-coder:free</code></p>
         </div>
       </div>
 
-      <p class="fade-in" style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-top:20px;">Works with your existing <code>claude</code> install. No cloning or forking needed. Or use <code>--model</code> to pick a specific model: <code>npx anymodel proxy --model qwen/qwen3-coder:free</code></p>
+      <p class="fade-in" style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-top:20px;">Both work with your existing <code>claude</code> install. No cloning needed. Free models cost $0.</p>
 
       <!-- Architecture diagram -->
       <div class="arch-diagram fade-in">

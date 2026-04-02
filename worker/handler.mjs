@@ -169,11 +169,14 @@ export async function handleRequest(request, env) {
     }
   }
 
-  // Auth check
+  // BYOK: Use the user's key from the request header, fall back to server key
   const headers = Object.fromEntries(request.headers.entries());
-  if (!checkAuth(headers, token)) {
+  const userKey = headers['x-api-key'] || headers['authorization']?.replace('Bearer ', '') || '';
+  const effectiveKey = (userKey && userKey.startsWith('sk-or-')) ? userKey : apiKey;
+
+  if (!effectiveKey) {
     return new Response(JSON.stringify({
-      error: { type: 'auth_error', message: 'Invalid or missing token' }
+      error: { type: 'auth_error', message: 'OpenRouter API key required. Set ANTHROPIC_API_KEY to your OpenRouter key (starts with sk-or-).' }
     }), { status: 401, headers: { 'content-type': 'application/json' } });
   }
 
@@ -212,8 +215,8 @@ export async function handleRequest(request, env) {
   sanitizeBody(body);
   const payload = JSON.stringify(body);
 
-  // Forward to OpenRouter with retries
-  const orReq = buildOpenRouterRequest(url.pathname, apiKey);
+  // Forward to OpenRouter with retries (using user's key or server fallback)
+  const orReq = buildOpenRouterRequest(url.pathname, effectiveKey);
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
