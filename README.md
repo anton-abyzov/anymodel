@@ -14,14 +14,22 @@ anymodel is a proxy that sits between Claude Code and your model provider. It st
 
 ## Quick Start
 
-### Remote (simplest — one command)
+### Proxy only (one command)
 
 ```bash
 OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel
 ```
 
-Uses the remote proxy at `api.anymodel.dev`. Your key goes directly to OpenRouter — nothing stored.
+Starts the proxy on `:9090`. Connect any client with `ANTHROPIC_BASE_URL=http://localhost:9090`.
 Default model: `nvidia/nemotron-3-super-120b-a12b:free`.
+
+### With Claude Code
+
+```bash
+OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel claude
+```
+
+Starts the proxy and launches Claude Code automatically.
 
 ### Local (two terminals)
 
@@ -37,26 +45,32 @@ Get your free OpenRouter key at [openrouter.ai/keys](https://openrouter.ai/keys)
 
 ---
 
-## Pick a Model
+## Model Presets
+
+Pick a model by name — no `--model` flag needed:
 
 ```bash
-# Free models ($0)
-npx anymodel --model qwen/qwen3-coder:free
-npx anymodel --model nvidia/nemotron-3-super-120b-a12b:free
-npx anymodel --model openai/gpt-oss-120b:free
-npx anymodel --model qwen/qwen3.6-plus:free
+npx anymodel gpt        # → openai/gpt-4o
+npx anymodel gemini     # → google/gemini-2.5-flash
+npx anymodel qwen       # → qwen/qwen3-coder:free
+npx anymodel llama      # → meta-llama/llama-3.3-70b-instruct:free
+npx anymodel deepseek   # → deepseek/deepseek-r1
+npx anymodel nemotron   # → nvidia/nemotron-3-super-120b-a12b:free
+```
 
-# Paid models (your OpenRouter credits)
+Or use `--model` for any of 200+ models on OpenRouter:
+
+```bash
+npx anymodel --model qwen/qwen3.6-plus:free
 npx anymodel --model anthropic/claude-opus-4.6
-npx anymodel --model openai/gpt-4o
 npx anymodel --model google/gemini-2.5-pro
 ```
 
 ## How It Works
 
 ```
-REMOTE:  anymodel → api.anymodel.dev → OpenRouter → any model
-LOCAL:   node cli.js → localhost:9090 → OpenRouter / Ollama / OpenAI-compatible
+PROXY:   anymodel → localhost:9090 → OpenRouter / Ollama / OpenAI-compatible
+CLIENT:  anymodel claude → proxy + Claude Code (auto-connected)
 ```
 
 The proxy intercepts `/v1/messages`, translates formats if needed, strips incompatible fields, retries with backoff, and streams back.
@@ -88,11 +102,16 @@ OPENAI_API_KEY=none OPENAI_BASE_URL=http://localhost:8080/v1 \
 ## CLI Reference
 
 ```
-anymodel                              # remote (uses api.anymodel.dev)
-anymodel proxy                        # local proxy on :9090
-anymodel proxy openrouter             # local, OpenRouter (Anthropic format)
-anymodel proxy ollama                 # local, Ollama
-anymodel proxy openai                 # local, OpenAI-compatible (translates format)
+anymodel                              # proxy only (auto-detect provider)
+anymodel claude                       # proxy + Claude Code client
+anymodel gpt                          # proxy with GPT-4o preset
+anymodel gemini                       # proxy with Gemini 2.5 Flash preset
+anymodel qwen                         # proxy with Qwen3 Coder preset (free)
+anymodel llama                        # proxy with Llama 3.3 70B preset (free)
+anymodel deepseek                     # proxy with DeepSeek R1 preset
+anymodel nemotron                     # proxy with Nemotron 120B preset (free)
+anymodel proxy ollama                 # proxy with local Ollama
+anymodel proxy openai                 # proxy with OpenAI-compatible (translates format)
 
 Options:
   --model, -m     Model (e.g., qwen/qwen3-coder:free)

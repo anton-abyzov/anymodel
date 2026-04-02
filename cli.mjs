@@ -5,10 +5,11 @@
 // Usage:
 //   npx anymodel                              # proxy only (auto-detect provider)
 //   npx anymodel claude                       # proxy + Claude Code client
-//   npx anymodel claude --model X             # proxy + Claude Code with specific model
-//   npx anymodel proxy openrouter             # proxy with OpenRouter
-//   npx anymodel proxy ollama                 # proxy with Ollama
+//   npx anymodel gpt                          # proxy with GPT-4o
+//   npx anymodel gemini                       # proxy with Gemini 2.5 Flash
+//   npx anymodel qwen                         # proxy with Qwen3 Coder (free)
 //   npx anymodel --model qwen/qwen3-coder:free  # proxy with specific model
+//   npx anymodel proxy ollama                 # proxy with Ollama
 
 import { spawn, execSync } from 'child_process';
 import { existsSync } from 'fs';
@@ -17,6 +18,16 @@ import { join } from 'path';
 import { createProxy, loadEnv } from './proxy.mjs';
 
 const PROVIDERS = ['openrouter', 'ollama', 'openai'];
+
+// Model presets — short aliases for popular models
+const MODEL_PRESETS = {
+  gpt:      'openai/gpt-4o',
+  gemini:   'google/gemini-2.5-flash',
+  qwen:     'qwen/qwen3-coder:free',
+  llama:    'meta-llama/llama-3.3-70b-instruct:free',
+  deepseek: 'deepseek/deepseek-r1',
+  nemotron: 'nvidia/nemotron-3-super-120b-a12b:free',
+};
 
 // Verified free models on OpenRouter (zero cost) — from live /v1/models API
 export const FREE_MODELS = [
@@ -89,10 +100,15 @@ function printHelp() {
 ${C.magenta('  anymodel')} — AI coding assistant with any model
 
   ${C.bold('Usage:')}
-    anymodel                                      ${C.cyan('# launch app (proxy + client)')}
-    anymodel proxy                                ${C.cyan('# just the proxy server')}
-    anymodel proxy openrouter                     ${C.cyan('# proxy with OpenRouter')}
-    anymodel proxy ollama                         ${C.cyan('# proxy with Ollama')}
+    anymodel                                      ${C.cyan('# proxy only (auto-detect provider)')}
+    anymodel claude                               ${C.cyan('# proxy + Claude Code client')}
+    anymodel gpt                                  ${C.cyan('# proxy with GPT-4o')}
+    anymodel gemini                               ${C.cyan('# proxy with Gemini 2.5 Flash')}
+    anymodel qwen                                 ${C.cyan('# proxy with Qwen3 Coder (free)')}
+    anymodel llama                                ${C.cyan('# proxy with Llama 3.3 70B (free)')}
+    anymodel deepseek                             ${C.cyan('# proxy with DeepSeek R1')}
+    anymodel nemotron                             ${C.cyan('# proxy with Nemotron 120B (free)')}
+    anymodel proxy ollama                         ${C.cyan('# proxy with local Ollama')}
     anymodel proxy openai                         ${C.cyan('# proxy with OpenAI-compatible API')}
     anymodel proxy remote --token secret          ${C.cyan('# proxy for deployment')}
 
@@ -107,13 +123,16 @@ ${C.magenta('  anymodel')} — AI coding assistant with any model
   ${C.bold('How it works:')}
     ${C.bold('anymodel')}         = starts proxy only (auto-detects provider from env)
     ${C.bold('anymodel claude')}  = starts proxy + launches Claude Code as client
+    ${C.bold('anymodel <preset>')} = starts proxy with a preset model (gpt, gemini, qwen, etc.)
     ${C.bold('anymodel proxy')}   = starts proxy with explicit provider selection
 
-  ${C.bold('Free Models (all $0):')}
-    qwen/qwen3-coder:free                 Best for coding
-    nvidia/nemotron-3-super-120b-a12b:free NVIDIA reasoning 120B
-    qwen/qwen3.6-plus:free                1M context
-    openai/gpt-oss-120b:free              OpenAI open-source
+  ${C.bold('Model Presets:')}
+    gpt       → openai/gpt-4o
+    gemini    → google/gemini-2.5-flash
+    qwen      → qwen/qwen3-coder:free          ${C.cyan('(free)')}
+    llama     → meta-llama/llama-3.3-70b:free   ${C.cyan('(free)')}
+    deepseek  → deepseek/deepseek-r1
+    nemotron  → nvidia/nemotron-3-super-120b:free ${C.cyan('(free)')}
 
   ${C.bold('Environment:')}
     OPENROUTER_API_KEY   Your OpenRouter API key
@@ -137,7 +156,9 @@ function findClient() {
 
   // 2. claude in PATH (Anthropic's global install)
   try {
-    const claudePath = execSync('which claude 2>/dev/null', { encoding: 'utf8' }).trim();
+    const isWin = process.platform === 'win32';
+    const findCmd = isWin ? 'where claude 2>nul' : 'which claude 2>/dev/null';
+    const claudePath = execSync(findCmd, { encoding: 'utf8' }).trim().split('\n')[0];
     if (claudePath && existsSync(claudePath)) {
       return { cmd: claudePath, args: [], label: 'claude (global)' };
     }
@@ -275,15 +296,19 @@ async function startFull(args) {
   const client = findClient();
   if (!client) {
     console.log('');
-    console.log(`${C.green('[anymodel]')} Proxy running. No client found in this directory.`);
+    console.log(`${C.green('[anymodel]')} Proxy running. No Claude Code client found.`);
     console.log('');
-    console.log(`  ${C.bold('Option A:')} cd to your fork and re-run:`);
-    console.log(`    cd ~/Projects/claude-code-umb/repositories/antonoly/claude-code`);
-    console.log(`    npx anymodel`);
+    console.log(`  ${C.bold('Install Claude Code and re-run:')}`);
+    console.log(`    npm i -g @anthropic-ai/claude-code`);
+    console.log(`    npx anymodel claude`);
     console.log('');
-    console.log(`  ${C.bold('Option B:')} Connect manually:`);
-    console.log(`    ANTHROPIC_BASE_URL=http://localhost:${actualPort} node cli.js`);
-    console.log(`    ANTHROPIC_BASE_URL=http://localhost:${actualPort} claude`);
+    console.log(`  ${C.bold('Or connect manually in another terminal:')}`);
+    if (process.platform === 'win32') {
+      console.log(`    set ANTHROPIC_BASE_URL=http://localhost:${actualPort}`);
+      console.log(`    claude`);
+    } else {
+      console.log(`    ANTHROPIC_BASE_URL=http://localhost:${actualPort} claude`);
+    }
     console.log('');
     // Keep proxy running — user will connect manually
     return;
@@ -385,6 +410,7 @@ const firstArg = rawArgs[0];
 // Detect mode
 const isProxyMode = firstArg === 'proxy' || PROVIDERS.includes(firstArg) || firstArg === 'remote';
 const isClientMode = firstArg === 'claude';
+const isPreset = firstArg && MODEL_PRESETS[firstArg];
 
 const isMain = process.argv[1] && (
   process.argv[1].endsWith('/cli.mjs') ||
@@ -396,6 +422,9 @@ if (isMain) {
   if (isClientMode) {
     // `anymodel claude` — proxy + Claude Code client
     startFull(rawArgs.slice(1));
+  } else if (isPreset) {
+    // `anymodel gpt` / `anymodel gemini` / etc. — proxy with preset model
+    startProxyOnly(['--model', MODEL_PRESETS[firstArg], ...rawArgs.slice(1)]);
   } else if (isProxyMode) {
     // `anymodel proxy ...` or `anymodel openrouter` or `anymodel remote`
     const proxyArgs = firstArg === 'proxy' ? rawArgs.slice(1) : rawArgs;

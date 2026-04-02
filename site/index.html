@@ -173,9 +173,9 @@
       <p class="section-desc fade-in">Get a free <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent-cyan)">OpenRouter API key</a> (no credit card for free models), then pick remote or local.</p>
 
       <div class="hiw-compare fade-in">
-        <!-- LEFT: Remote -->
+        <!-- LEFT: With Claude Code -->
         <div class="hiw-col">
-          <div class="hiw-col-label" style="color: var(--accent-cyan);">REMOTE <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; one command, no install</span></div>
+          <div class="hiw-col-label" style="color: var(--accent-cyan);">WITH CLAUDE CODE <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; one command</span></div>
 
           <div class="hiw-step">
             <span class="hiw-step-num">1</span>
@@ -187,19 +187,20 @@
               <span class="terminal-title">Terminal</span>
             </div>
             <div class="terminal-body terminal-sm">$ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-your-key</span> \
-  npx anymodel
+  npx anymodel claude
 
-<span style="color:var(--accent-emerald)">&#x2713;</span> Connected via api.anymodel.dev
+<span style="color:var(--accent-emerald)">&#x2713;</span> Proxy started + Claude Code launched
   Model: nvidia/nemotron-3-super-120b:free
 
-<span style="color:var(--text-muted)"># Or choose a specific model:</span>
-$ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> \
-  npx anymodel --model qwen/qwen3-coder:free</div>
+<span style="color:var(--text-muted)"># Or pick a model by name:</span>
+$ npx anymodel gpt       <span style="color:var(--text-muted)"># GPT-4o</span>
+$ npx anymodel gemini    <span style="color:var(--text-muted)"># Gemini 2.5 Flash</span>
+$ npx anymodel qwen      <span style="color:var(--text-muted)"># Qwen3 Coder (free)</span></div>
           </div>
 
           <div class="hiw-step">
             <span class="hiw-step-num">2</span>
-            <span class="hiw-step-text">Done. anymodel connects to the remote proxy, launches the app.</span>
+            <span class="hiw-step-text">Done. Proxy starts and Claude Code launches automatically.</span>
           </div>
 
           <p class="hiw-col-note">Your <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter key</a> goes directly to OpenRouter via the proxy. Nothing stored.</p>
@@ -212,12 +213,9 @@ $ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> 
           <div class="hiw-sep-line"></div>
         </div>
 
-        <!-- RIGHT: Local -->
+        <!-- RIGHT: Proxy Only -->
         <div class="hiw-col">
-          <div class="hiw-col-label">LOCAL <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; full control, two terminals</span></div>
-
-          <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:12px;">First, clone the repo:</p>
-          <div class="step-cmd" style="margin-bottom:16px; font-size:0.75rem;"><code>git clone https://github.com/antonoly/claude-code-anymodel &amp;&amp; cd claude-code-anymodel</code><button class="copy-btn copy-btn-sm" data-copy="git clone https://github.com/antonoly/claude-code-anymodel && cd claude-code-anymodel" aria-label="Copy">Copy</button></div>
+          <div class="hiw-col-label">PROXY ONLY <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; two terminals</span></div>
 
           <div class="hiw-step">
             <span class="hiw-step-num">1</span>
@@ -229,22 +227,24 @@ $ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> 
               <span class="terminal-title">Terminal 1 &mdash; Proxy</span>
             </div>
             <div class="terminal-body terminal-sm">$ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> \
-  npx anymodel proxy --port 9090
+  npx anymodel
 
-<span style="color:var(--accent-cyan)">&#x2194;</span> Proxy on :9090 &#x2192; OpenRouter</div>
+<span style="color:var(--accent-cyan)">&#x2194;</span> Proxy on :9090 &#x2192; OpenRouter
+  Next step — run in another terminal:
+  ANTHROPIC_BASE_URL=http://localhost:9090 claude</div>
           </div>
 
           <div class="hiw-step">
             <span class="hiw-step-num">2</span>
-            <span class="hiw-step-text">Launch the app (same port):</span>
+            <span class="hiw-step-text">Connect Claude Code (or any client):</span>
           </div>
           <div class="terminal terminal-stacked">
             <div class="terminal-bar">
               <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
-              <span class="terminal-title">Terminal 2 &mdash; App</span>
+              <span class="terminal-title">Terminal 2 &mdash; Client</span>
             </div>
             <div class="terminal-body terminal-sm">$ ANTHROPIC_BASE_URL=http://localhost:9090 \
-  node cli.js</div>
+  claude</div>
           </div>
 
           <p class="hiw-col-note">Everything on your machine. Works offline with <a href="#guides">Ollama</a> too.</p>
@@ -469,12 +469,17 @@ $ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> 
         <div class="doc-card fade-in">
           <h3>CLI Reference</h3>
           <div class="doc-content">
-            <pre><code>anymodel [provider] [options]
+            <pre><code>anymodel [command] [options]
 
-<span class="hl-label">Providers:</span>
-  openrouter    Route through OpenRouter
-  ollama        Route through local Ollama
-  remote        Free-only + auth (for deployment)
+<span class="hl-label">Commands:</span>
+  claude        Proxy + Claude Code client
+  gpt           Proxy with GPT-4o
+  gemini        Proxy with Gemini 2.5 Flash
+  qwen          Proxy with Qwen3 Coder (free)
+  llama         Proxy with Llama 3.3 70B (free)
+  deepseek      Proxy with DeepSeek R1
+  nemotron      Proxy with Nemotron 120B (free)
+  proxy ollama  Proxy with local Ollama
 
 <span class="hl-label">Options:</span>
   --model, -m     Model ID (e.g., qwen/qwen3-coder:free)
@@ -559,31 +564,32 @@ $ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> 
       <div class="examples-grid">
         <div class="example-card fade-in">
           <div class="example-header">
-            <span class="example-tag" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4;">Remote</span>
+            <span class="example-tag" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4;">Claude</span>
             <h3>Quickest start</h3>
           </div>
-          <pre><code><span class="hl-comment"># One command. Your OpenRouter key.</span>
+          <pre><code><span class="hl-comment"># One command. Proxy + Claude Code.</span>
 <span class="hl-cmd">OPENROUTER_API_KEY</span>=sk-or-v1-your-key \
-  npx anymodel
+  npx anymodel claude
 
-<span class="hl-comment"># Default: nvidia/nemotron-3-super-120b:free</span>
-<span class="hl-comment"># Pick another: --model qwen/qwen3-coder:free</span></code></pre>
-          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel" aria-label="Copy example">Copy</button>
+<span class="hl-comment"># Or pick a model by name:</span>
+<span class="hl-cmd">npx</span> anymodel gpt      <span class="hl-comment"># GPT-4o</span>
+<span class="hl-cmd">npx</span> anymodel gemini   <span class="hl-comment"># Gemini 2.5 Flash</span></code></pre>
+          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel claude" aria-label="Copy example">Copy</button>
         </div>
 
         <div class="example-card fade-in">
           <div class="example-header">
-            <span class="example-tag">Local</span>
+            <span class="example-tag">Proxy</span>
             <h3>Two terminals, full control</h3>
           </div>
-          <pre><code><span class="hl-comment"># Terminal 1:</span>
+          <pre><code><span class="hl-comment"># Terminal 1 — start proxy:</span>
 <span class="hl-cmd">OPENROUTER_API_KEY</span>=sk-or-v1-... \
-  npx anymodel proxy --port 9090
+  npx anymodel
 
-<span class="hl-comment"># Terminal 2:</span>
+<span class="hl-comment"># Terminal 2 — connect Claude Code:</span>
 <span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://localhost:9090 \
-  node cli.js</code></pre>
-          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9090" aria-label="Copy example">Copy</button>
+  claude</code></pre>
+          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel" aria-label="Copy example">Copy</button>
         </div>
 
         <div class="example-card fade-in">
@@ -595,8 +601,8 @@ $ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> 
 <span class="hl-cmd">ollama</span> pull qwen3-coder:30b
 <span class="hl-cmd">npx</span> anymodel proxy ollama
 
-<span class="hl-comment"># Then: ANTHROPIC_BASE_URL=http://localhost:9090</span>
-<span class="hl-comment">#   node cli.js</span></code></pre>
+<span class="hl-comment"># Then in another terminal:</span>
+<span class="hl-comment"># ANTHROPIC_BASE_URL=http://localhost:9090 claude</span></code></pre>
           <button class="copy-btn" data-copy="ollama pull qwen3-coder:30b && npx anymodel proxy ollama" aria-label="Copy example">Copy</button>
         </div>
       </div>
@@ -617,9 +623,9 @@ $ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> 
               <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
               <span class="terminal-title">Terminal</span>
             </div>
-            <div class="terminal-body" style="min-height:auto; padding:20px 24px; font-size:0.85rem; text-align:left;">$ OPENROUTER_API_KEY=<span style="color:#06b6d4">sk-or-v1-your-key</span> npx anymodel</div>
+            <div class="terminal-body" style="min-height:auto; padding:20px 24px; font-size:0.85rem; text-align:left;">$ OPENROUTER_API_KEY=<span style="color:#06b6d4">sk-or-v1-your-key</span> npx anymodel claude</div>
           </div>
-          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel" aria-label="Copy" style="margin:12px auto 0; display:block;">Copy command</button>
+          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel claude" aria-label="Copy" style="margin:12px auto 0; display:block;">Copy command</button>
         </div>
 
         <div class="install-opts fade-in" style="display:flex; justify-content:center; gap:32px; margin-top:32px; flex-wrap:wrap;">
@@ -628,8 +634,8 @@ $ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> 
             <code style="font-size:0.82rem;">npm i -g anymodel</code>
           </div>
           <div style="text-align:center;">
-            <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">With a specific model:</p>
-            <code style="font-size:0.82rem;">npx anymodel --model qwen/qwen3-coder:free</code>
+            <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Model presets:</p>
+            <code style="font-size:0.82rem;">npx anymodel gpt | gemini | qwen | deepseek</code>
           </div>
         </div>
       </div>
