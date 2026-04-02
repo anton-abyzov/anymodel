@@ -114,14 +114,25 @@
         <h1 class="fade-in"><span class="gradient-text">Claude Code.</span><br><span class="gradient-text">Any Model.</span></h1>
         <p class="hero-sub fade-in">Run <strong>Claude Code</strong> with <strong>Gemini</strong>, <strong>GPT</strong>, <strong>Llama</strong>, <strong>DeepSeek</strong>, or any of 200+ models via <strong>OpenRouter</strong>. You bring your own key &mdash; free models cost $0.</p>
 
-        <div class="terminal fade-in">
-          <div class="terminal-bar">
-            <span class="terminal-dot"></span>
-            <span class="terminal-dot"></span>
-            <span class="terminal-dot"></span>
-            <span class="terminal-title">Terminal</span>
+        <div class="dual-terminal fade-in">
+          <div class="terminal terminal-left">
+            <div class="terminal-bar">
+              <span class="terminal-dot"></span>
+              <span class="terminal-dot"></span>
+              <span class="terminal-dot"></span>
+              <span class="terminal-title">Terminal 1 &mdash; Proxy</span>
+            </div>
+            <div class="terminal-body"><span id="term1-typed" style="visibility:hidden"></span><span class="cursor"></span></div>
           </div>
-          <div class="terminal-body"><span id="terminal-typed" style="visibility:hidden"></span><span class="cursor"></span></div>
+          <div class="terminal terminal-right">
+            <div class="terminal-bar">
+              <span class="terminal-dot"></span>
+              <span class="terminal-dot"></span>
+              <span class="terminal-dot"></span>
+              <span class="terminal-title">Terminal 2 &mdash; Claude Code</span>
+            </div>
+            <div class="terminal-body"><span id="term2-typed" style="visibility:hidden"></span><span class="cursor cursor-delayed"></span></div>
+          </div>
         </div>
 
         <div class="cta-group fade-in">

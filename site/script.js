@@ -1,29 +1,42 @@
-// Terminal typing effect
+// Dual terminal typing effect
 function typeTerminal() {
-  const el = document.getElementById('terminal-typed');
-  if (!el) return;
-  const lines = [
-    '# Terminal 1:',
-    '$ npx anymodel proxy',
-    '\u2194 proxy on :9090 \u2192 OpenRouter',
-    '',
-    '# Terminal 2:',
-    '$ ANTHROPIC_BASE_URL=http://localhost:9090 claude',
-    '\u2713 Claude Code running with any model'
-  ];
-  const text = lines.join('\n');
-  let i = 0;
-  el.textContent = '';
-  el.style.visibility = 'visible';
+  const el1 = document.getElementById('term1-typed');
+  const el2 = document.getElementById('term2-typed');
+  if (!el1 || !el2) return;
 
-  function tick() {
-    if (i <= text.length) {
-      el.textContent = text.slice(0, i);
-      i++;
-      setTimeout(tick, i === 1 ? 0 : text[i - 2] === '\n' ? 100 : 22);
+  const left = [
+    '$ export OPENROUTER_API_KEY=sk-or-v1-...',
+    '$ npx anymodel proxy',
+    '',
+    '\u2194 anymodel proxy on :9090',
+    '  /v1/messages \u2192 OpenRouter'
+  ].join('\n');
+
+  const right = [
+    '$ ANTHROPIC_BASE_URL=http://localhost:9090 claude',
+    '',
+    '\u2713 Claude Code running with any model',
+    '  Model: qwen/qwen3-coder:free'
+  ].join('\n');
+
+  function typeIn(el, text, speed, cb) {
+    let i = 0;
+    el.textContent = '';
+    el.style.visibility = 'visible';
+    function tick() {
+      if (i <= text.length) {
+        el.textContent = text.slice(0, i);
+        i++;
+        setTimeout(tick, i === 1 ? 0 : text[i - 2] === '\n' ? 120 : speed);
+      } else if (cb) cb();
     }
+    tick();
   }
-  tick();
+
+  // Type left terminal first, then right
+  typeIn(el1, left, 18, function() {
+    setTimeout(function() { typeIn(el2, right, 22); }, 400);
+  });
 }
 
 // Path tabs
