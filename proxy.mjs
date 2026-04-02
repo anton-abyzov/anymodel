@@ -331,6 +331,8 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10,
       if (attempt > 0) {
         console.log(`${C.green('[PORT]')} Found free port :${tryPort}`);
       }
+      // Notify parent process of actual port (IPC)
+      if (process.send) process.send({ type: 'port', port: tryPort });
       printBanner(tryPort);
     });
   }
