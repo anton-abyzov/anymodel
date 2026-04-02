@@ -1571,7 +1571,7 @@ html[data-theme="light"] .guide-step pre code {
 }
 
 /* Model icon SVG colors — make all visible on dark bg */
-.model-icon img {
+.model-icon img[alt="Google Gemini"], .model-icon img[alt="Meta"], .model-icon img[alt="NVIDIA"], .model-icon img[alt="Ollama"] {
   filter: brightness(0) invert(1);
 }
 /* In light mode, keep them dark */
