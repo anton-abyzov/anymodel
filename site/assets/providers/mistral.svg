@@ -1,18 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40" fill="none">
-  <!-- Row 1 -->
-  <rect x="4" y="4" width="7" height="7" fill="#1A1A1A"/>
-  <rect x="29" y="4" width="7" height="7" fill="#1A1A1A"/>
-  <!-- Row 2 -->
-  <rect x="4" y="12" width="7" height="7" fill="#F7D046"/>
-  <rect x="12.5" y="12" width="7" height="7" fill="#F7D046"/>
-  <rect x="29" y="12" width="7" height="7" fill="#F7D046"/>
-  <!-- Row 3 -->
-  <rect x="4" y="20" width="7" height="7" fill="#FF7000"/>
-  <rect x="12.5" y="20" width="7" height="7" fill="#1A1A1A"/>
-  <rect x="20.5" y="20" width="7" height="7" fill="#1A1A1A"/>
-  <rect x="29" y="20" width="7" height="7" fill="#FF7000"/>
-  <!-- Row 4 -->
-  <rect x="4" y="28" width="7" height="7" fill="#EE4B2B"/>
-  <rect x="20.5" y="28" width="7" height="7" fill="#EE4B2B"/>
-  <rect x="29" y="28" width="7" height="7" fill="#EE4B2B"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#FF7000"><path d="M3.428 0h4.398v4.398H3.428zM16.174 0h4.398v4.398h-4.398zM3.428 4.398h4.398v4.398H3.428zM9.801 4.398H14.2v4.398H9.801zM16.174 4.398h4.398v4.398h-4.398zM0 9.801h4.398V14.2H0zM3.428 9.801h4.398V14.2H3.428zM9.801 9.801H14.2V14.2H9.801zM16.174 9.801h4.398V14.2h-4.398zM19.602 9.801H24V14.2h-4.398zM3.428 14.199h4.398v4.398H3.428zM9.801 14.199H14.2v4.398H9.801zM16.174 14.199h4.398v4.398h-4.398zM3.428 19.602h4.398V24H3.428zM16.174 19.602h4.398V24h-4.398z"/></svg>
