@@ -10,6 +10,8 @@ Use Claude Code's powerful agentic coding with **any model** — GPT-4o, Gemini,
 
 **Zero dependencies.** Just Node.js.
 
+> **Disclaimer:** anymodel is an independent, third-party tool. It is not affiliated with, endorsed by, or sponsored by Anthropic. "Claude" and "Claude Code" are trademarks of Anthropic, PBC.
+
 ## Quick Start
 
 ```bash

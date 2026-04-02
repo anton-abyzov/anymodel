@@ -10,7 +10,7 @@
     "test": "node --test test/*.test.mjs",
     "start": "node cli.mjs"
   },
-  "keywords": ["claude", "claude-code", "openrouter", "ollama", "llm", "proxy", "ai", "cli"],
+  "keywords": ["openrouter", "ollama", "llm", "proxy", "ai", "cli", "model-router"],
   "author": "antonoly",
   "license": "MIT",
   "repository": { "type": "git", "url": "https://github.com/antonoly/anymodel" },
