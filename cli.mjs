@@ -192,7 +192,7 @@ async function startFull(args) {
           req.setTimeout(3000, () => { req.destroy(); resolve(false); });
         });
         if (ok) {
-          console.log(`${C.green('[anymodel]')} Remote proxy available at ${C.bold(remoteUrl)}`);
+          console.log(`${C.green('[anymodel]')} Remote proxy available at ${C.bold('api.anymodel.dev')}`);
           const modelLabel = opts.model || 'auto (free)';
           const client = findClient();
           if (client) {
