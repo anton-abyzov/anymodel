@@ -1,175 +1,121 @@
 # anymodel
 
-**Universal AI model proxy — route any coding tool through OpenRouter, Ollama, or any LLM provider.**
+**Run Claude Code with any AI model — Claude, GPT, Gemini, Llama, DeepSeek, and 200+ more.**
 
 [![npm version](https://img.shields.io/npm/v/anymodel)](https://www.npmjs.com/package/anymodel)
 [![license](https://img.shields.io/npm/l/anymodel)](https://github.com/anton-abyzov/anymodel/blob/main/LICENSE)
 [![node](https://img.shields.io/node/v/anymodel)](https://nodejs.org)
 
-Use **any model** with your AI coding tools — GPT-4o, Gemini, Llama, Mistral, DeepSeek, and hundreds more. anymodel is a lightweight proxy that sits between your tools and your preferred AI provider, translating requests on the fly.
+anymodel is a proxy that sits between Claude Code and your model provider. It strips Anthropic-specific fields, handles retries, and routes requests to OpenRouter (200+ models) or Ollama (local). Zero dependencies — just Node.js.
 
-**Zero dependencies.** Just Node.js.
+**[anymodel.dev](https://anymodel.dev)** — full docs, guides, and FAQ.
+
+---
 
 ## Quick Start
 
+### Remote (simplest — one command)
+
 ```bash
-npx anymodel
+OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel
 ```
 
-That's it. anymodel auto-detects your available provider and starts a local proxy.
+Uses the remote proxy at `api.anymodel.dev`. Your key goes directly to OpenRouter — nothing stored.
+Default model: `nvidia/nemotron-3-super-120b-a12b:free`.
 
-## Usage
+### Local (two terminals)
 
 ```bash
-# Auto-detect provider (checks OPENROUTER_API_KEY, then local Ollama)
-npx anymodel
+# Terminal 1 — start the proxy:
+OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy
 
-# Explicitly use OpenRouter
-npx anymodel openrouter
-
-# Use local Ollama
-npx anymodel ollama
-
-# Specify a model
-npx anymodel --model google/gemini-2.5-flash
-
-# Custom port
-npx anymodel --port 8080
-
-# Combine options
-npx anymodel openrouter --model deepseek/deepseek-r1 --port 3000
+# Terminal 2 — run Claude Code:
+ANTHROPIC_BASE_URL=http://localhost:9090 claude
 ```
 
-Then point your AI tool at the proxy:
+Get your free OpenRouter key at [openrouter.ai/keys](https://openrouter.ai/keys) — no credit card for free models.
+
+---
+
+## Pick a Model
 
 ```bash
-ANTHROPIC_BASE_URL=http://localhost:9090 your-tool
+# Free models ($0)
+npx anymodel --model qwen/qwen3-coder:free
+npx anymodel --model nvidia/nemotron-3-super-120b-a12b:free
+npx anymodel --model openai/gpt-oss-120b:free
+npx anymodel --model qwen/qwen3.6-plus:free
+
+# Paid models (your OpenRouter credits)
+npx anymodel --model anthropic/claude-opus-4.6
+npx anymodel --model openai/gpt-4o
+npx anymodel --model google/gemini-2.5-pro
 ```
 
 ## How It Works
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌──────────────────┐
-│  Your AI     │────>│   anymodel   │────>│  OpenRouter /     │
-│  Tool        │<────│  :9090       │<────│  Ollama / etc.    │
-└─────────────┘     └──────────────┘     └──────────────────┘
+REMOTE:  Claude Code → api.anymodel.dev → OpenRouter → any model
+LOCAL:   node cli.js → localhost:9090   → OpenRouter / Ollama
 ```
 
-anymodel intercepts `/v1/messages` requests and routes them to your chosen provider. All other requests pass through unchanged.
-
-The proxy automatically:
-- Translates API-specific fields for cross-provider compatibility
-- Normalizes `tool_choice` format across providers
-- Retries failed requests with exponential backoff (3 attempts, max 8s delay)
-- Streams responses back in real-time
-
-## Supported Providers
-
-| Provider | Command | Requirements |
-|----------|---------|-------------|
-| [OpenRouter](https://openrouter.ai) | `anymodel openrouter` | `OPENROUTER_API_KEY` |
-| [Ollama](https://ollama.ai) | `anymodel ollama` | Ollama running locally |
-
-### OpenRouter
-
-Access 200+ models through a single API. [Get your API key](https://openrouter.ai/keys).
-
-```bash
-export OPENROUTER_API_KEY=sk-or-v1-...
-npx anymodel openrouter --model google/gemini-2.5-flash
-```
-
-Popular models: `google/gemini-2.5-flash`, `deepseek/deepseek-r1`, `meta-llama/llama-4-maverick`, `openai/gpt-4o`
-
-### Ollama
-
-Run models locally with zero cloud dependency.
-
-```bash
-ollama serve
-npx anymodel ollama --model llama3
-```
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENROUTER_API_KEY` | OpenRouter API key | — |
-| `OPENROUTER_MODEL` | Default model override | passthrough |
-| `PROXY_PORT` | Proxy listen port | `9090` |
-
-### .env File
-
-anymodel auto-loads a `.env` file from the current directory:
-
-```env
-OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_MODEL=google/gemini-2.5-flash
-```
+The proxy intercepts `/v1/messages`, strips Anthropic-specific fields (`cache_control`, `betas`, `thinking`, `metadata`), normalizes `tool_choice`, retries with exponential backoff, and streams the response back.
 
 ## CLI Reference
 
 ```
-anymodel [provider] [options]
-
-Providers:
-  openrouter    Route through OpenRouter
-  ollama        Route through local Ollama
-  remote        OpenRouter with free-only + auth (for shared/deployed use)
+anymodel                              # remote (uses api.anymodel.dev)
+anymodel proxy                        # local proxy on :9090
+anymodel proxy openrouter             # local, OpenRouter provider
+anymodel proxy ollama                 # local, Ollama provider
 
 Options:
-  --model, -m     Model to use (e.g., google/gemini-2.5-flash:free)
-  --port, -p      Proxy port (default: 9090)
-  --free-only     Only allow free models (default for remote)
-  --token, -t     Require auth token for requests
-  --rpm           Rate limit: requests per minute (default: 60)
-  --help, -h      Show help
+  --model, -m     Model (e.g., qwen/qwen3-coder:free)
+  --port, -p      Port (default: 9090)
+  --free-only     Block paid models
+  --token, -t     Require auth token
+  --rpm           Rate limit per minute (default: 60)
+  --help, -h      Help
 ```
 
-## Remote / Cloudflare Worker
+## Environment Variables
 
-anymodel includes a Cloudflare Worker for running the proxy at the edge — zero server management, global latency.
+| Variable | Description |
+|----------|-------------|
+| `OPENROUTER_API_KEY` | Your OpenRouter key ([get one free](https://openrouter.ai/keys)) |
+| `OPENROUTER_MODEL` | Default model override |
+| `PROXY_PORT` | Proxy port (default: `9090`) |
 
-**Live endpoint:** `https://api.anymodel.dev`
+anymodel auto-loads `.env` from the current directory.
 
-```bash
-# Connect Claude Code to the remote proxy
-ANTHROPIC_BASE_URL=https://api.anymodel.dev \
-ANTHROPIC_API_KEY=your-token \
-claude
-```
+## Cloudflare Worker
 
-### Deploy your own
+The remote proxy runs as a Cloudflare Worker at `api.anymodel.dev`. Deploy your own:
 
 ```bash
 cd worker/
-wrangler secret put OPENROUTER_API_KEY    # your OpenRouter key
-wrangler secret put ANYMODEL_TOKEN        # auth token for clients
-wrangler deploy                           # deploys to *.workers.dev
+wrangler secret put OPENROUTER_API_KEY
+wrangler deploy
 ```
 
-Features: free-only models by default, token auth, 60 req/min rate limiting, streaming, CORS.
+BYOK: the worker uses the caller's OpenRouter key from the request — no shared key.
 
-### Test locally
+## Local Fork
+
+For the full anymodel experience (custom banner, model display), clone [claude-code-anymodel](https://github.com/antonoly/claude-code-anymodel):
 
 ```bash
-ANYMODEL_TOKEN=test node worker/serve-local.mjs
-curl http://localhost:9091/health
+git clone https://github.com/antonoly/claude-code-anymodel && cd claude-code-anymodel
+OPENROUTER_API_KEY=sk-or-v1-... npx anymodel
 ```
 
 ## Links
 
-- [anymodel.dev](https://anymodel.dev) — Project homepage
-- [OpenRouter](https://openrouter.ai) — Multi-model API gateway
-- [GitHub](https://github.com/anton-abyzov/anymodel) — Source code
-- [Remote Proxy](https://api.anymodel.dev/health) — Live Cloudflare Worker
-
-## Origin
-
-anymodel is based on the original `openrouter-proxy.mjs` by [Anton Abyzov](https://github.com/antonoly), built as a standalone tool to make AI model routing accessible to everyone.
+- [anymodel.dev](https://anymodel.dev) — Homepage, docs, guides
+- [api.anymodel.dev/health](https://api.anymodel.dev/health) — Remote proxy status
+- [OpenRouter](https://openrouter.ai/keys) — Get your API key
+- [npm](https://www.npmjs.com/package/anymodel) — Package
 
 ## License
 
-MIT &copy; 2025-2026 [Anton Abyzov (antonoly)](https://github.com/antonoly)
+MIT — [Anton Abyzov](https://github.com/antonoly)
