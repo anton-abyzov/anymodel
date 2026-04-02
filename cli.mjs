@@ -11,18 +11,18 @@ import { createProxy, loadEnv } from './proxy.mjs';
 
 const PROVIDERS = ['openrouter', 'ollama'];
 
-// Known free models on OpenRouter (zero cost, with tool use support)
+// Verified free models on OpenRouter (zero cost) — from live /v1/models API
 export const FREE_MODELS = [
-  'qwen/qwen3-coder:free',                          // Best free coding model (480B MoE)
-  'google/gemini-2.5-flash:free',                    // Fast, great at code (94.2% HumanEval)
-  'qwen/qwen3.6-plus-preview:free',                  // Newest, 1M context
-  'openai/gpt-oss-120b:free',                        // OpenAI open-source 120B
-  'deepseek/deepseek-chat-v3-0324:free',             // DeepSeek V3
-  'meta-llama/llama-4-maverick:free',                // Llama 4 open weight
-  'meta-llama/llama-4-scout:free',                   // Llama 4 lighter
-  'qwen/qwen3-235b-a22b:free',                       // 235B MoE reasoning
-  'google/gemini-3-flash-preview-20251217:free',      // Gemini 3 Flash preview
-  'mistralai/mistral-small-3.1-24b-instruct:free',   // Mistral Small
+  'qwen/qwen3-coder:free',                          // Best free coding model
+  'qwen/qwen3.6-plus:free',                         // 1M context, newest
+  'openai/gpt-oss-120b:free',                       // OpenAI open-source 120B
+  'nvidia/nemotron-3-super-120b-a12b:free',          // NVIDIA 120B reasoning
+  'meta-llama/llama-3.3-70b-instruct:free',          // Llama 3.3 70B
+  'google/gemma-3-27b-it:free',                      // Gemma 3 27B
+  'qwen/qwen3-next-80b-a3b-instruct:free',           // Qwen 3 Next 80B
+  'nousresearch/hermes-3-llama-3.1-405b:free',        // Hermes 405B
+  'stepfun/step-3.5-flash:free',                     // Step 3.5 Flash 256K ctx
+  'minimax/minimax-m2.5:free',                       // MiniMax M2.5
 ];
 
 export function parseArgs(argv) {
@@ -83,7 +83,7 @@ function printHelp() {
     remote        OpenRouter with --free-only + auth (for shared/deployed use)
 
   \x1b[1mOptions:\x1b[0m
-    --model, -m     Model to use (e.g., google/gemini-2.5-flash:free)
+    --model, -m     Model to use (e.g., qwen/qwen3-coder:free)
     --port, -p      Proxy port (default: 9090)
     --free-only     Only allow free models (default for 'remote' mode)
     --token, -t     Require auth token for requests
@@ -98,11 +98,11 @@ function printHelp() {
     anymodel --free-only                          # local, free models only
 
   \x1b[1mFree Models (all $0, with tool use):\x1b[0m
-    qwen/qwen3-coder:free            Best for coding (480B MoE)
-    google/gemini-2.5-flash:free     Fast, 94% HumanEval
-    openai/gpt-oss-120b:free         OpenAI open-source 120B
-    deepseek/deepseek-chat-v3-0324:free  DeepSeek V3
-    meta-llama/llama-4-maverick:free Open weight Llama 4
+    qwen/qwen3-coder:free              Best for coding
+    qwen/qwen3.6-plus:free             1M context, newest
+    openai/gpt-oss-120b:free           OpenAI open-source 120B
+    nvidia/nemotron-3-super-120b-a12b:free  NVIDIA reasoning
+    nousresearch/hermes-3-llama-3.1-405b:free  405B open
 
   \x1b[1mEnvironment:\x1b[0m
     OPENROUTER_API_KEY   Your OpenRouter API key (https://openrouter.ai/keys)
@@ -159,7 +159,7 @@ async function main() {
 
   // Free-only mode: if no model specified, default to best free model
   if (opts.freeOnly && !model) {
-    model = FREE_MODELS[0]; // google/gemini-2.5-flash:free
+    model = FREE_MODELS[0]; // qwen/qwen3-coder:free
     console.log(`${C.cyan('[FREE]')} No model specified, defaulting to ${C.bold(model)}`);
   }
 

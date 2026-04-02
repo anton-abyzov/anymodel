@@ -3,12 +3,12 @@ function typeTerminal() {
   const el = document.getElementById('terminal-typed');
   if (!el) return;
   const lines = [
-    '$ ANTHROPIC_BASE_URL=https://anymodel-proxy.anton-abyzov.workers.dev claude',
+    '$ ANTHROPIC_BASE_URL=https://api.anymodel.dev claude',
     '',
     '\u2713 Claude Code connected \u2014 using free models via anymodel proxy',
     '',
     '$ Or run locally:',
-    '$ npx anymodel --model google/gemini-2.5-flash:free'
+    '$ npx anymodel --model qwen/qwen3-coder:free'
   ];
   const text = lines.join('\n');
   let i = 0;

@@ -32,7 +32,7 @@ describe('Worker Auth', () => {
 
 describe('Free Model Enforcement', () => {
   it('allows :free suffix models', () => {
-    assert.equal(isFreeTierModel('google/gemini-2.5-flash:free', true), true);
+    assert.equal(isFreeTierModel('qwen/qwen3-coder:free', true), true);
   });
 
   it('allows known free models from list', () => {
@@ -77,7 +77,7 @@ describe('Rate Limiting', () => {
 
 describe('OpenRouter Request Building', () => {
   it('builds correct request with model override', () => {
-    const req = buildOpenRouterRequest('/v1/messages', 'sk-or-test', 'google/gemini-2.5-flash:free');
+    const req = buildOpenRouterRequest('/v1/messages', 'sk-or-test', 'qwen/qwen3-coder:free');
     assert.equal(req.url, 'https://openrouter.ai/api/v1/messages');
     assert.equal(req.headers['authorization'], 'Bearer sk-or-test');
     assert.equal(req.headers['content-type'], 'application/json');

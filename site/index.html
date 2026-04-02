@@ -160,9 +160,9 @@
             <div class="step">
               <div class="step-number">1</div>
               <h3>Run Claude Code</h3>
-              <div class="step-cmd"><code>ANTHROPIC_BASE_URL=https://anymodel-proxy.anton-abyzov.workers.dev \
+              <div class="step-cmd"><code>ANTHROPIC_BASE_URL=https://api.anymodel.dev \
 ANTHROPIC_API_KEY=anymodel-remote-token-2026 \
-claude</code><button class="copy-btn copy-btn-sm" data-copy="ANTHROPIC_BASE_URL=https://anymodel-proxy.anton-abyzov.workers.dev ANTHROPIC_API_KEY=anymodel-remote-token-2026 claude" aria-label="Copy">Copy</button></div>
+claude</code><button class="copy-btn copy-btn-sm" data-copy="ANTHROPIC_BASE_URL=https://api.anymodel.dev ANTHROPIC_API_KEY=anymodel-remote-token-2026 claude" aria-label="Copy">Copy</button></div>
               <p>Point Claude Code at the remote proxy. Free models, no API key needed.</p>
             </div>
             <div class="step">
@@ -395,7 +395,7 @@ claude</code><button class="copy-btn copy-btn-sm" data-copy="ANTHROPIC_BASE_URL=
   remote        Free-only + auth (for deployment)
 
 <span class="hl-label">Options:</span>
-  --model, -m     Model ID (e.g., google/gemini-2.5-flash:free)
+  --model, -m     Model ID (e.g., qwen/qwen3-coder:free)
   --port, -p      Proxy port (default: 9090)
   --free-only     Only allow free models
   --token, -t     Require auth token
@@ -489,12 +489,12 @@ claude</code><button class="copy-btn copy-btn-sm" data-copy="ANTHROPIC_BASE_URL=
             <h3>Use free models instantly</h3>
           </div>
           <pre><code><span class="hl-comment"># No install. No API key. Just run Claude Code:</span>
-<span class="hl-cmd">ANTHROPIC_BASE_URL</span>=https://anymodel-proxy.anton-abyzov.workers.dev \
+<span class="hl-cmd">ANTHROPIC_BASE_URL</span>=https://api.anymodel.dev \
 <span class="hl-cmd">ANTHROPIC_API_KEY</span>=anymodel-remote-token-2026 \
 claude
 
 <span class="hl-comment"># That's it. Free models, zero setup.</span></code></pre>
-          <button class="copy-btn" data-copy="ANTHROPIC_BASE_URL=https://anymodel-proxy.anton-abyzov.workers.dev ANTHROPIC_API_KEY=anymodel-remote-token-2026 claude" aria-label="Copy example">Copy</button>
+          <button class="copy-btn" data-copy="ANTHROPIC_BASE_URL=https://api.anymodel.dev ANTHROPIC_API_KEY=anymodel-remote-token-2026 claude" aria-label="Copy example">Copy</button>
         </div>
 
         <div class="example-card fade-in">
@@ -525,7 +525,7 @@ ANTHROPIC_BASE_URL=http://localhost:9090 claude" aria-label="Copy example">Copy<
 
 <span class="hl-comment"># Best free coding models (all $0, with tool use):</span>
 <span class="hl-cmd">npx</span> anymodel --model qwen/qwen3-coder:free
-<span class="hl-cmd">npx</span> anymodel --model google/gemini-2.5-flash:free
+<span class="hl-cmd">npx</span> anymodel --model qwen/qwen3-coder:free
 <span class="hl-cmd">npx</span> anymodel --model openai/gpt-oss-120b:free
 <span class="hl-cmd">npx</span> anymodel --model deepseek/deepseek-chat-v3-0324:free
 
@@ -577,14 +577,14 @@ npx anymodel ollama --model llama3" aria-label="Copy example">Copy</button>
           </div>
           <pre><code><span class="hl-comment"># Create a .env file in your project:</span>
 OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_MODEL=google/gemini-2.5-flash:free
+OPENROUTER_MODEL=qwen/qwen3-coder:free
 PROXY_PORT=9090
 ANYMODEL_TOKEN=my-secret
 
 <span class="hl-comment"># Then just run:</span>
 <span class="hl-cmd">npx</span> anymodel</code></pre>
           <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_MODEL=google/gemini-2.5-flash:free
+OPENROUTER_MODEL=qwen/qwen3-coder:free
 PROXY_PORT=9090
 ANYMODEL_TOKEN=my-secret" aria-label="Copy example">Copy</button>
         </div>
@@ -603,8 +603,8 @@ ANYMODEL_TOKEN=my-secret" aria-label="Copy example">Copy</button>
         <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 8px;">Remote proxy (no install):</p>
         <div class="install-cmd">
           <span class="dollar">$</span>
-          <span style="font-size: 0.85em;">ANTHROPIC_BASE_URL=https://anymodel-proxy.anton-abyzov.workers.dev claude</span>
-          <button class="copy-btn" data-copy="ANTHROPIC_BASE_URL=https://anymodel-proxy.anton-abyzov.workers.dev ANTHROPIC_API_KEY=anymodel-remote-token-2026 claude" aria-label="Copy remote command">Copy</button>
+          <span style="font-size: 0.85em;">ANTHROPIC_BASE_URL=https://api.anymodel.dev claude</span>
+          <button class="copy-btn" data-copy="ANTHROPIC_BASE_URL=https://api.anymodel.dev ANTHROPIC_API_KEY=anymodel-remote-token-2026 claude" aria-label="Copy remote command">Copy</button>
         </div>
 
         <div class="install-alt">
@@ -633,14 +633,14 @@ ANYMODEL_TOKEN=my-secret" aria-label="Copy example">Copy</button>
             <span class="qs-num">1</span>
             <div>
               <p>Try the remote proxy (no install):</p>
-              <code>ANTHROPIC_BASE_URL=https://anymodel-proxy.anton-abyzov.workers.dev ANTHROPIC_API_KEY=anymodel-remote-token-2026 claude</code>
+              <code>ANTHROPIC_BASE_URL=https://api.anymodel.dev ANTHROPIC_API_KEY=anymodel-remote-token-2026 claude</code>
             </div>
           </div>
           <div class="qs-step">
             <span class="qs-num">2</span>
             <div>
               <p>Or install locally with a specific model:</p>
-              <code>npx anymodel --model google/gemini-2.5-flash:free</code>
+              <code>npx anymodel --model qwen/qwen3-coder:free</code>
             </div>
           </div>
           <div class="qs-step">
@@ -674,7 +674,7 @@ ANYMODEL_TOKEN=my-secret" aria-label="Copy example">Copy</button>
             <h4>Links</h4>
             <a href="https://github.com/antonoly/anymodel" target="_blank" rel="noopener">GitHub</a>
             <a href="https://www.npmjs.com/package/anymodel" target="_blank" rel="noopener">npm</a>
-            <a href="https://anymodel-proxy.anton-abyzov.workers.dev/health" target="_blank" rel="noopener">Remote Proxy</a>
+            <a href="https://api.anymodel.dev/health" target="_blank" rel="noopener">Remote Proxy</a>
             <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">Get API Key</a>
           </div>
         </div>

@@ -132,11 +132,11 @@ Options:
 
 anymodel includes a Cloudflare Worker for running the proxy at the edge — zero server management, global latency.
 
-**Live endpoint:** `https://anymodel-proxy.anton-abyzov.workers.dev`
+**Live endpoint:** `https://api.anymodel.dev`
 
 ```bash
 # Connect Claude Code to the remote proxy
-ANTHROPIC_BASE_URL=https://anymodel-proxy.anton-abyzov.workers.dev \
+ANTHROPIC_BASE_URL=https://api.anymodel.dev \
 ANTHROPIC_API_KEY=your-token \
 claude
 ```
@@ -164,7 +164,7 @@ curl http://localhost:9091/health
 - [anymodel.dev](https://anymodel.dev) — Project homepage
 - [OpenRouter](https://openrouter.ai) — Multi-model API gateway
 - [GitHub](https://github.com/antonoly/anymodel) — Source code
-- [Remote Proxy](https://anymodel-proxy.anton-abyzov.workers.dev/health) — Live Cloudflare Worker
+- [Remote Proxy](https://api.anymodel.dev/health) — Live Cloudflare Worker
 
 ## Origin
 

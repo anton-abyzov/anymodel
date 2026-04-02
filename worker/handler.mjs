@@ -4,15 +4,15 @@
 
 export const FREE_MODELS = [
   'qwen/qwen3-coder:free',
-  'google/gemini-2.5-flash:free',
-  'qwen/qwen3.6-plus-preview:free',
+  'qwen/qwen3.6-plus:free',
   'openai/gpt-oss-120b:free',
-  'deepseek/deepseek-chat-v3-0324:free',
-  'meta-llama/llama-4-maverick:free',
-  'meta-llama/llama-4-scout:free',
-  'qwen/qwen3-235b-a22b:free',
-  'google/gemini-3-flash-preview-20251217:free',
-  'mistralai/mistral-small-3.1-24b-instruct:free',
+  'nvidia/nemotron-3-super-120b-a12b:free',
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'google/gemma-3-27b-it:free',
+  'qwen/qwen3-next-80b-a3b-instruct:free',
+  'nousresearch/hermes-3-llama-3.1-405b:free',
+  'stepfun/step-3.5-flash:free',
+  'minimax/minimax-m2.5:free',
 ];
 
 export function checkAuth(headers, token) {
@@ -177,11 +177,13 @@ export async function handleRequest(request, env) {
   // Model override
   if (model) body.model = model;
 
-  // Free-only check
-  if (!isFreeTierModel(body.model, freeOnly)) {
-    return new Response(JSON.stringify({
-      error: { type: 'model_blocked', message: `Model "${body.model}" is not free. Use a :free model.` }
-    }), { status: 403, headers: { 'content-type': 'application/json' } });
+  // Free-only: auto-replace paid models with best free model
+  const defaultFreeModel = env.DEFAULT_FREE_MODEL || FREE_MODELS[0];
+  if (freeOnly && !isFreeTierModel(body.model, true)) {
+    const originalModel = body.model;
+    body.model = defaultFreeModel;
+    // Add a header so client knows model was swapped
+    console.log(`[FREE-ONLY] Swapped ${originalModel} → ${body.model}`);
   }
 
   // Sanitize
