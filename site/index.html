@@ -568,10 +568,9 @@ ANTHROPIC_BASE_URL=http://localhost:9090 claude" aria-label="Copy example">Copy<
 <span class="hl-cmd">npx</span> anymodel --free-only
 
 <span class="hl-comment"># Best free coding models (all $0, with tool use):</span>
-<span class="hl-cmd">npx</span> anymodel --model qwen/qwen3-coder:free
+<span class="hl-cmd">npx</span> anymodel --model nvidia/nemotron-3-super-120b-a12b:free
 <span class="hl-cmd">npx</span> anymodel --model qwen/qwen3-coder:free
 <span class="hl-cmd">npx</span> anymodel --model openai/gpt-oss-120b:free
-<span class="hl-cmd">npx</span> anymodel --model deepseek/deepseek-chat-v3-0324:free
 
 <span class="hl-comment"># Paid models are blocked. 29 free models available.</span></code></pre>
           <button class="copy-btn" data-copy="npx anymodel --free-only" aria-label="Copy example">Copy</button>
@@ -619,17 +618,13 @@ npx anymodel ollama --model llama3" aria-label="Copy example">Copy</button>
             <h3>Use a .env file</h3>
           </div>
           <pre><code><span class="hl-comment"># Create a .env file in your project:</span>
-OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_MODEL=qwen/qwen3-coder:free
-PROXY_PORT=9090
-ANYMODEL_TOKEN=my-secret
+OPENROUTER_API_KEY=sk-or-v1-your-key
+OPENROUTER_MODEL=nvidia/nemotron-3-super-120b-a12b:free
 
 <span class="hl-comment"># Then just run:</span>
 <span class="hl-cmd">npx</span> anymodel</code></pre>
-          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-...
-OPENROUTER_MODEL=qwen/qwen3-coder:free
-PROXY_PORT=9090
-ANYMODEL_TOKEN=my-secret" aria-label="Copy example">Copy</button>
+          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key
+OPENROUTER_MODEL=nvidia/nemotron-3-super-120b-a12b:free" aria-label="Copy example">Copy</button>
         </div>
       </div>
     </div>

@@ -310,7 +310,8 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10,
     }
     console.log('');
     console.log(`  ${C.green('Run in another terminal:')}`);
-    console.log(`  ${C.bold(`ANTHROPIC_BASE_URL=http://localhost:${actualPort} node cli.js`)}`);
+    const modelEnv = model ? `ANYMODEL_MODEL="${model}" ` : '';
+    console.log(`  ${C.bold(`${modelEnv}ANTHROPIC_BASE_URL=http://localhost:${actualPort} node cli.js`)}`);
     console.log('');
   }
 
