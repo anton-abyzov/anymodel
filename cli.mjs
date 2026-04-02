@@ -176,44 +176,46 @@ async function startFull(args) {
   const remoteUrl = process.env.ANYMODEL_REMOTE_URL || 'https://anymodel-proxy.anton-abyzov.workers.dev';
   const remoteToken = process.env.ANYMODEL_TOKEN || '';
 
-  // Try remote proxy first (free, no local setup needed)
+  // Try remote proxy when OPENROUTER_API_KEY is set (simplest path)
   if (!opts.provider || opts.provider === 'auto') {
-    console.log(`${C.cyan('[anymodel]')} Checking remote proxy...`);
-    try {
-      const http = await import('http');
-      const https = await import('https');
-      const ok = await new Promise((resolve) => {
-        const req = https.default.get(`${remoteUrl}/health`, { timeout: 3000 }, (res) => {
-          res.resume();
-          resolve(res.statusCode === 200);
-        });
-        req.on('error', () => resolve(false));
-        req.setTimeout(3000, () => { req.destroy(); resolve(false); });
-      });
-      if (ok && remoteToken) {
-        console.log(`${C.green('[anymodel]')} Remote proxy available at ${C.bold(remoteUrl)}`);
-        const modelLabel = opts.model || 'nvidia/nemotron-3-super-120b-a12b:free';
-        const client = findClient();
-        if (client) {
-          console.log(`${C.green('[anymodel]')} Launching ${C.bold(client.label)}`);
-          console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelLabel)}`);
-          console.log('');
-          const clientChild = spawn(client.cmd, client.args, {
-            stdio: 'inherit',
-            env: {
-              ...process.env,
-              ANTHROPIC_BASE_URL: remoteUrl,
-              ANTHROPIC_API_KEY: remoteToken,
-              ANYMODEL_MODEL: modelLabel,
-            },
+    const openrouterKey = process.env.OPENROUTER_API_KEY || '';
+    if (openrouterKey.startsWith('sk-or-')) {
+      console.log(`${C.cyan('[anymodel]')} Checking remote proxy...`);
+      try {
+        const https = await import('https');
+        const ok = await new Promise((resolve) => {
+          const req = https.default.get(`${remoteUrl}/health`, { timeout: 3000 }, (res) => {
+            res.resume();
+            resolve(res.statusCode === 200);
           });
-          clientChild.on('exit', (code) => process.exit(code || 0));
-          process.on('SIGINT', () => { clientChild.kill('SIGTERM'); process.exit(0); });
-          return;
+          req.on('error', () => resolve(false));
+          req.setTimeout(3000, () => { req.destroy(); resolve(false); });
+        });
+        if (ok) {
+          console.log(`${C.green('[anymodel]')} Remote proxy available at ${C.bold(remoteUrl)}`);
+          const modelLabel = opts.model || 'auto (free)';
+          const client = findClient();
+          if (client) {
+            console.log(`${C.green('[anymodel]')} Launching ${C.bold(client.label)}`);
+            console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelLabel)}`);
+            console.log('');
+            const clientChild = spawn(client.cmd, client.args, {
+              stdio: 'inherit',
+              env: {
+                ...process.env,
+                ANTHROPIC_BASE_URL: remoteUrl,
+                ANTHROPIC_API_KEY: openrouterKey,  // BYOK: user's own key
+                ANYMODEL_MODEL: modelLabel,
+              },
+            });
+            clientChild.on('exit', (code) => process.exit(code || 0));
+            process.on('SIGINT', () => { clientChild.kill('SIGTERM'); process.exit(0); });
+            return;
+          }
         }
-      }
-    } catch {}
-    console.log(`${C.yellow('[anymodel]')} Remote not available, starting local proxy...`);
+      } catch {}
+      console.log(`${C.yellow('[anymodel]')} Remote not available, starting local proxy...`);
+    }
   }
 
   // Build proxy args
