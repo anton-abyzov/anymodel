@@ -3,13 +3,13 @@ function typeTerminal() {
   const el = document.getElementById('terminal-typed');
   if (!el) return;
   const lines = [
-    '$ npx anymodel',
+    '$ npx anymodel openrouter',
     '',
     '\u2194 anymodel proxy on :9090',
     '  /v1/messages \u2192 OpenRouter (google/gemini-2.5-flash)',
-    '  everything else \u2192 api.anthropic.com',
+    '  everything else \u2192 passthrough',
     '',
-    'Run: ANTHROPIC_BASE_URL=http://localhost:9090 claude'
+    'Ready. Point your AI tool at localhost:9090'
   ];
   const text = lines.join('\n');
   let i = 0;

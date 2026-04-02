@@ -1,16 +1,14 @@
 # anymodel
 
-**Run Claude Code with any AI model — OpenRouter, Ollama, or any LLM provider.**
+**Universal AI model proxy — route any coding tool through OpenRouter, Ollama, or any LLM provider.**
 
 [![npm version](https://img.shields.io/npm/v/anymodel)](https://www.npmjs.com/package/anymodel)
 [![license](https://img.shields.io/npm/l/anymodel)](https://github.com/antonoly/anymodel/blob/main/LICENSE)
 [![node](https://img.shields.io/node/v/anymodel)](https://nodejs.org)
 
-Use Claude Code's powerful agentic coding with **any model** — GPT-4o, Gemini, Llama, Mistral, DeepSeek, and hundreds more. anymodel is a lightweight proxy that sits between Claude Code and your preferred AI provider, translating requests on the fly.
+Use **any model** with your AI coding tools — GPT-4o, Gemini, Llama, Mistral, DeepSeek, and hundreds more. anymodel is a lightweight proxy that sits between your tools and your preferred AI provider, translating requests on the fly.
 
 **Zero dependencies.** Just Node.js.
-
-> **Disclaimer:** anymodel is an independent, third-party tool. It is not affiliated with, endorsed by, or sponsored by Anthropic. "Claude" and "Claude Code" are trademarks of Anthropic, PBC.
 
 ## Quick Start
 
@@ -42,33 +40,26 @@ npx anymodel --port 8080
 npx anymodel openrouter --model deepseek/deepseek-r1 --port 3000
 ```
 
-Then in another terminal:
+Then point your AI tool at the proxy:
 
 ```bash
-ANTHROPIC_BASE_URL=http://localhost:9090 claude
+ANTHROPIC_BASE_URL=http://localhost:9090 your-tool
 ```
 
 ## How It Works
 
 ```
 ┌─────────────┐     ┌──────────────┐     ┌──────────────────┐
-│  Claude Code │────>│   anymodel   │────>│  OpenRouter /     │
-│              │<────│  :9090       │<────│  Ollama / etc.    │
+│  Your AI     │────>│   anymodel   │────>│  OpenRouter /     │
+│  Tool        │<────│  :9090       │<────│  Ollama / etc.    │
 └─────────────┘     └──────────────┘     └──────────────────┘
-                           │
-                           │ (non-/v1/messages)
-                           v
-                    ┌──────────────┐
-                    │  Anthropic   │
-                    │  API         │
-                    └──────────────┘
 ```
 
-anymodel intercepts `/v1/messages` requests from Claude Code and routes them to your chosen provider. All other requests (auth, config) pass through to Anthropic's API unchanged.
+anymodel intercepts `/v1/messages` requests and routes them to your chosen provider. All other requests pass through unchanged.
 
 The proxy automatically:
-- Strips Anthropic-specific fields (`cache_control`, `betas`, `metadata`, `thinking`, etc.)
-- Normalizes `tool_choice` format for cross-provider compatibility
+- Translates API-specific fields for cross-provider compatibility
+- Normalizes `tool_choice` format across providers
 - Retries failed requests with exponential backoff (3 attempts, max 8s delay)
 - Streams responses back in real-time
 
@@ -141,4 +132,4 @@ Options:
 
 ## License
 
-MIT
+MIT &copy; 2025 [antonoly](https://github.com/antonoly)

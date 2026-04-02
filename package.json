@@ -1,7 +1,7 @@
 {
   "name": "anymodel",
   "version": "1.0.0",
-  "description": "Run Claude Code with any AI model — OpenRouter, Ollama, or any LLM provider",
+  "description": "Universal AI model proxy — route any coding tool through OpenRouter, Ollama, or any LLM provider",
   "type": "module",
   "bin": { "anymodel": "./cli.mjs" },
   "main": "proxy.mjs",
