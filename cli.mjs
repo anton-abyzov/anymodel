@@ -30,7 +30,14 @@ export function parseArgs(argv) {
   return opts;
 }
 
-export async function detectProvider() {
+export async function detectProvider(model) {
+  // If model contains '/', it's an OpenRouter-style model ID (e.g., google/gemini-2.5-flash)
+  if (model && model.includes('/')) {
+    if (process.env.OPENROUTER_API_KEY) return 'openrouter';
+    // Model looks like OpenRouter but no key — still prefer OpenRouter, let it fail with clear error
+    return 'openrouter';
+  }
+
   if (process.env.OPENROUTER_API_KEY) return 'openrouter';
 
   const { default: ollama } = await import('./providers/ollama.mjs');
@@ -83,7 +90,7 @@ async function main() {
   // Resolve provider
   let providerName = opts.provider;
   if (providerName === 'auto') {
-    providerName = await detectProvider();
+    providerName = await detectProvider(opts.model);
     if (!providerName) {
       console.error('\x1b[31mError: Could not auto-detect a provider.\x1b[0m');
       console.error('');

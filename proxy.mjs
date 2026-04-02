@@ -214,7 +214,7 @@ function proxyToAnthropic(req, res) {
   });
 }
 
-export function createProxy(provider, { port = 9090, model } = {}) {
+export function createProxy(provider, { port = 9090, model, maxPortRetries = 10 } = {}) {
   const server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url.split('?')[0].replace(/\/+$/, '') === '/health') {
       res.writeHead(200, { 'content-type': 'application/json' });
@@ -232,27 +232,49 @@ export function createProxy(provider, { port = 9090, model } = {}) {
     if (isProviderRoute(req.url)) {
       handleMessages(req, res, provider, model);
     } else {
-      console.log(`${C.yellow('[ANTHROPIC]')} ${req.method} ${req.url}`);
+      console.log(`${C.yellow('[PASSTHROUGH]')} ${req.method} ${req.url}`);
       proxyToAnthropic(req, res);
     }
   });
 
-  server.listen(port, () => {
+  function printBanner(actualPort) {
     console.log('');
     console.log(C.magenta(`  anymodel v${pkg.version}`));
     console.log('');
-    console.log(`  ${C.cyan('\u2194')}  Proxy on :${port}`);
+    console.log(`  ${C.cyan('\u2194')}  Proxy on :${actualPort}`);
     console.log(`     /v1/messages \u2192 ${C.bold(provider.name)} ${provider.displayInfo(model)}`);
-    console.log(`     everything else \u2192 api.anthropic.com`);
+    console.log(`     everything else \u2192 passthrough`);
     console.log(`     Retries: ${MAX_RETRIES} with exponential backoff`);
     if (model) {
       console.log(`     Model override: ${C.cyan(model)}`);
     }
     console.log('');
     console.log(`  ${C.green('Run in another terminal:')}`);
-    console.log(`  ${C.bold(`ANTHROPIC_BASE_URL=http://localhost:${port} claude`)}`);
+    console.log(`  ${C.bold(`ANTHROPIC_BASE_URL=http://localhost:${actualPort} claude`)}`);
     console.log('');
-  });
+  }
+
+  // Smart port finding: try port, port+1, port+2, ... up to maxPortRetries
+  let attempt = 0;
+  function tryListen() {
+    const tryPort = port + attempt;
+    server.once('error', (err) => {
+      if (err.code === 'EADDRINUSE' && attempt < maxPortRetries) {
+        console.log(`${C.yellow('[PORT]')} :${tryPort} in use, trying :${tryPort + 1}`);
+        attempt++;
+        tryListen();
+      } else {
+        throw err;
+      }
+    });
+    server.listen(tryPort, () => {
+      if (attempt > 0) {
+        console.log(`${C.green('[PORT]')} Found free port :${tryPort}`);
+      }
+      printBanner(tryPort);
+    });
+  }
+  tryListen();
 
   return server;
 }
