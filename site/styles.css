@@ -559,6 +559,38 @@ section { padding: 120px 0; }
   text-underline-offset: 2px;
 }
 
+/* Dual architecture diagram */
+.arch-dual {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 48px;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.arch-path {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.arch-path-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.arch-path-sep {
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 4px 0;
+}
+
 /* Architecture diagram */
 .arch-diagram {
   display: flex;
@@ -1112,10 +1144,16 @@ section { padding: 120px 0; }
 }
 .faq-item code {
   font-family: var(--font-mono);
-  font-size: 0.8rem;
-  background: var(--bg-primary);
-  padding: 1px 5px;
+  font-size: 0.8em;
+  background: rgba(127,127,127,0.15);
+  padding: 2px 6px;
   border-radius: 4px;
+  display: inline;
+  white-space: nowrap;
+}
+.faq-item summary code {
+  font-weight: 400;
+  font-size: 0.85em;
 }
 .qs-step a:hover { text-decoration-color: var(--accent-cyan); }
 .qs-step code {
@@ -1295,41 +1333,122 @@ footer {
    LIGHT THEME
    ════════════════════════════════════════════════════ */
 html[data-theme="light"] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f4f4f5;
+  --bg-primary: #fafafa;
+  --bg-secondary: #f0f0f2;
   --bg-tertiary: #e4e4e7;
-  --bg-card: rgba(0, 0, 0, 0.03);
-  --bg-card-hover: rgba(0, 0, 0, 0.05);
+  --bg-card: rgba(0, 0, 0, 0.02);
+  --bg-card-hover: rgba(0, 0, 0, 0.04);
   --text-primary: #18181b;
-  --text-secondary: #52525b;
+  --text-secondary: #3f3f46;
   --text-muted: #71717a;
-  --accent-purple: #9333ea;
+  --accent-purple: #7c3aed;
   --accent-blue: #2563eb;
   --accent-cyan: #0891b2;
   --accent-emerald: #059669;
-  --gradient: linear-gradient(135deg, #9333ea 0%, #4f46e5 35%, #2563eb 65%, #0891b2 100%);
-  --gradient-subtle: linear-gradient(135deg, rgba(147, 51, 234, 0.1), rgba(37, 99, 235, 0.1), rgba(8, 145, 178, 0.1));
-  --border: rgba(0, 0, 0, 0.08);
-  --border-hover: rgba(0, 0, 0, 0.15);
-  --shadow-glow: 0 0 80px rgba(99, 102, 241, 0.04);
+  --gradient: linear-gradient(135deg, #7c3aed 0%, #4f46e5 35%, #2563eb 65%, #0891b2 100%);
+  --gradient-subtle: linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(37, 99, 235, 0.08), rgba(8, 145, 178, 0.08));
+  --border: rgba(0, 0, 0, 0.10);
+  --border-hover: rgba(0, 0, 0, 0.18);
+  --shadow-glow: 0 4px 24px rgba(0, 0, 0, 0.06);
 }
+
+/* ── Light: background ── */
 html[data-theme="light"] body::before {
-  background-image: radial-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px);
 }
-html[data-theme="light"] .terminal {
-  background: #1e1e2e;
-  border-color: rgba(0,0,0,0.12);
-}
-html[data-theme="light"] .terminal-body {
-  color: #d4d4d8;
-}
-html[data-theme="light"] .terminal-title {
-  color: #71717a;
-}
+
+/* ── Light: nav ── */
 html[data-theme="light"] .nav {
-  background: rgba(255,255,255,0.9);
+  background: rgba(250, 250, 250, 0.92);
   backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
 }
+
+/* ── Light: terminals stay dark (code looks better on dark) ── */
+html[data-theme="light"] .terminal {
+  background: #1c1c2e;
+  border-color: rgba(0,0,0,0.10);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+html[data-theme="light"] .terminal-body { color: #d4d4d8; }
+html[data-theme="light"] .terminal-title { color: #a1a1aa; }
+html[data-theme="light"] .terminal-bar { border-bottom-color: rgba(255,255,255,0.06); }
+
+/* ── Light: install command boxes ── */
+html[data-theme="light"] .install-cmd {
+  background: #1c1c2e;
+  color: #d4d4d8;
+  border-color: rgba(0,0,0,0.10);
+}
+html[data-theme="light"] .install-cmd span { color: #d4d4d8; }
+html[data-theme="light"] .install-cmd .dollar { color: #71717a; }
+
+/* ── Light: code blocks ── */
+html[data-theme="light"] .step-cmd {
+  background: #1c1c2e;
+  border-color: rgba(0,0,0,0.10);
+}
+html[data-theme="light"] .step-cmd code {
+  color: #06b6d4;
+  background: none;
+}
+html[data-theme="light"] code {
+  background: rgba(0,0,0,0.06);
+}
+html[data-theme="light"] .model-id {
+  background: rgba(0,0,0,0.05);
+  color: var(--accent-cyan);
+}
+html[data-theme="light"] .qs-step code {
+  background: #1c1c2e;
+  color: #06b6d4;
+}
+
+/* ── Light: cards ── */
+html[data-theme="light"] .model-card,
+html[data-theme="light"] .feature-card,
+html[data-theme="light"] .doc-card,
+html[data-theme="light"] .example-card,
+html[data-theme="light"] .guide-card {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.08);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+html[data-theme="light"] .faq-item {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.08);
+}
+
+/* ── Light: section alternating bg ── */
+html[data-theme="light"] .section-alt {
+  background: #f4f4f5;
+}
+
+/* ── Light: gradient text ── */
 html[data-theme="light"] .gradient-text {
   -webkit-text-fill-color: transparent;
+}
+
+/* ── Light: copy buttons ── */
+html[data-theme="light"] .copy-btn {
+  background: rgba(0,0,0,0.05);
+  color: var(--text-secondary);
+  border-color: rgba(0,0,0,0.10);
+}
+
+/* ── Light: quickstart ── */
+html[data-theme="light"] .quickstart {
+  background: #ffffff;
+  border-color: rgba(0,0,0,0.08);
+}
+
+/* ── Light: guide code blocks ── */
+html[data-theme="light"] .guide-step pre {
+  background: #1c1c2e;
+  color: #d4d4d8;
+  border-color: rgba(0,0,0,0.10);
+}
+html[data-theme="light"] .guide-step pre code {
+  background: none;
+  color: #d4d4d8;
 }
