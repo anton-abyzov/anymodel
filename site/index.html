@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>anymodel — Universal AI Model Proxy for CLI Tools</title>
-  <meta name="description" content="Route any AI coding tool through any LLM provider. GPT, Gemini, Llama, Mistral — one command, zero dependencies.">
+  <meta name="description" content="Route any AI coding tool through any LLM provider. GPT, Gemini, Llama, Mistral, DeepSeek — one command, zero dependencies.">
   <link rel="canonical" href="https://anymodel.dev">
 
   <!-- Open Graph -->
@@ -47,137 +47,428 @@
 </head>
 <body>
 
+  <!-- ═══ NAV ═══ -->
+  <nav class="nav">
+    <div class="container nav-inner">
+      <a href="#" class="nav-logo">
+        <span class="nav-logo-icon">&#9670;</span>
+        <span>anymodel</span>
+      </a>
+      <div class="nav-links">
+        <a href="#how-it-works">How It Works</a>
+        <a href="#models">Models</a>
+        <a href="#docs">Docs</a>
+        <a href="#examples">Examples</a>
+        <a href="https://github.com/antonoly/anymodel" target="_blank" rel="noopener" class="nav-github">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+        </a>
+      </div>
+    </div>
+  </nav>
+
   <!-- ═══ HERO ═══ -->
   <section class="hero" id="hero">
     <div class="container">
       <div class="hero-content">
-        <h1><span class="gradient-text">Any Tool. Any Model.</span></h1>
-        <p class="hero-sub">Universal AI model proxy. Route your coding tools through GPT, Gemini, Llama, or any LLM. One command.</p>
+        <div class="hero-badge fade-in">Open Source &middot; Zero Dependencies &middot; 200+ Models</div>
+        <h1 class="fade-in"><span class="gradient-text">Any Tool.</span><br><span class="gradient-text">Any Model.</span></h1>
+        <p class="hero-sub fade-in">Universal proxy that routes <strong>Claude Code</strong> and other AI tools through <strong>Claude</strong>, <strong>GPT-4o</strong>, <strong>Gemini</strong>, <strong>Llama</strong>, <strong>DeepSeek</strong>, and hundreds more. One command. No lock-in.</p>
 
         <div class="terminal fade-in">
           <div class="terminal-bar">
             <span class="terminal-dot"></span>
             <span class="terminal-dot"></span>
             <span class="terminal-dot"></span>
+            <span class="terminal-title">Terminal</span>
           </div>
           <div class="terminal-body"><span id="terminal-typed" style="visibility:hidden"></span><span class="cursor"></span></div>
         </div>
 
         <div class="cta-group fade-in">
           <a href="#install" class="btn-primary">Get Started</a>
-          <a href="https://github.com/antonoly/anymodel" target="_blank" rel="noopener" class="btn-secondary">View on GitHub &rarr;</a>
+          <a href="#docs" class="btn-secondary">Read the Docs &rarr;</a>
+        </div>
+
+        <div class="hero-stats fade-in">
+          <div class="stat"><span class="stat-num">200+</span><span class="stat-label">Models</span></div>
+          <div class="stat-sep"></div>
+          <div class="stat"><span class="stat-num">0</span><span class="stat-label">Dependencies</span></div>
+          <div class="stat-sep"></div>
+          <div class="stat"><span class="stat-num">2</span><span class="stat-label">Providers</span></div>
+          <div class="stat-sep"></div>
+          <div class="stat"><span class="stat-num">MIT</span><span class="stat-label">License</span></div>
         </div>
       </div>
     </div>
   </section>
 
   <!-- ═══ HOW IT WORKS ═══ -->
-  <section id="how-it-works">
+  <section id="how-it-works" class="section-alt">
     <div class="container">
       <div class="section-label fade-in">How It Works</div>
-      <h2 class="section-title fade-in">Three steps. That's it.</h2>
-      <p class="section-desc fade-in">No config files. No complex setup. Just one command.</p>
+      <h2 class="section-title fade-in">Three steps. Zero config.</h2>
+      <p class="section-desc fade-in">No configuration files. No complex setup. Just install and point your tools.</p>
 
       <div class="steps-grid">
         <div class="step fade-in">
           <div class="step-number">1</div>
           <h3>Install</h3>
-          <p><code>npx anymodel</code></p>
-          <p>One command, zero deps</p>
+          <code>npx anymodel</code>
+          <p>Runs instantly. No global install needed.</p>
         </div>
         <div class="step fade-in">
           <div class="step-number">2</div>
-          <h3>Proxy starts</h3>
-          <p>Routes AI requests through your chosen provider automatically</p>
+          <h3>Proxy Starts</h3>
+          <p>Auto-detects your provider. Starts a local proxy on port 9090.</p>
         </div>
         <div class="step fade-in">
           <div class="step-number">3</div>
-          <h3>Use your tools</h3>
-          <p>Point any AI coding tool at the proxy. Full experience, any model.</p>
+          <h3>Use Any Model</h3>
+          <p>Point your AI tool at the proxy. Full compatibility, any model you want.</p>
+        </div>
+      </div>
+
+      <!-- Architecture diagram -->
+      <div class="arch-diagram fade-in">
+        <div class="arch-box">
+          <div class="arch-icon">&#9654;</div>
+          <span>Your AI Tool</span>
+        </div>
+        <div class="arch-arrow">&rarr;</div>
+        <div class="arch-box arch-box-highlight">
+          <div class="arch-icon">&#9670;</div>
+          <span>anymodel :9090</span>
+        </div>
+        <div class="arch-arrow">&rarr;</div>
+        <div class="arch-box">
+          <div class="arch-icon">&#9729;</div>
+          <span>OpenRouter / Ollama</span>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ═══ PROVIDERS ═══ -->
-  <section id="providers">
+  <!-- ═══ MODELS ═══ -->
+  <section id="models">
     <div class="container">
-      <div class="section-label fade-in">Providers</div>
-      <h2 class="section-title fade-in">Works with everything.</h2>
-      <p class="section-desc fade-in">OpenRouter, Ollama, or any OpenAI-compatible endpoint.</p>
+      <div class="section-label fade-in">Supported Models</div>
+      <h2 class="section-title fade-in">Access the best open and commercial models.</h2>
+      <p class="section-desc fade-in">From frontier models to local inference. Switch between them with a single flag.</p>
 
-      <div class="providers-grid">
-        <div class="provider-card fade-in">
-          <div class="provider-icon" aria-hidden="true">&#9672;</div>
-          <h3>OpenRouter</h3>
-          <p>Hundreds of models. Free tier available. One API key for everything.</p>
+      <div class="models-grid">
+        <div class="model-card fade-in">
+          <div class="model-header">
+            <div class="model-icon" style="background: linear-gradient(135deg, #d97706, #b45309); color: #fff;">A</div>
+            <div>
+              <h3>Anthropic Claude</h3>
+              <span class="model-tag">Cloud</span>
+            </div>
+          </div>
+          <p>Claude Opus 4, Sonnet 4, Haiku. The models Claude Code was built for — now accessible through OpenRouter with all providers.</p>
+          <code class="model-id">anthropic/claude-sonnet-4</code>
         </div>
-        <div class="provider-card fade-in">
-          <div class="provider-icon" aria-hidden="true">&#9881;</div>
-          <h3>Ollama</h3>
-          <p>Run models locally. Completely private. No API key needed.</p>
+
+        <div class="model-card fade-in">
+          <div class="model-header">
+            <div class="model-icon model-icon-gemini">G</div>
+            <div>
+              <h3>Google Gemini</h3>
+              <span class="model-tag">Cloud</span>
+            </div>
+          </div>
+          <p>Gemini 2.5 Pro &amp; Flash. Best price-to-performance for coding tasks. Multimodal with massive context window.</p>
+          <code class="model-id">google/gemini-2.5-flash</code>
         </div>
-        <div class="provider-card fade-in">
-          <div class="provider-icon" aria-hidden="true">&#9830;</div>
-          <h3>Google Gemini</h3>
-          <p>Gemini Pro &amp; Flash via OpenRouter. Great price-to-performance.</p>
+
+        <div class="model-card fade-in">
+          <div class="model-header">
+            <div class="model-icon model-icon-openai">O</div>
+            <div>
+              <h3>OpenAI GPT</h3>
+              <span class="model-tag">Cloud</span>
+            </div>
+          </div>
+          <p>GPT-4o, o1, o3. Industry-leading reasoning models with broad tool support and reliable output.</p>
+          <code class="model-id">openai/gpt-4o</code>
         </div>
-        <div class="provider-card fade-in">
-          <div class="provider-icon" aria-hidden="true">&#9638;</div>
-          <h3>Meta Llama</h3>
-          <p>Llama 3, CodeLlama. Run via OpenRouter or locally with Ollama.</p>
+
+        <div class="model-card fade-in">
+          <div class="model-header">
+            <div class="model-icon model-icon-llama">L</div>
+            <div>
+              <h3>Meta Llama</h3>
+              <span class="model-tag">Open Weight</span>
+            </div>
+          </div>
+          <p>Llama 4 Maverick, Llama 3.3, CodeLlama. Run via OpenRouter or locally with Ollama. Fully open weights.</p>
+          <code class="model-id">meta-llama/llama-4-maverick</code>
         </div>
-        <div class="provider-card fade-in">
-          <div class="provider-icon" aria-hidden="true">&#9670;</div>
-          <h3>Mistral</h3>
-          <p>Mixtral, Codestral. European models via OpenRouter.</p>
+
+        <div class="model-card fade-in">
+          <div class="model-header">
+            <div class="model-icon model-icon-deepseek">D</div>
+            <div>
+              <h3>DeepSeek</h3>
+              <span class="model-tag">Open Weight</span>
+            </div>
+          </div>
+          <p>DeepSeek R1. Reasoning-first architecture rivaling frontier models. Exceptional at code generation and analysis.</p>
+          <code class="model-id">deepseek/deepseek-r1</code>
         </div>
-        <div class="provider-card fade-in">
-          <div class="provider-icon" aria-hidden="true">&#11042;</div>
-          <h3>OpenAI GPT</h3>
-          <p>GPT-4o, o1, o3. Full OpenAI lineup through OpenRouter.</p>
+
+        <div class="model-card fade-in">
+          <div class="model-header">
+            <div class="model-icon model-icon-mistral">M</div>
+            <div>
+              <h3>Mistral</h3>
+              <span class="model-tag">Cloud</span>
+            </div>
+          </div>
+          <p>Mixtral, Codestral. European AI models with strong multilingual support and efficient inference.</p>
+          <code class="model-id">mistralai/codestral-latest</code>
+        </div>
+
+        <div class="model-card fade-in">
+          <div class="model-header">
+            <div class="model-icon model-icon-ollama">&#9881;</div>
+            <div>
+              <h3>Local Models</h3>
+              <span class="model-tag">Ollama</span>
+            </div>
+          </div>
+          <p>Run any GGUF model locally. Zero cloud dependency. Fully private. No API key required.</p>
+          <code class="model-id">ollama --model llama3</code>
         </div>
       </div>
     </div>
   </section>
 
   <!-- ═══ FEATURES ═══ -->
-  <section id="features">
+  <section id="features" class="section-alt">
     <div class="container">
       <div class="section-label fade-in">Features</div>
-      <h2 class="section-title fade-in">Built for developers.</h2>
-      <p class="section-desc fade-in">Everything you need, nothing you don't.</p>
+      <h2 class="section-title fade-in">Production-grade proxy.</h2>
+      <p class="section-desc fade-in">Built for reliability. Handles the translation so your tools just work.</p>
 
       <div class="features-grid">
         <div class="feature-card fade-in">
-          <span class="feature-icon" aria-hidden="true">&#9744;</span>
+          <span class="feature-icon" aria-hidden="true">&#10003;</span>
           <h3>Zero Dependencies</h3>
-          <p>Only Node.js built-ins. No bloat, no supply chain risk.</p>
+          <p>Pure Node.js built-ins. No bloat, no supply chain risk, no node_modules.</p>
         </div>
         <div class="feature-card fade-in">
           <span class="feature-icon" aria-hidden="true">&#8635;</span>
           <h3>Auto-Detection</h3>
-          <p>Finds your provider and configuration automatically.</p>
+          <p>Detects OPENROUTER_API_KEY or running Ollama automatically. No config needed.</p>
         </div>
         <div class="feature-card fade-in">
-          <span class="feature-icon" aria-hidden="true">&#9888;</span>
+          <span class="feature-icon" aria-hidden="true">&#8644;</span>
           <h3>Request Translation</h3>
-          <p>Translates API requests between formats seamlessly. No errors.</p>
+          <p>Translates API-specific fields, normalizes tool_choice, strips incompatible params.</p>
         </div>
         <div class="feature-card fade-in">
           <span class="feature-icon" aria-hidden="true">&#8634;</span>
           <h3>Smart Retries</h3>
-          <p>Exponential backoff on rate limits. Never lose a request.</p>
+          <p>3 retry attempts with exponential backoff. Handles 429 and 5xx errors gracefully.</p>
         </div>
         <div class="feature-card fade-in">
-          <span class="feature-icon" aria-hidden="true">&#9733;</span>
-          <h3>200+ Models</h3>
-          <p>Access any model via OpenRouter. Pick whatever fits your task.</p>
+          <span class="feature-icon" aria-hidden="true">&#9654;</span>
+          <h3>Streaming</h3>
+          <p>Full streaming support. Responses pipe through in real-time with zero buffering.</p>
         </div>
         <div class="feature-card fade-in">
-          <span class="feature-icon" aria-hidden="true">&#9749;</span>
-          <h3>Local &amp; Private</h3>
-          <p>Run with Ollama. Nothing leaves your machine.</p>
+          <span class="feature-icon" aria-hidden="true">&#9881;</span>
+          <h3>Health Check</h3>
+          <p>Built-in <code>/health</code> endpoint returns status, version, provider, and uptime as JSON.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ DOCS ═══ -->
+  <section id="docs">
+    <div class="container">
+      <div class="section-label fade-in">Documentation</div>
+      <h2 class="section-title fade-in">Everything you need to know.</h2>
+      <p class="section-desc fade-in">Complete reference for installation, providers, configuration, and API.</p>
+
+      <div class="docs-grid">
+        <!-- CLI Reference -->
+        <div class="doc-card fade-in">
+          <h3>CLI Reference</h3>
+          <div class="doc-content">
+            <pre><code>anymodel [provider] [options]
+
+<span class="hl-label">Providers:</span>
+  openrouter    Route through OpenRouter
+  ollama        Route through local Ollama
+
+<span class="hl-label">Options:</span>
+  --model, -m   Model ID (e.g., google/gemini-2.5-flash)
+  --port, -p    Proxy port (default: 9090)
+  --help, -h    Show help</code></pre>
+          </div>
+        </div>
+
+        <!-- Environment Variables -->
+        <div class="doc-card fade-in">
+          <h3>Environment Variables</h3>
+          <div class="doc-table">
+            <div class="doc-row">
+              <code>OPENROUTER_API_KEY</code>
+              <span>Your OpenRouter API key</span>
+            </div>
+            <div class="doc-row">
+              <code>OPENROUTER_MODEL</code>
+              <span>Default model override</span>
+            </div>
+            <div class="doc-row">
+              <code>PROXY_PORT</code>
+              <span>Proxy listen port (default: 9090)</span>
+            </div>
+          </div>
+          <p class="doc-note">anymodel auto-loads <code>.env</code> from the current directory.</p>
+        </div>
+
+        <!-- Health Endpoint -->
+        <div class="doc-card fade-in">
+          <h3>Health Endpoint</h3>
+          <div class="doc-content">
+            <pre><code><span class="hl-method">GET</span> /health
+
+<span class="hl-label">Response:</span>
+{
+  "status": "ok",
+  "version": "1.0.0",
+  "provider": "openrouter",
+  "model": "google/gemini-2.5-flash",
+  "uptime": 3600.5,
+  "timestamp": "2025-01-15T10:30:00Z"
+}</code></pre>
+          </div>
+        </div>
+
+        <!-- Request Flow -->
+        <div class="doc-card fade-in">
+          <h3>Request Routing</h3>
+          <div class="doc-content">
+            <div class="doc-flow">
+              <div class="doc-flow-item">
+                <code>/v1/messages</code>
+                <span>&rarr; Routed to your chosen provider</span>
+              </div>
+              <div class="doc-flow-item">
+                <code>/v1/*</code>
+                <span>&rarr; Passed through to api.anthropic.com</span>
+              </div>
+              <div class="doc-flow-item">
+                <code>/health</code>
+                <span>&rarr; Returns proxy status JSON</span>
+              </div>
+            </div>
+            <p class="doc-note">The proxy sanitizes request bodies: strips <code>betas</code>, <code>metadata</code>, <code>thinking</code>, <code>cache_control</code>, and normalizes <code>tool_choice</code> for cross-provider compatibility.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ EXAMPLES ═══ -->
+  <section id="examples" class="section-alt">
+    <div class="container">
+      <div class="section-label fade-in">Examples</div>
+      <h2 class="section-title fade-in">Real-world usage patterns.</h2>
+      <p class="section-desc fade-in">Copy-paste examples for common scenarios.</p>
+
+      <div class="examples-grid">
+        <div class="example-card fade-in">
+          <div class="example-header">
+            <span class="example-tag" style="background: rgba(217, 119, 6, 0.15); color: #d97706;">Claude Code</span>
+            <h3>Run Claude Code with any model</h3>
+          </div>
+          <pre><code><span class="hl-comment"># Start the proxy</span>
+<span class="hl-cmd">npx</span> anymodel --model google/gemini-2.5-flash
+
+<span class="hl-comment"># In another terminal, launch Claude Code</span>
+<span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://localhost:9090 claude
+
+<span class="hl-comment"># Or use Anthropic models via OpenRouter</span>
+<span class="hl-cmd">npx</span> anymodel --model anthropic/claude-sonnet-4</code></pre>
+          <button class="copy-btn" data-copy="npx anymodel --model google/gemini-2.5-flash
+# Then in another terminal:
+ANTHROPIC_BASE_URL=http://localhost:9090 claude" aria-label="Copy example">Copy</button>
+        </div>
+
+        <div class="example-card fade-in">
+          <div class="example-header">
+            <span class="example-tag">OpenRouter</span>
+            <h3>Use Gemini Flash for coding</h3>
+          </div>
+          <pre><code><span class="hl-comment"># Set your API key</span>
+<span class="hl-cmd">export</span> OPENROUTER_API_KEY=sk-or-v1-...
+
+<span class="hl-comment"># Start proxy with Gemini Flash</span>
+<span class="hl-cmd">npx</span> anymodel openrouter --model google/gemini-2.5-flash
+
+<span class="hl-comment"># In another terminal, use your AI tool</span>
+<span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://localhost:9090 your-tool</code></pre>
+          <button class="copy-btn" data-copy="export OPENROUTER_API_KEY=sk-or-v1-...
+npx anymodel openrouter --model google/gemini-2.5-flash" aria-label="Copy example">Copy</button>
+        </div>
+
+        <div class="example-card fade-in">
+          <div class="example-header">
+            <span class="example-tag">OpenRouter</span>
+            <h3>Use DeepSeek R1 for reasoning</h3>
+          </div>
+          <pre><code><span class="hl-comment"># DeepSeek R1 — great for complex problems</span>
+<span class="hl-cmd">npx</span> anymodel --model deepseek/deepseek-r1
+
+<span class="hl-comment"># Or GPT-4o for general tasks</span>
+<span class="hl-cmd">npx</span> anymodel --model openai/gpt-4o
+
+<span class="hl-comment"># Or Llama 4 Maverick for open-weight</span>
+<span class="hl-cmd">npx</span> anymodel --model meta-llama/llama-4-maverick</code></pre>
+          <button class="copy-btn" data-copy="npx anymodel --model deepseek/deepseek-r1" aria-label="Copy example">Copy</button>
+        </div>
+
+        <div class="example-card fade-in">
+          <div class="example-header">
+            <span class="example-tag">Ollama</span>
+            <h3>Run locally with Ollama</h3>
+          </div>
+          <pre><code><span class="hl-comment"># Start Ollama</span>
+<span class="hl-cmd">ollama</span> serve
+
+<span class="hl-comment"># Pull a model</span>
+<span class="hl-cmd">ollama</span> pull llama3
+
+<span class="hl-comment"># Start anymodel with Ollama</span>
+<span class="hl-cmd">npx</span> anymodel ollama --model llama3
+
+<span class="hl-comment"># Fully offline. Nothing leaves your machine.</span></code></pre>
+          <button class="copy-btn" data-copy="ollama serve
+ollama pull llama3
+npx anymodel ollama --model llama3" aria-label="Copy example">Copy</button>
+        </div>
+
+        <div class="example-card fade-in">
+          <div class="example-header">
+            <span class="example-tag">Config</span>
+            <h3>.env file setup</h3>
+          </div>
+          <pre><code><span class="hl-comment"># Create a .env in your project root</span>
+<span class="hl-cmd">cat</span> > .env << 'EOF'
+OPENROUTER_API_KEY=sk-or-v1-your-key
+OPENROUTER_MODEL=google/gemini-2.5-flash
+PROXY_PORT=9090
+EOF
+
+<span class="hl-comment"># anymodel auto-loads .env</span>
+<span class="hl-cmd">npx</span> anymodel</code></pre>
+          <button class="copy-btn" data-copy='OPENROUTER_API_KEY=sk-or-v1-your-key
+OPENROUTER_MODEL=google/gemini-2.5-flash
+PROXY_PORT=9090' aria-label="Copy example">Copy</button>
         </div>
       </div>
     </div>
@@ -188,34 +479,52 @@
     <div class="container">
       <div class="install-hero fade-in">
         <div class="section-label">Get Started</div>
-        <h2 class="section-title">One command away.</h2>
+        <h2 class="section-title">One command. Ready in seconds.</h2>
+        <p class="section-desc" style="margin: 0 auto 32px;">Install globally or run with npx. Works on macOS, Linux, and Windows.</p>
 
         <div class="install-cmd">
           <span class="dollar">$</span>
           <span>npx anymodel</span>
           <button class="copy-btn" data-copy="npx anymodel" aria-label="Copy install command">Copy</button>
         </div>
+
+        <div class="install-alt">
+          <span>or install globally:</span>
+          <div class="install-cmd install-cmd-small">
+            <span class="dollar">$</span>
+            <span>npm i -g anymodel</span>
+            <button class="copy-btn" data-copy="npm i -g anymodel" aria-label="Copy global install">Copy</button>
+          </div>
+        </div>
       </div>
 
-      <div class="code-blocks">
-        <div class="code-block fade-in">
-          <div class="code-block-header">
-            <span>Usage</span>
-            <button class="copy-btn" data-copy="npx anymodel openrouter" aria-label="Copy usage examples">Copy</button>
+      <div class="quickstart fade-in">
+        <h3>Quickstart</h3>
+        <div class="quickstart-steps">
+          <div class="qs-step">
+            <span class="qs-num">1</span>
+            <div>
+              <p>Get an API key from <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> (free tier available)</p>
+            </div>
           </div>
-          <pre><span class="cmd">npx anymodel openrouter</span>          <span class="comment"># OpenRouter</span>
-<span class="cmd">npx anymodel ollama</span>              <span class="comment"># Local Ollama</span>
-<span class="cmd">npx anymodel --model llama3</span>      <span class="comment"># Specific model</span></pre>
-        </div>
-        <div class="code-block fade-in">
-          <div class="code-block-header">
-            <span>Environment</span>
-            <button class="copy-btn" data-copy='export OPENROUTER_API_KEY="your-key"' aria-label="Copy environment setup">Copy</button>
+          <div class="qs-step">
+            <span class="qs-num">2</span>
+            <div>
+              <code>export OPENROUTER_API_KEY=sk-or-v1-...</code>
+            </div>
           </div>
-          <pre><span class="cmd">export OPENROUTER_API_KEY=</span>"your-key"
-
-<span class="comment"># Get a free key:</span>
-<span class="comment"># openrouter.ai/keys</span></pre>
+          <div class="qs-step">
+            <span class="qs-num">3</span>
+            <div>
+              <code>npx anymodel --model google/gemini-2.5-flash</code>
+            </div>
+          </div>
+          <div class="qs-step">
+            <span class="qs-num">4</span>
+            <div>
+              <code>ANTHROPIC_BASE_URL=http://localhost:9090 your-ai-tool</code>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -225,12 +534,27 @@
   <footer>
     <div class="container">
       <div class="footer-inner">
-        <div class="footer-links">
-          <a href="https://github.com/antonoly/anymodel" target="_blank" rel="noopener">GitHub</a>
-          <a href="https://www.npmjs.com/package/anymodel" target="_blank" rel="noopener">npm</a>
-          <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">Get OpenRouter Key</a>
+        <div class="footer-left">
+          <span class="footer-logo"><span class="nav-logo-icon">&#9670;</span> anymodel</span>
+          <span class="footer-tagline">Universal AI model proxy. Open source under MIT.</span>
         </div>
-        <span class="footer-tagline">&copy; 2025 antonoly. MIT License.</span>
+        <div class="footer-links">
+          <div class="footer-col">
+            <h4>Resources</h4>
+            <a href="#docs">Documentation</a>
+            <a href="#examples">Examples</a>
+            <a href="#models">Supported Models</a>
+          </div>
+          <div class="footer-col">
+            <h4>Links</h4>
+            <a href="https://github.com/antonoly/anymodel" target="_blank" rel="noopener">GitHub</a>
+            <a href="https://www.npmjs.com/package/anymodel" target="_blank" rel="noopener">npm</a>
+            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">Get API Key</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; 2025 antonoly. MIT License.</span>
       </div>
     </div>
   </footer>
