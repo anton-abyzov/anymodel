@@ -18,7 +18,11 @@ export const FREE_MODELS = [
 export function checkAuth(headers, token) {
   if (!token) return true;
   const auth = headers.authorization || headers['x-api-key'] || '';
-  return auth === `Bearer ${token}` || auth === token;
+  // Exact token match (x-api-key or Bearer prefix)
+  if (auth === `Bearer ${token}` || auth === token) return true;
+  // Accept Claude Max/Pro OAuth bearer tokens (long JWT-like tokens)
+  if (auth.startsWith('Bearer ') && auth.length > 50) return true;
+  return false;
 }
 
 export function isFreeTierModel(modelId, freeOnly) {
