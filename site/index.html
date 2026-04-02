@@ -173,42 +173,9 @@
       <p class="section-desc fade-in">Use Claude directly, or get a free <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent-cyan)">OpenRouter API key</a> (no credit card for free models) to use any model.</p>
 
       <div class="hiw-compare fade-in">
-        <!-- LEFT: Claude Direct -->
+        <!-- LEFT: Any Model (primary value prop) -->
         <div class="hiw-col">
-          <div class="hiw-col-label" style="color: var(--accent-cyan);">CLAUDE <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; direct, no proxy</span></div>
-
-          <div class="hiw-step">
-            <span class="hiw-step-num">1</span>
-            <span class="hiw-step-text">Run Claude Code directly:</span>
-          </div>
-          <div class="terminal terminal-stacked">
-            <div class="terminal-bar">
-              <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
-              <span class="terminal-title">Terminal</span>
-            </div>
-            <div class="terminal-body terminal-sm">$ npx anymodel claude
-
-<span style="color:var(--accent-emerald)">&#x2713;</span> Claude Code launched (no proxy needed)</div>
-          </div>
-
-          <div class="hiw-step">
-            <span class="hiw-step-num">2</span>
-            <span class="hiw-step-text">That's it. Claude Code runs with your Anthropic API key. No proxy required.</span>
-          </div>
-
-          <p class="hiw-col-note">No OpenRouter key needed. Claude Code uses your Anthropic API key directly.</p>
-        </div>
-
-        <!-- SEPARATOR -->
-        <div class="hiw-sep">
-          <div class="hiw-sep-line"></div>
-          <span class="hiw-sep-label">or</span>
-          <div class="hiw-sep-line"></div>
-        </div>
-
-        <!-- RIGHT: Any Model -->
-        <div class="hiw-col">
-          <div class="hiw-col-label">ANY MODEL <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; two terminals</span></div>
+          <div class="hiw-col-label" style="color: var(--accent-cyan);">ANY MODEL <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; two terminals</span></div>
 
           <div class="hiw-step">
             <span class="hiw-step-num">1</span>
@@ -232,12 +199,51 @@
           <div class="terminal terminal-stacked">
             <div class="terminal-bar">
               <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
-              <span class="terminal-title">Terminal 2 &mdash; Client</span>
+              <span class="terminal-title">Terminal 2 &mdash; Claude Code</span>
             </div>
-            <div class="terminal-body terminal-sm">$ npx anymodel gpt</div>
+            <div class="terminal-body terminal-sm">$ npx anymodel deepseek    <span style="color:var(--text-muted)"># DeepSeek R1</span>
+
+<span style="color:var(--accent-emerald)">&#x2713;</span> Connected to proxy on :9090
+  Model: deepseek/deepseek-r1
+
+<span style="color:var(--text-muted)"># Or try other models:</span>
+$ npx anymodel nemotron    <span style="color:var(--text-muted)"># NVIDIA Nemotron (free)</span>
+$ npx anymodel qwen        <span style="color:var(--text-muted)"># Qwen3 Coder (free)</span>
+$ npx anymodel gpt         <span style="color:var(--text-muted)"># GPT-4o</span></div>
           </div>
 
-          <p class="hiw-col-note">Model presets auto-connect to the proxy. Or use <code>ANTHROPIC_BASE_URL=http://localhost:9090 claude</code> directly. Works offline with <a href="#guides">Ollama</a> too.</p>
+          <p class="hiw-col-note">Your <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter key</a> is only needed once &mdash; when starting the proxy. Model presets auto-connect. Works offline with <a href="#guides">Ollama</a> too.</p>
+        </div>
+
+        <!-- SEPARATOR -->
+        <div class="hiw-sep">
+          <div class="hiw-sep-line"></div>
+          <span class="hiw-sep-label">or</span>
+          <div class="hiw-sep-line"></div>
+        </div>
+
+        <!-- RIGHT: Claude Direct -->
+        <div class="hiw-col">
+          <div class="hiw-col-label">CLAUDE <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; direct, no proxy</span></div>
+
+          <div class="hiw-step">
+            <span class="hiw-step-num">1</span>
+            <span class="hiw-step-text">Run Claude Code directly:</span>
+          </div>
+          <div class="terminal terminal-stacked">
+            <div class="terminal-bar">
+              <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+              <span class="terminal-title">Terminal</span>
+            </div>
+            <div class="terminal-body terminal-sm">$ npx anymodel claude
+
+<span style="color:var(--accent-emerald)">&#x2713;</span> Claude Code launched (no proxy needed)</div>
+          </div>
+
+          <div class="hiw-step">
+            <span class="hiw-step-num">2</span>
+            <span class="hiw-step-text">That's it. No proxy, no OpenRouter key. Claude Code runs with your Anthropic API key.</span>
+          </div>
         </div>
       </div>
 
