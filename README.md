@@ -10,6 +10,10 @@ AnyModel is an AI coding assistant that works with any model. It includes a prox
 
 **[anymodel.dev](https://anymodel.dev)** — full docs, presets, and FAQ.
 
+### Watch the Demo
+
+[![Watch the demo](https://img.youtube.com/vi/k0RI_M6lIsg/maxresdefault.jpg)](https://youtu.be/k0RI_M6lIsg)
+
 ---
 
 ## Quick Start
