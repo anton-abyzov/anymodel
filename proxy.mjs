@@ -185,7 +185,8 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
   const requestBody = provider.transformRequest ? provider.transformRequest(parsed) : parsed;
   const payload = JSON.stringify(requestBody);
   const modelDisplay = model ? `${originalModel} \u2192 ${model}` : originalModel;
-  console.log(`${C.cyan(`[${provider.name.toUpperCase()}]`)} ${req.method} ${req.url} model=${modelDisplay}${isStreaming ? ' stream=true' : ''}`);
+  const toolCount = parsed.tools ? parsed.tools.length : 0;
+  console.log(`${C.cyan(`[${provider.name.toUpperCase()}]`)} ${req.method} ${req.url} model=${modelDisplay}${toolCount ? ` tools=${toolCount}` : ''}${isStreaming ? ' stream=true' : ''}`);
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
