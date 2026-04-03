@@ -234,11 +234,11 @@
 
       <!-- Built-in presets table -->
       <div class="fade-in" style="margin-top:40px;">
-        <h3 style="text-align:center; font-size:1rem; font-weight:600; margin-bottom:8px;">Built-in presets</h3>
-        <p style="text-align:center; color:var(--text-muted); font-size:0.82rem; margin-bottom:20px;">Use a short name &mdash; the proxy resolves the full model ID automatically.</p>
+        <h3 style="text-align:center; font-size:1rem; font-weight:600; margin-bottom:8px;">Built-in presets <span style="font-weight:400; color:var(--text-muted); font-size:0.8rem;">(OpenRouter)</span></h3>
+        <p style="text-align:center; color:var(--text-muted); font-size:0.82rem; margin-bottom:20px;">Use a short name &mdash; the proxy resolves the full <a href="https://openrouter.ai/models" target="_blank" rel="noopener" style="color:var(--accent-cyan);">OpenRouter model ID</a> automatically.</p>
         <div style="max-width:560px; margin:0 auto; display:grid; grid-template-columns:auto 1fr auto; gap:0; font-family:var(--font-mono); font-size:0.8rem; border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden;">
           <div style="padding:10px 16px; background:var(--bg-tertiary); color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border);">Preset</div>
-          <div style="padding:10px 16px; background:var(--bg-tertiary); color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border);">Model ID</div>
+          <div style="padding:10px 16px; background:var(--bg-tertiary); color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border);">OpenRouter Model ID</div>
           <div style="padding:10px 16px; background:var(--bg-tertiary); color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border); text-align:right;"></div>
 
           <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--accent-cyan);">gpt</div>
@@ -265,7 +265,7 @@
           <div style="padding:8px 16px; color:var(--text-secondary);">meta-llama/llama-3.3-70b-instruct:free</div>
           <div style="padding:8px 16px; color:var(--accent-emerald); text-align:right; font-size:0.7rem;">FREE</div>
         </div>
-        <p style="text-align:center; color:var(--text-muted); font-size:0.8rem; margin-top:14px;">Or use any of 200+ models: <code style="color:var(--accent-cyan);">npx anymodel proxy --model anthropic/claude-sonnet-4-6</code></p>
+        <p style="text-align:center; color:var(--text-muted); font-size:0.8rem; margin-top:14px;">Or use any of 200+ models: <code style="color:var(--accent-cyan);">npx anymodel proxy --model mistralai/codestral-latest</code></p>
       </div>
     </div>
   </section>
@@ -559,15 +559,15 @@
             <span class="example-tag" style="background: rgba(168, 85, 247, 0.15); color: #a855f7;">Custom</span>
             <h3>Any of 200+ models</h3>
           </div>
-          <pre><code><span class="hl-comment"># Set the model on the proxy:</span>
+          <pre><code><span class="hl-comment"># Set any OpenRouter model on proxy:</span>
 <span class="hl-cmd">OPENROUTER_API_KEY</span>=sk-or-v1-... \
   npx anymodel proxy \
-  --model anthropic/claude-sonnet-4-6
+  --model mistralai/codestral-latest
 
 <span class="hl-comment"># Connect Claude Code:</span>
 <span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://localhost:9090 \
   claude</code></pre>
-          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --model anthropic/claude-sonnet-4-6" aria-label="Copy example">Copy</button>
+          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --model mistralai/codestral-latest" aria-label="Copy example">Copy</button>
         </div>
 
         <!-- Card 3: Fully local with Ollama -->
