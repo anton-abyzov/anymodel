@@ -36,6 +36,7 @@ npx anymodel proxy gpt        # → openai/gpt-5.4                       (paid)
 npx anymodel proxy codex      # → openai/gpt-5.3-codex                 (paid, coding)
 npx anymodel proxy gemini     # → google/gemini-3.1-flash-lite-preview  (paid)
 npx anymodel proxy deepseek   # → deepseek/deepseek-r1-0528            (paid)
+npx anymodel proxy mistral    # → mistralai/devstral-2512               (paid, coding)
 npx anymodel proxy gemma      # → google/gemma-4-31b-it                (paid, coding)
 
 # Free models:

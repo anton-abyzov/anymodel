@@ -24,10 +24,11 @@ const MODEL_PRESETS = {
   codex:    'openai/gpt-5.3-codex',
   gemini:   'google/gemini-3.1-flash-lite-preview',
   deepseek: 'deepseek/deepseek-r1-0528',
+  mistral:  'mistralai/devstral-2512',
+  gemma:    'google/gemma-4-31b-it',
   qwen:     'qwen/qwen3-coder:free',
   nemotron: 'nvidia/nemotron-3-super-120b-a12b:free',
   llama:    'meta-llama/llama-3.3-70b-instruct:free',
-  gemma:    'google/gemma-4-31b-it',
 };
 
 // Verified free models on OpenRouter (zero cost) — from live /v1/models API
@@ -111,7 +112,7 @@ ${C.bold('Commands:')}
   anymodel proxy --model <id>       Start proxy with any model
   anymodel claude                   Run Claude Code directly (no proxy)
 
-${C.bold('Presets:')} gpt, codex, gemini, deepseek, qwen, llama, nemotron, gemma
+${C.bold('Presets:')} gpt, codex, gemini, deepseek, mistral, gemma, qwen, nemotron, llama
 
 Run ${C.bold('anymodel --help')} for full options.
 `);
@@ -134,10 +135,11 @@ ${C.magenta('  anymodel')} — run Claude Code with any AI model
     codex     → openai/gpt-5.3-codex            ${C.cyan('(coding)')}
     gemini    → google/gemini-3.1-flash-lite
     deepseek  → deepseek/deepseek-r1-0528
+    mistral   → mistralai/devstral-2512         ${C.cyan('(coding)')}
+    gemma     → google/gemma-4-31b-it
     qwen      → qwen/qwen3-coder:free          ${C.cyan('(free)')}
     nemotron  → nvidia/nemotron-3-super-120b:free ${C.cyan('(free)')}
     llama     → meta-llama/llama-3.3-70b:free   ${C.cyan('(free)')}
-    gemma     → google/gemma-4-31b-it
 
   ${C.bold('Proxy Options:')} (only apply to ${C.bold('anymodel proxy')})
     --model, -m     Model to use (e.g., qwen/qwen3-coder:free)
