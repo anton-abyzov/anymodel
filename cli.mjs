@@ -12,7 +12,8 @@
 
 import { spawn, execSync } from 'child_process';
 import { existsSync } from 'fs';
-import { join } from 'path';
+import { fileURLToPath } from 'url';
+import { join, dirname } from 'path';
 import { createProxy, loadEnv } from './proxy.mjs';
 
 const PROVIDERS = ['openrouter', 'ollama', 'openai'];
@@ -174,13 +175,34 @@ ${C.magenta('  anymodel')} — run Claude Code with any AI model
 
 // ── Find a client to launch ──────────────────────────
 function findClient() {
-  // 1. cli.js in current directory (user's fork)
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+
+  // 1. cli.js in current directory (user's local clone)
   const localCli = join(process.cwd(), 'cli.js');
   if (existsSync(localCli)) {
-    return { cmd: process.execPath, args: [localCli], label: 'cli.js (local fork)' };
+    return { cmd: process.execPath, args: [localCli], label: 'cli.js (local)' };
   }
 
-  // 2. claude in PATH (Anthropic's global install)
+  // 2. cli.js next to this script (bundled with anymodel)
+  const siblingCli = join(__dirname, 'cli.js');
+  if (existsSync(siblingCli)) {
+    return { cmd: process.execPath, args: [siblingCli], label: 'cli.js (bundled)' };
+  }
+
+  // 3. cli.js in sibling claude-code directory (umbrella/monorepo)
+  const siblingRepoCli = join(__dirname, '..', 'claude-code', 'cli.js');
+  if (existsSync(siblingRepoCli)) {
+    return { cmd: process.execPath, args: [siblingRepoCli], label: 'cli.js (sibling repo)' };
+  }
+
+  // 4. claude-code-anymodel in sibling directory
+  const anymodelRepoCli = join(__dirname, '..', 'claude-code-anymodel', 'cli.js');
+  if (existsSync(anymodelRepoCli)) {
+    return { cmd: process.execPath, args: [anymodelRepoCli], label: 'cli.js (claude-code-anymodel)' };
+  }
+
+  // 5. claude in PATH (Anthropic's global install — fallback)
   try {
     const isWin = process.platform === 'win32';
     const findCmd = isWin ? 'where claude 2>nul' : 'which claude 2>/dev/null';
