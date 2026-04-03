@@ -465,22 +465,26 @@
             <pre><code>anymodel [command] [options]
 
 <span class="hl-label">Commands:</span>
-  claude        Run Claude Code directly (no proxy)
-  proxy         Start the proxy server
-  gpt           Connect to proxy with GPT-5.4
-  gemini        Connect to proxy with Gemini 3.1 Flash Lite
-  qwen          Connect to proxy with Qwen3 Coder (free)
-  llama         Connect to proxy with Llama 3.3 70B (free)
-  deepseek      Connect to proxy with DeepSeek R1
-  nemotron      Connect to proxy with Nemotron 120B (free)
-  proxy ollama  Proxy with local Ollama
+  (none)                   Connect to running proxy
+  proxy &lt;preset&gt;           Start proxy with a preset
+  proxy --model &lt;id&gt;       Start proxy with any model
+  proxy ollama --model X   Proxy with local Ollama
+  claude                   Run Claude Code directly
+
+<span class="hl-label">Presets:</span>  (use with proxy)
+  gpt      openai/gpt-5.4
+  codex    openai/gpt-5.3-codex
+  gemini   google/gemini-3.1-flash-lite
+  deepseek deepseek/deepseek-r1-0528
+  gemma    google/gemma-4-31b-it
+  qwen     qwen/qwen3-coder:free
+  nemotron nvidia/nemotron-3-super-120b:free
+  llama    meta-llama/llama-3.3-70b:free
 
 <span class="hl-label">Options:</span>
-  --model, -m     Model ID (e.g., qwen/qwen3-coder:free)
-  --port, -p      Proxy port (default: 9090)
+  --model, -m     Model ID
+  --port, -p      Port (default: 9090)
   --free-only     Only allow free models
-  --token, -t     Require auth token
-  --rpm           Rate limit per minute (default: 60)
   --help, -h      Show help</code></pre>
           </div>
         </div>
@@ -514,11 +518,11 @@
 <span class="hl-label">Response:</span>
 {
   "status": "ok",
-  "version": "1.0.0",
+  "version": "1.6.12",
   "provider": "openrouter",
-  "model": "google/gemini-2.5-flash",
+  "model": "deepseek/deepseek-r1-0528",
   "uptime": 3600.5,
-  "timestamp": "2025-01-15T10:30:00Z"
+  "timestamp": "2026-04-02T10:30:00Z"
 }</code></pre>
           </div>
         </div>
