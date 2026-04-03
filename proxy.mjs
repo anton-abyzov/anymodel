@@ -28,6 +28,11 @@ export function sanitizeBody(body) {
   delete body.context_management;
   delete body.thinking;
 
+  // Clamp max_tokens: some providers (GPT) require >= 16
+  if (body.max_tokens && body.max_tokens < 16) {
+    body.max_tokens = 16;
+  }
+
   // Strip cache_control from system blocks
   if (Array.isArray(body.system)) {
     body.system = body.system.map(block => {
@@ -59,23 +64,23 @@ export function sanitizeBody(body) {
     body.tools = body.tools.map(tool => {
       const { cache_control, defer_loading, eager_input_streaming, strict, ...rest } = tool;
 
-      // Fix empty properties: OpenAI rejects { properties: {} } with
-      // "object schema missing properties". Add a placeholder property.
-      if (rest.input_schema && typeof rest.input_schema === 'object') {
+      // Fix schemas that OpenAI rejects:
+      // 1. Missing input_schema entirely
+      // 2. Missing properties key
+      // 3. Empty properties: {}
+      if (!rest.input_schema || typeof rest.input_schema !== 'object') {
+        rest.input_schema = { type: 'object', properties: { _placeholder: { type: 'string', description: 'No parameters needed' } }, required: [] };
+      } else {
         if (!rest.input_schema.type) {
           rest.input_schema.type = 'object';
         }
-        if (
-          rest.input_schema.type === 'object' &&
-          rest.input_schema.properties &&
-          typeof rest.input_schema.properties === 'object' &&
-          Object.keys(rest.input_schema.properties).length === 0
-        ) {
-          rest.input_schema.properties = {
-            _placeholder: { type: 'string', description: 'No parameters needed' },
-          };
-          if (!rest.input_schema.required) {
-            rest.input_schema.required = [];
+        if (rest.input_schema.type === 'object') {
+          const props = rest.input_schema.properties;
+          if (!props || (typeof props === 'object' && Object.keys(props).length === 0)) {
+            rest.input_schema.properties = { _placeholder: { type: 'string', description: 'No parameters needed' } };
+            if (!rest.input_schema.required) {
+              rest.input_schema.required = [];
+            }
           }
         }
       }
@@ -188,16 +193,65 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         await new Promise(r => upstream.on('end', r));
         const errBody = Buffer.concat(errChunks).toString();
 
-        const delay = calcDelay(attempt);
-        console.log(`${C.red(`[${provider.name.toUpperCase()}]`)} ${upstream.statusCode} on attempt ${attempt}/${MAX_RETRIES}, retrying in ${delay}ms`);
-        console.log(`${C.red(`[${provider.name.toUpperCase()}]`)} ${errBody.slice(0, 200)}`);
+        // Extract rate limit headers from upstream response
+        const retryAfter = upstream.headers['retry-after'];
+        const rlReset = upstream.headers['x-ratelimit-reset'];
+        const rlRemaining = upstream.headers['x-ratelimit-remaining'];
+        const rlLimit = upstream.headers['x-ratelimit-limit'];
+
+        let retryDelay = calcDelay(attempt);
+
+        const tag = C.red(`[${provider.name.toUpperCase()}]`);
+        console.log(`${tag} ${upstream.statusCode} on attempt ${attempt}/${MAX_RETRIES}`);
+
+        if (upstream.statusCode === 429) {
+          // Log all available rate limit headers
+          if (rlLimit || rlRemaining) {
+            console.log(`${tag} Rate limit: ${rlRemaining ?? '?'}/${rlLimit ?? '?'} remaining`);
+          }
+          if (retryAfter) {
+            const retrySec = Number(retryAfter);
+            if (!Number.isNaN(retrySec)) {
+              retryDelay = retrySec * 1000;
+              console.log(`${tag} Retry-After: ${retrySec}s`);
+            } else {
+              // retry-after can be an HTTP-date
+              const retryDate = new Date(retryAfter);
+              if (!isNaN(retryDate.getTime())) {
+                const waitMs = retryDate.getTime() - Date.now();
+                if (waitMs > 0) {
+                  retryDelay = waitMs;
+                  console.log(`${tag} Retry-After: ${retryAfter} (${Math.ceil(waitMs / 1000)}s from now)`);
+                }
+              }
+            }
+          } else if (rlReset) {
+            // x-ratelimit-reset is typically a unix epoch timestamp
+            const resetEpoch = Number(rlReset);
+            if (!Number.isNaN(resetEpoch)) {
+              const nowSec = Math.floor(Date.now() / 1000);
+              const waitSec = resetEpoch > nowSec ? resetEpoch - nowSec : resetEpoch;
+              retryDelay = waitSec * 1000;
+              console.log(`${tag} Rate limit resets in ${waitSec}s`);
+            }
+          } else {
+            console.log(`${tag} No retry-after or x-ratelimit-reset header (free models: ~10 req/min, resets each minute)`);
+          }
+        }
+
+        console.log(`${tag} ${errBody.slice(0, 200)}`);
 
         if (attempt === MAX_RETRIES) {
-          res.writeHead(upstream.statusCode, upstream.headers);
+          // Forward rate limit headers to the client
+          const headers = { ...upstream.headers };
+          if (retryAfter) headers['retry-after'] = retryAfter;
+          res.writeHead(upstream.statusCode, headers);
           res.end(errBody);
           return;
         }
-        await sleep(delay);
+
+        console.log(`${tag} Retrying in ${Math.ceil(retryDelay / 1000)}s...`);
+        await sleep(retryDelay);
         continue;
       }
 
