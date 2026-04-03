@@ -114,8 +114,8 @@
     <div class="container">
       <div class="hero-content">
         <div class="hero-badge fade-in">Open Source &middot; Zero Dependencies &middot; Free Models Available</div>
-        <h1 class="fade-in"><span class="gradient-text">Claude Code.</span><br><span class="gradient-text">Any Model.</span></h1>
-        <p class="hero-sub fade-in">Run <strong>Claude Code</strong> with <strong>Claude</strong>, <strong>Gemini</strong>, <strong>GPT</strong>, <strong>Llama</strong>, <strong>DeepSeek</strong>, or any of 200+ models via <strong>OpenRouter</strong>. You bring your own key &mdash; free models cost $0.</p>
+        <h1 class="fade-in"><span class="gradient-text">AnyModel.</span><br><span class="gradient-text">Any AI. One proxy.</span></h1>
+        <p class="hero-sub fade-in">Run <strong>AnyModel</strong> with <strong>GPT</strong>, <strong>Gemini</strong>, <strong>DeepSeek</strong>, <strong>Llama</strong>, <strong>Qwen</strong>, or any of 200+ models via <strong>OpenRouter</strong>. You bring your own key &mdash; free models cost $0.</p>
 
         <div class="cta-group fade-in">
           <a href="#how-it-works" class="btn-primary">Get Started</a>
@@ -204,12 +204,12 @@
             <div class="terminal-body terminal-sm">$ npx anymodel
 
 <span style="color:var(--accent-emerald)">&#x2713;</span> Connected to proxy on :9090
-  Claude Code running (deepseek-r1)</div>
+  AnyModel running (deepseek-r1)</div>
           </div>
         </div>
       </div>
 
-      <p class="fade-in" style="text-align:center; color:var(--text-muted); font-size:0.82rem; margin-top:20px;">The model is set on the proxy. Claude Code just connects to it. Works offline with <a href="#guides" style="color:var(--accent-cyan);">Ollama</a> too.</p>
+      <p class="fade-in" style="text-align:center; color:var(--text-muted); font-size:0.82rem; margin-top:20px;">The model is set on the proxy. AnyModel just connects to it. Works offline with <a href="#guides" style="color:var(--accent-cyan);">Ollama</a> too.</p>
 
       <!-- Architecture diagram — single unified flow -->
       <div class="fade-in" style="margin-top:48px; display:flex; justify-content:center;">
@@ -217,7 +217,7 @@
           <div class="arch-flow" style="justify-content:center;">
             <div class="arch-node">
               <svg width="28" height="28" viewBox="0 0 40 40"><rect x="4" y="8" width="32" height="24" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><line x1="4" y1="14" x2="36" y2="14" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="11" r="1.5" fill="#ef4444"/><circle cx="13" cy="11" r="1.5" fill="#eab308"/><circle cx="18" cy="11" r="1.5" fill="#22c55e"/></svg>
-              <span>Claude Code</span>
+              <span>AnyModel</span>
             </div>
             <span class="arch-arr">&#x2192;</span>
             <div class="arch-node arch-node-hl">
@@ -295,7 +295,7 @@
               <span class="model-tag">Cloud</span>
             </div>
           </div>
-          <p>Claude Opus 4.6, Sonnet 4.6, Haiku 4.5. The models Claude Code was built for &mdash; now accessible through OpenRouter at a fraction of the cost.</p>
+          <p>Claude Opus 4.6, Sonnet 4.6, Haiku 4.5. Anthropic's flagship models &mdash; accessible through OpenRouter at a fraction of the cost.</p>
           <code class="model-id">anthropic/claude-opus-4.6</code>
         </div>
 
@@ -469,7 +469,7 @@
   proxy &lt;preset&gt;           Start proxy with a preset
   proxy --model &lt;id&gt;       Start proxy with any model
   proxy ollama --model X   Proxy with local Ollama
-  claude                   Run Claude Code directly
+  claude                   Run with native Claude (no proxy)
 
 <span class="hl-label">Presets:</span>  (use with proxy)
   gpt      openai/gpt-5.4
@@ -737,7 +737,7 @@ npx anymodel qwen</code></pre>
 
         <details class="faq-item fade-in">
           <summary>Do I need a Claude subscription?</summary>
-          <p>For authentication: yes, Claude Code requires a Claude account (free or paid) to start. For model usage: no &mdash; anymodel routes the actual AI calls through OpenRouter or Ollama, so you're not using Anthropic API credits.</p>
+          <p>For authentication: yes, AnyModel requires a Claude account (free or paid) to start. For model usage: no &mdash; AnyModel routes the actual AI calls through OpenRouter or Ollama, so you're not using Anthropic API credits.</p>
         </details>
 
         <details class="faq-item fade-in">
@@ -750,7 +750,7 @@ npx anymodel qwen</code></pre>
 
         <details class="faq-item fade-in">
           <summary>What's the difference between Claude direct and proxy mode?</summary>
-          <p><strong>Claude direct:</strong> <code>npx anymodel claude</code> &mdash; just runs Claude Code. No proxy, no OpenRouter key needed.<br>
+          <p><strong>Native Claude:</strong> <code>npx anymodel claude</code> &mdash; runs with native Claude. No proxy, no OpenRouter key needed.<br>
           <strong>Proxy mode:</strong> Start <code>npx anymodel proxy deepseek</code>, then connect with <code>npx anymodel</code>. Requires OPENROUTER_API_KEY. Also supports Ollama for fully offline use.</p>
         </details>
 
@@ -761,7 +761,7 @@ npx anymodel qwen</code></pre>
 
         <details class="faq-item fade-in">
           <summary>What does the proxy actually do?</summary>
-          <p>It sits between Claude Code and OpenRouter. When Claude Code sends a request, the proxy strips Anthropic-specific fields (<code>cache_control</code>, <code>betas</code>, <code>thinking</code>, etc.), normalizes <code>tool_choice</code>, handles retries with exponential backoff, and forwards the cleaned request to OpenRouter. The response streams back unchanged.</p>
+          <p>AnyModel sits between the client and OpenRouter. When a request is sent, the proxy strips Anthropic-specific fields (<code>cache_control</code>, <code>betas</code>, <code>thinking</code>, etc.), normalizes <code>tool_choice</code>, handles retries with exponential backoff, and forwards the cleaned request to OpenRouter. The response streams back unchanged.</p>
         </details>
       </div>
     </div>
