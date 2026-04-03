@@ -184,8 +184,7 @@
               <span class="terminal-title">Terminal 1 &mdash; Proxy</span>
             </div>
             <div class="terminal-body terminal-sm">$ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> \
-  npx anymodel proxy \
-  --model deepseek/deepseek-r1
+  npx anymodel proxy deepseek
 
 <span style="color:var(--accent-cyan)">&#x2194;</span> Proxy on :9090 &#x2192; OpenRouter
   Model: deepseek/deepseek-r1</div>
@@ -195,18 +194,17 @@
         <div>
           <div class="hiw-step">
             <span class="hiw-step-num">2</span>
-            <span class="hiw-step-text">Connect Claude Code:</span>
+            <span class="hiw-step-text">Connect:</span>
           </div>
           <div class="terminal terminal-stacked">
             <div class="terminal-bar">
               <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
-              <span class="terminal-title">Terminal 2 &mdash; Claude Code</span>
+              <span class="terminal-title">Terminal 2</span>
             </div>
-            <div class="terminal-body terminal-sm">$ ANTHROPIC_BASE_URL=http://localhost:9090 \
-  claude
+            <div class="terminal-body terminal-sm">$ npx anymodel
 
-<span style="color:var(--accent-emerald)">&#x2713;</span> Claude Code running
-  via anymodel proxy (deepseek-r1)</div>
+<span style="color:var(--accent-emerald)">&#x2713;</span> Connected to proxy on :9090
+  Claude Code running (deepseek-r1)</div>
           </div>
         </div>
       </div>
@@ -264,8 +262,12 @@
           <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--text-secondary);">nvidia/nemotron-3-super-120b-a12b:free</div>
           <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--accent-emerald); text-align:right; font-size:0.7rem;">FREE</div>
 
-          <div style="padding:8px 16px; color:var(--accent-cyan);">llama</div>
-          <div style="padding:8px 16px; color:var(--text-secondary);">meta-llama/llama-3.3-70b-instruct:free</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--accent-cyan);">llama</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--text-secondary);">meta-llama/llama-3.3-70b-instruct:free</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--accent-emerald); text-align:right; font-size:0.7rem;">FREE</div>
+
+          <div style="padding:8px 16px; color:var(--accent-cyan);">gemma</div>
+          <div style="padding:8px 16px; color:var(--text-secondary);">google/gemma-3n-e4b-it:free</div>
           <div style="padding:8px 16px; color:var(--accent-emerald); text-align:right; font-size:0.7rem;">FREE</div>
         </div>
         <p style="text-align:center; color:var(--text-muted); font-size:0.8rem; margin-top:14px;">Or use any of 200+ models: <code style="color:var(--accent-cyan);">npx anymodel proxy --model mistralai/codestral-latest</code></p>
@@ -367,6 +369,18 @@
 
         <div class="model-card fade-in">
           <div class="model-header">
+            <div class="model-icon"><img src="assets/providers/gemini.svg" width="28" height="28" alt="Google Gemma"></div>
+            <div>
+              <h3>Google Gemma 3n</h3>
+              <span class="model-tag" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">On-Device</span>
+            </div>
+          </div>
+          <p>Multimodal (text, image, audio, video) in just ~3 GB RAM. Runs on phones and laptops. Free on OpenRouter, or local via Ollama.</p>
+          <code class="model-id">google/gemma-3n-e4b-it:free</code>
+        </div>
+
+        <div class="model-card fade-in">
+          <div class="model-header">
             <div class="model-icon"><img src="assets/providers/ollama.svg" width="28" height="28" alt="Ollama"></div>
             <div>
               <h3>Local Models</h3>
@@ -374,7 +388,7 @@
             </div>
           </div>
           <p>Run any GGUF model locally. Zero cloud dependency. Fully private. No API key required.</p>
-          <code class="model-id">ollama --model llama3</code>
+          <code class="model-id">ollama --model gemma3n</code>
         </div>
 
         <!-- 200+ more card -->
@@ -541,18 +555,16 @@
         <!-- Card 1: DeepSeek R1 -->
         <div class="example-card fade-in">
           <div class="example-header">
-            <span class="example-tag" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4;">Cloud</span>
+            <span class="example-tag" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4;">Preset</span>
             <h3>DeepSeek R1</h3>
           </div>
-          <pre><code><span class="hl-comment"># Terminal 1 — proxy with model:</span>
+          <pre><code><span class="hl-comment"># Terminal 1 — proxy with preset:</span>
 <span class="hl-cmd">OPENROUTER_API_KEY</span>=sk-or-v1-... \
-  npx anymodel proxy \
-  --model deepseek/deepseek-r1
+  npx anymodel proxy deepseek
 
 <span class="hl-comment"># Terminal 2 — connect:</span>
-<span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://localhost:9090 \
-  claude</code></pre>
-          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --model deepseek/deepseek-r1" aria-label="Copy example">Copy</button>
+<span class="hl-cmd">npx</span> anymodel</code></pre>
+          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy deepseek" aria-label="Copy example">Copy</button>
         </div>
 
         <!-- Card 2: Any model -->
@@ -567,8 +579,7 @@
   --model mistralai/codestral-latest
 
 <span class="hl-comment"># Terminal 2 — connect:</span>
-<span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://localhost:9090 \
-  claude</code></pre>
+<span class="hl-cmd">npx</span> anymodel</code></pre>
           <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --model mistralai/codestral-latest" aria-label="Copy example">Copy</button>
         </div>
 
@@ -579,16 +590,15 @@
             <h3>Fully offline with Ollama</h3>
           </div>
           <pre><code><span class="hl-comment"># Pull a model (once):</span>
-<span class="hl-cmd">ollama</span> pull llama4-maverick
+<span class="hl-cmd">ollama</span> pull gemma3n
 
 <span class="hl-comment"># Terminal 1 — proxy:</span>
 <span class="hl-cmd">npx</span> anymodel proxy ollama \
-  --model llama4-maverick
+  --model gemma3n
 
 <span class="hl-comment"># Terminal 2 — connect:</span>
-<span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://localhost:9090 \
-  claude</code></pre>
-          <button class="copy-btn" data-copy="npx anymodel proxy ollama --model llama4-maverick" aria-label="Copy example">Copy</button>
+<span class="hl-cmd">npx</span> anymodel</code></pre>
+          <button class="copy-btn" data-copy="npx anymodel proxy ollama --model gemma3n" aria-label="Copy example">Copy</button>
         </div>
       </div>
     </div>
@@ -609,19 +619,17 @@
               <span class="terminal-title">Terminal 1</span>
             </div>
             <div class="terminal-body" style="min-height:auto; padding:16px 20px; font-size:0.82rem; text-align:left;">$ OPENROUTER_API_KEY=<span style="color:#06b6d4">sk-or-v1-...</span> \
-  npx anymodel proxy \
-  --model deepseek/deepseek-r1</div>
+  npx anymodel proxy deepseek</div>
           </div>
           <div class="terminal" style="margin:0;">
             <div class="terminal-bar">
               <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
               <span class="terminal-title">Terminal 2</span>
             </div>
-            <div class="terminal-body" style="min-height:auto; padding:16px 20px; font-size:0.82rem; text-align:left;">$ ANTHROPIC_BASE_URL=http://localhost:9090 \
-  claude</div>
+            <div class="terminal-body" style="min-height:auto; padding:16px 20px; font-size:0.82rem; text-align:left;">$ npx anymodel</div>
           </div>
         </div>
-        <button class="copy-btn fade-in" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy --model deepseek/deepseek-r1" aria-label="Copy" style="margin:12px auto 0; display:block;">Copy proxy command</button>
+        <button class="copy-btn fade-in" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy deepseek" aria-label="Copy" style="margin:12px auto 0; display:block;">Copy proxy command</button>
 
         <p class="fade-in" style="font-size:0.78rem; color:var(--text-muted); margin-top:24px;">Or install globally: <code style="font-size:0.82rem;">npm i -g anymodel</code></p>
       </div>
