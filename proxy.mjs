@@ -70,10 +70,10 @@ export function sanitizeBody(body) {
 
       // Fix schemas that OpenAI rejects:
       // 1. Missing input_schema entirely
-      // 2. Missing properties key
-      // 3. Empty properties: {}
+      // 2. Missing or empty properties
+      // Use a minimal valid property instead of _placeholder to avoid model confusion
       if (!rest.input_schema || typeof rest.input_schema !== 'object') {
-        rest.input_schema = { type: 'object', properties: { _placeholder: { type: 'string', description: 'No parameters needed' } }, required: [] };
+        rest.input_schema = { type: 'object', properties: { _unused: { type: 'string' } }, required: [] };
       } else {
         if (!rest.input_schema.type) {
           rest.input_schema.type = 'object';
@@ -81,13 +81,30 @@ export function sanitizeBody(body) {
         if (rest.input_schema.type === 'object') {
           const props = rest.input_schema.properties;
           if (!props || (typeof props === 'object' && Object.keys(props).length === 0)) {
-            rest.input_schema.properties = { _placeholder: { type: 'string', description: 'No parameters needed' } };
-            if (!rest.input_schema.required) {
-              rest.input_schema.required = [];
-            }
+            rest.input_schema.properties = { _unused: { type: 'string' } };
+            rest.input_schema.required = [];
           }
         }
       }
+
+      // Recursively fix nested schemas (anyOf, oneOf, allOf, items)
+      const fixNested = (schema) => {
+        if (!schema || typeof schema !== 'object') return;
+        for (const key of ['anyOf', 'oneOf', 'allOf']) {
+          if (Array.isArray(schema[key])) {
+            schema[key].forEach(fixNested);
+          }
+        }
+        if (schema.items) fixNested(schema.items);
+        if (schema.type === 'object' && schema.properties) {
+          if (Object.keys(schema.properties).length === 0) {
+            schema.properties = { _unused: { type: 'string' } };
+            schema.required = [];
+          }
+          for (const v of Object.values(schema.properties)) fixNested(v);
+        }
+      };
+      fixNested(rest.input_schema);
 
       return rest;
     });
@@ -300,9 +317,42 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         return;
       }
 
-      // Default: pipe through as-is (openrouter, ollama)
+      // Default: pipe through with _unused stripping (openrouter, ollama)
+      // For non-streaming: parse, strip, send
+      if (!isStreaming) {
+        const respChunks = [];
+        upstream.on('data', c => respChunks.push(c));
+        await new Promise(r => upstream.on('end', r));
+        let respStr = Buffer.concat(respChunks).toString();
+        // Strip _unused from tool_use inputs in the response
+        try {
+          const respObj = JSON.parse(respStr);
+          if (respObj.content && Array.isArray(respObj.content)) {
+            for (const block of respObj.content) {
+              if (block.type === 'tool_use' && block.input) {
+                delete block.input._unused;
+                delete block.input._placeholder;
+              }
+            }
+          }
+          respStr = JSON.stringify(respObj);
+        } catch {}
+        res.writeHead(200, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(respStr) });
+        res.end(respStr);
+        return;
+      }
+
+      // For streaming: pipe through, strip _unused from JSON deltas
       res.writeHead(200, upstream.headers);
-      upstream.pipe(res);
+      upstream.on('data', chunk => {
+        let str = chunk.toString();
+        // Quick string replace for _unused in streaming tool input deltas
+        str = str.replace(/"_unused"\s*:\s*"[^"]*"\s*,?\s*/g, '');
+        str = str.replace(/"_placeholder"\s*:\s*"[^"]*"\s*,?\s*/g, '');
+        res.write(str);
+      });
+      upstream.on('end', () => res.end());
+      upstream.on('error', () => res.end());
       return;
 
     } catch (e) {
