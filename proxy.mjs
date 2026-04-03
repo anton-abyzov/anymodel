@@ -283,6 +283,38 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         upstream.on('data', c => errChunks.push(c));
         await new Promise(r => upstream.on('end', r));
         const errBody = Buffer.concat(errChunks).toString();
+
+        // Auto-retry without tools if model doesn't support tool use
+        if (errBody.includes('support tool use') && parsed.tools && parsed.tools.length > 0) {
+          console.log(`${C.yellow(`[${provider.name.toUpperCase()}]`)} Model doesn't support tool use (${parsed.tools.length} tools). Retrying without tools...`);
+          const noToolsBody = { ...parsed };
+          delete noToolsBody.tools;
+          delete noToolsBody.tool_choice;
+          const noToolsRequest = provider.transformRequest ? provider.transformRequest(noToolsBody) : noToolsBody;
+          const noToolsPayload = JSON.stringify(noToolsRequest);
+          const retryUpstream = await sendRequest(provider, req.url, noToolsPayload);
+          if (retryUpstream.statusCode === 200) {
+            console.log(`${C.green(`[${provider.name.toUpperCase()}]`)} 200 ← response (no tools mode)`);
+            if (!isStreaming) {
+              const respChunks = [];
+              retryUpstream.on('data', c => respChunks.push(c));
+              await new Promise(r => retryUpstream.on('end', r));
+              let respStr = Buffer.concat(respChunks).toString();
+              res.writeHead(200, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(respStr) });
+              res.end(respStr);
+            } else {
+              res.writeHead(200, retryUpstream.headers);
+              retryUpstream.pipe(res);
+            }
+            return;
+          }
+          // If retry also fails, fall through to error
+          const retryErr = [];
+          retryUpstream.on('data', c => retryErr.push(c));
+          await new Promise(r => retryUpstream.on('end', r));
+          console.log(`${C.red(`[${provider.name.toUpperCase()}]`)} Retry without tools also failed: ${retryUpstream.statusCode}`);
+        }
+
         console.log(`${C.red(`[${provider.name.toUpperCase()}]`)} ${upstream.statusCode}: ${errBody.slice(0, 300)}`);
         res.writeHead(upstream.statusCode, upstream.headers);
         res.end(errBody);
