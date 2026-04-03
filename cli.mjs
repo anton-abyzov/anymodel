@@ -26,7 +26,7 @@ const MODEL_PRESETS = {
   qwen:     'qwen/qwen3-coder:free',
   nemotron: 'nvidia/nemotron-3-super-120b-a12b:free',
   llama:    'meta-llama/llama-3.3-70b-instruct:free',
-  gemma:    'google/gemma-3n-e4b-it:free',
+  gemma:    'google/gemma-4-31b-it',
 };
 
 // Verified free models on OpenRouter (zero cost) — from live /v1/models API
@@ -137,7 +137,7 @@ ${C.magenta('  anymodel')} — run Claude Code with any AI model
     qwen      → qwen/qwen3-coder:free          ${C.cyan('(free)')}
     nemotron  → nvidia/nemotron-3-super-120b:free ${C.cyan('(free)')}
     llama     → meta-llama/llama-3.3-70b:free   ${C.cyan('(free)')}
-    gemma     → google/gemma-3n-e4b-it:free     ${C.cyan('(free)')}
+    gemma     → google/gemma-4-31b-it
 
   ${C.bold('Proxy Options:')} (only apply to ${C.bold('anymodel proxy')})
     --model, -m     Model to use (e.g., qwen/qwen3-coder:free)
