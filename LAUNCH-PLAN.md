@@ -153,7 +153,7 @@ No internet. No API key. Everything on your machine.
 GitHub: https://github.com/anton-abyzov/anymodel
 ```
 
-### LinkedIn: Post 6 hours after YouTube (8:30 AM EST)
+### LinkedIn: Post 6 hours after YouTube (8:30 AM EST) — Launch day
 
 ```
 I built something I'm really excited about.
@@ -170,6 +170,26 @@ AnyModel is a proxy that sits in the middle. One command to start, one command t
 I also use Wispr Flow for voice-to-code dictation — game changer for productivity: https://wisprflow.ai/r?ANTON691
 
 #AI #OpenSource #DeveloperTools #AIEngineering #CodingTools
+```
+
+### LinkedIn: Friday 2:30 PM EST — Follow-up post
+
+```
+This week I shipped AnyModel — an open-source tool I've been building.
+
+The problem: AI coding tools lock you into one provider. Your $100/mo plan runs out in an hour. You can't try other models without switching tools.
+
+The solution: one proxy, 200+ models. Start the proxy, connect, done. Free models included.
+
+The response has been incredible — the demo video hit [X views] in the first day.
+
+If you're building with AI, give it a try: https://anymodel.dev
+
+📺 Full demo: https://youtu.be/k0RI_M6lIsg
+
+What models are you using for coding? I'm curious what's working for people.
+
+#AIEngineering #OpenSource #DeveloperTools #CodingWithAI #DeepSeek #GPT
 ```
 
 ### Reddit (r/LocalLLaMA, r/ClaudeAI): Post 8 hours after YouTube
