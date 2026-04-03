@@ -19,12 +19,12 @@ const PROVIDERS = ['openrouter', 'ollama', 'openai'];
 
 // Model presets — short aliases for popular models
 const MODEL_PRESETS = {
-  gpt:      'openai/gpt-4o',
+  gpt:      'openai/gpt-4.1-mini',
   gemini:   'google/gemini-2.5-flash',
+  deepseek: 'deepseek/deepseek-r1-0528',
   qwen:     'qwen/qwen3-coder:free',
-  llama:    'meta-llama/llama-3.3-70b-instruct:free',
-  deepseek: 'deepseek/deepseek-r1',
   nemotron: 'nvidia/nemotron-3-super-120b-a12b:free',
+  llama:    'meta-llama/llama-3.3-70b-instruct:free',
   gemma:    'google/gemma-3n-e4b-it:free',
 };
 
@@ -129,12 +129,12 @@ ${C.magenta('  anymodel')} — run Claude Code with any AI model
     anymodel claude                               ${C.cyan('# run Claude Code directly (no proxy)')}
 
   ${C.bold('Model Presets:')}
-    gpt       → openai/gpt-4o
+    gpt       → openai/gpt-4.1-mini
     gemini    → google/gemini-2.5-flash
+    deepseek  → deepseek/deepseek-r1-0528
     qwen      → qwen/qwen3-coder:free          ${C.cyan('(free)')}
-    llama     → meta-llama/llama-3.3-70b:free   ${C.cyan('(free)')}
-    deepseek  → deepseek/deepseek-r1
     nemotron  → nvidia/nemotron-3-super-120b:free ${C.cyan('(free)')}
+    llama     → meta-llama/llama-3.3-70b:free   ${C.cyan('(free)')}
     gemma     → google/gemma-3n-e4b-it:free     ${C.cyan('(free)')}
 
   ${C.bold('Proxy Options:')} (only apply to ${C.bold('anymodel proxy')})
