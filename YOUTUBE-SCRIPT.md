@@ -107,7 +107,7 @@ formats. Zero dependencies. Open source."
   OPENROUTER_API_KEY=sk-or-v1-my-key npx anymodel proxy deepseek
 
 [LEFT: Output:]
-  anymodel v1.6.18
+  anymodel v1.6.31
   Proxy on :9090 → OpenRouter
   Model override: deepseek/deepseek-r1-0528
 
@@ -124,16 +124,26 @@ formats. Zero dependencies. Open source."
   [anymodel] Model: deepseek/deepseek-r1-0528
   [anymodel] Starting...
 
-  ◆▟▀█▀▙◆    anymodel v1.4.0
+  ◆▟▀█▀▙◆    AnyModel v1.6.31
    ▜█████▛   deepseek/deepseek-r1-0528 · anymodel
 
 "That's it. The violet character means you're running AnyModel,
 not standard Claude. And it shows the model — DeepSeek R1."
 
-[TYPE: "Write a Rust function that parses JSON with error handling"]
-[SCREEN: Model responds, streaming]
+[TYPE: "What's 127 * 389? Think step by step."]
 
-"Full tool use, file editing, bash — all working."
+[SCREEN: DeepSeek R1 shows its thinking process — visible chain-of-thought
+streaming in real-time: "Let me break this down... 127 × 400 = 50,800...
+minus 127 × 11 = 1,397... so 50,800 - 1,397 = 49,403"]
+
+"See that? DeepSeek R1 shows its thinking process live.
+That's the power of a reasoning model — and it's running
+through AnyModel, not through Anthropic."
+
+[BEAT — let the thinking finish, answer appears: 49,403]
+
+"Tool use, file editing, bash — all works too. Same experience,
+different brain."
 ```
 
 ### DEMO 2: GPT-5.4 AND CODEX — 1:45 to 2:15
