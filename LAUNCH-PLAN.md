@@ -153,6 +153,25 @@ No internet. No API key. Everything on your machine.
 GitHub: https://github.com/anton-abyzov/anymodel
 ```
 
+### Twitter/X: Friday 2:00 PM EST — Fresh angle (pricing rage)
+
+```
+Claude Code burned through my $100 Max plan in 1 hour.
+
+So I built AnyModel — same coding experience, any model.
+
+DeepSeek R1? Free.
+Qwen3 Coder? Free.
+Nemotron 120B? Free.
+
+Or GPT-5.4, Codex, Gemini if you want paid.
+
+Two commands. Open source.
+anymodel.dev
+
+📺 Full demo: https://youtu.be/k0RI_M6lIsg
+```
+
 ### LinkedIn: Post 6 hours after YouTube (8:30 AM EST) — Launch day
 
 ```
