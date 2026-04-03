@@ -198,6 +198,15 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
 
   sanitizeBody(parsed);
 
+  // Strip tools for local models (Ollama) — 86 MCP tool definitions add ~50K tokens
+  // to every request, making even simple prompts take minutes on small models.
+  // Cloud providers handle tools fine; local models can't use them meaningfully.
+  if (provider.name === 'ollama' && parsed.tools && parsed.tools.length > 0) {
+    console.log(`${C.yellow('[OLLAMA]')} Stripping ${parsed.tools.length} tools (local models can't use MCP tools effectively)`);
+    delete parsed.tools;
+    delete parsed.tool_choice;
+  }
+
   // If provider has format translation (e.g., openai), apply it
   const isStreaming = parsed.stream;
   const requestBody = provider.transformRequest ? provider.transformRequest(parsed) : parsed;
