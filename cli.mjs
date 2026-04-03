@@ -372,10 +372,49 @@ async function startProxyOnly(args) {
   const { default: provider } = await import(`./providers/${providerName}.mjs`);
 
   const DEFAULT_PROXY_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
-  let model = opts.model || process.env.OPENROUTER_MODEL || DEFAULT_PROXY_MODEL;
+  let model = opts.model || process.env.OPENROUTER_MODEL;
   const port = opts.port || parseInt(process.env.PROXY_PORT, 10) || 9090;
 
-  if (!opts.model && !process.env.OPENROUTER_MODEL) {
+  // For Ollama: auto-detect first installed model if none specified
+  if (!model && providerName === 'ollama') {
+    try {
+      const http = await import('http');
+      const models = await new Promise((resolve) => {
+        http.default.get('http://localhost:11434/api/tags', (res) => {
+          let data = '';
+          res.on('data', c => data += c);
+          res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve(null); } });
+        }).on('error', () => resolve(null));
+      });
+      if (models?.models?.length > 0) {
+        model = models.models[0].name;
+        console.log(`${C.cyan('[OLLAMA]')} Found ${models.models.length} model(s). Using: ${C.bold(model)}`);
+        if (models.models.length > 1) {
+          console.log(`${C.cyan('[OLLAMA]')} Other available: ${models.models.slice(1, 5).map(m => m.name).join(', ')}`);
+          console.log(`${C.cyan('[OLLAMA]')} List all: ${C.bold('ollama list')}`);
+        }
+      } else {
+        console.error(`${C.red('Error:')} No models installed in Ollama.`);
+        console.error('');
+        console.error(`  Pull a model first:`);
+        console.error(`    ${C.bold('ollama pull gemma3n')}`);
+        console.error('');
+        console.error(`  Then run:`);
+        console.error(`    ${C.bold('npx anymodel proxy ollama --model gemma3n')}`);
+        console.error('');
+        process.exit(1);
+      }
+    } catch {
+      console.error(`${C.red('Error:')} Cannot connect to Ollama at localhost:11434.`);
+      console.error('');
+      console.error(`  Start Ollama first: ${C.bold('ollama serve')}`);
+      process.exit(1);
+    }
+  }
+
+  // Fall back to default for cloud providers
+  if (!model) {
+    model = DEFAULT_PROXY_MODEL;
     console.log(`${C.cyan('[MODEL]')} Defaulting to ${C.bold(model)}`);
   }
 
