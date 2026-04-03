@@ -1,3 +1,5 @@
+**YouTube video:** https://youtu.be/z-J47nOQw2Q
+
 # YouTube Script: "AnyModel — Run Claude Code with GPT, Gemini, DeepSeek, and 200+ Models"
 
 **Duration:** 4-5 minutes
