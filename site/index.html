@@ -176,7 +176,7 @@
         <div>
           <div class="hiw-step">
             <span class="hiw-step-num">1</span>
-            <span class="hiw-step-text">Start the proxy:</span>
+            <span class="hiw-step-text">Start the proxy with a model:</span>
           </div>
           <div class="terminal terminal-stacked">
             <div class="terminal-bar">
@@ -184,31 +184,34 @@
               <span class="terminal-title">Terminal 1 &mdash; Proxy</span>
             </div>
             <div class="terminal-body terminal-sm">$ OPENROUTER_API_KEY=<span style="color:var(--accent-cyan)">sk-or-v1-...</span> \
-  npx anymodel proxy
+  npx anymodel proxy \
+  --model deepseek/deepseek-r1
 
-<span style="color:var(--accent-cyan)">&#x2194;</span> Proxy on :9090 &#x2192; OpenRouter</div>
+<span style="color:var(--accent-cyan)">&#x2194;</span> Proxy on :9090 &#x2192; OpenRouter
+  Model: deepseek/deepseek-r1</div>
           </div>
         </div>
 
         <div>
           <div class="hiw-step">
             <span class="hiw-step-num">2</span>
-            <span class="hiw-step-text">Pick a model:</span>
+            <span class="hiw-step-text">Connect Claude Code:</span>
           </div>
           <div class="terminal terminal-stacked">
             <div class="terminal-bar">
               <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
               <span class="terminal-title">Terminal 2 &mdash; Claude Code</span>
             </div>
-            <div class="terminal-body terminal-sm">$ npx anymodel deepseek
+            <div class="terminal-body terminal-sm">$ ANTHROPIC_BASE_URL=http://localhost:9090 \
+  claude
 
-<span style="color:var(--accent-emerald)">&#x2713;</span> Connected to proxy on :9090
-  Model: deepseek/deepseek-r1</div>
+<span style="color:var(--accent-emerald)">&#x2713;</span> Claude Code running
+  via anymodel proxy (deepseek-r1)</div>
           </div>
         </div>
       </div>
 
-      <p class="fade-in" style="text-align:center; color:var(--text-muted); font-size:0.82rem; margin-top:20px;">Your OpenRouter key is set once on the proxy. Presets auto-connect. Works offline with <a href="#guides" style="color:var(--accent-cyan);">Ollama</a> too.</p>
+      <p class="fade-in" style="text-align:center; color:var(--text-muted); font-size:0.82rem; margin-top:20px;">The model is set on the proxy. Claude Code just connects to it. Works offline with <a href="#guides" style="color:var(--accent-cyan);">Ollama</a> too.</p>
 
       <!-- Architecture diagram — single unified flow -->
       <div class="fade-in" style="margin-top:48px; display:flex; justify-content:center;">
@@ -535,36 +538,35 @@
       <p class="section-desc fade-in">Copy-paste examples for common scenarios.</p>
 
       <div class="examples-grid">
-        <!-- Card 1: Preset (auto-resolves model) -->
+        <!-- Card 1: DeepSeek R1 -->
         <div class="example-card fade-in">
           <div class="example-header">
-            <span class="example-tag" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4;">Preset</span>
-            <h3>Use a built-in preset</h3>
+            <span class="example-tag" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4;">Cloud</span>
+            <h3>DeepSeek R1</h3>
           </div>
-          <pre><code><span class="hl-comment"># Terminal 1 — start proxy:</span>
+          <pre><code><span class="hl-comment"># Terminal 1 — proxy with model:</span>
 <span class="hl-cmd">OPENROUTER_API_KEY</span>=sk-or-v1-... \
-  npx anymodel proxy
+  npx anymodel proxy \
+  --model deepseek/deepseek-r1
 
-<span class="hl-comment"># Terminal 2 — pick a preset:</span>
-<span class="hl-cmd">npx</span> anymodel deepseek
-
-<span class="hl-comment"># "deepseek" resolves to</span>
-<span class="hl-comment"># deepseek/deepseek-r1 automatically</span></code></pre>
-          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy" aria-label="Copy example">Copy</button>
+<span class="hl-comment"># Terminal 2 — connect:</span>
+<span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://localhost:9090 \
+  claude</code></pre>
+          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --model deepseek/deepseek-r1" aria-label="Copy example">Copy</button>
         </div>
 
-        <!-- Card 2: Custom model -->
+        <!-- Card 2: Any model -->
         <div class="example-card fade-in">
           <div class="example-header">
             <span class="example-tag" style="background: rgba(168, 85, 247, 0.15); color: #a855f7;">Custom</span>
             <h3>Any of 200+ models</h3>
           </div>
-          <pre><code><span class="hl-comment"># Set any OpenRouter model on proxy:</span>
+          <pre><code><span class="hl-comment"># Terminal 1 — any OpenRouter model:</span>
 <span class="hl-cmd">OPENROUTER_API_KEY</span>=sk-or-v1-... \
   npx anymodel proxy \
   --model mistralai/codestral-latest
 
-<span class="hl-comment"># Connect Claude Code:</span>
+<span class="hl-comment"># Terminal 2 — connect:</span>
 <span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://localhost:9090 \
   claude</code></pre>
           <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --model mistralai/codestral-latest" aria-label="Copy example">Copy</button>
@@ -607,17 +609,19 @@
               <span class="terminal-title">Terminal 1</span>
             </div>
             <div class="terminal-body" style="min-height:auto; padding:16px 20px; font-size:0.82rem; text-align:left;">$ OPENROUTER_API_KEY=<span style="color:#06b6d4">sk-or-v1-...</span> \
-  npx anymodel proxy</div>
+  npx anymodel proxy \
+  --model deepseek/deepseek-r1</div>
           </div>
           <div class="terminal" style="margin:0;">
             <div class="terminal-bar">
               <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
               <span class="terminal-title">Terminal 2</span>
             </div>
-            <div class="terminal-body" style="min-height:auto; padding:16px 20px; font-size:0.82rem; text-align:left;">$ npx anymodel deepseek</div>
+            <div class="terminal-body" style="min-height:auto; padding:16px 20px; font-size:0.82rem; text-align:left;">$ ANTHROPIC_BASE_URL=http://localhost:9090 \
+  claude</div>
           </div>
         </div>
-        <button class="copy-btn fade-in" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy" aria-label="Copy" style="margin:12px auto 0; display:block;">Copy proxy command</button>
+        <button class="copy-btn fade-in" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy --model deepseek/deepseek-r1" aria-label="Copy" style="margin:12px auto 0; display:block;">Copy proxy command</button>
 
         <p class="fade-in" style="font-size:0.78rem; color:var(--text-muted); margin-top:24px;">Or install globally: <code style="font-size:0.82rem;">npm i -g anymodel</code></p>
       </div>

@@ -15,14 +15,14 @@ anymodel is a CLI that runs Claude Code directly or proxies it through any model
 ## Quick Start
 
 ```bash
-# Terminal 1 — start the proxy:
-OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy
+# Terminal 1 — start the proxy with a model:
+OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy --model deepseek/deepseek-r1
 
-# Terminal 2 — pick a model:
-npx anymodel deepseek
+# Terminal 2 — connect Claude Code:
+ANTHROPIC_BASE_URL=http://localhost:9090 claude
 ```
 
-That's it. The proxy runs on `:9090`, presets auto-connect to it.
+The model is set on the proxy via `--model`. Claude Code just connects to it.
 
 Get your free OpenRouter key at [openrouter.ai/keys](https://openrouter.ai/keys) — no credit card for free models.
 
