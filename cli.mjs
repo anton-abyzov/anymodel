@@ -20,6 +20,7 @@ const PROVIDERS = ['openrouter', 'ollama', 'openai'];
 // Model presets — short aliases for popular models
 const MODEL_PRESETS = {
   gpt:      'openai/gpt-5.4',
+  codex:    'openai/gpt-5.3-codex',
   gemini:   'google/gemini-3.1-flash-lite-preview',
   deepseek: 'deepseek/deepseek-r1-0528',
   qwen:     'qwen/qwen3-coder:free',
@@ -110,7 +111,7 @@ ${C.bold('Commands:')}
   anymodel proxy --model <id>       Start proxy with any model
   anymodel claude                   Run Claude Code directly (no proxy)
 
-${C.bold('Presets:')} gpt, gemini, deepseek, qwen, llama, nemotron, gemma
+${C.bold('Presets:')} gpt, codex, gemini, deepseek, qwen, llama, nemotron, gemma
 
 Run ${C.bold('anymodel --help')} for full options.
 `);
@@ -130,6 +131,7 @@ ${C.magenta('  anymodel')} — run Claude Code with any AI model
 
   ${C.bold('Model Presets:')}
     gpt       → openai/gpt-5.4
+    codex     → openai/gpt-5.3-codex            ${C.cyan('(coding)')}
     gemini    → google/gemini-3.1-flash-lite
     deepseek  → deepseek/deepseek-r1-0528
     qwen      → qwen/qwen3-coder:free          ${C.cyan('(free)')}
