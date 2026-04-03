@@ -19,8 +19,8 @@ const PROVIDERS = ['openrouter', 'ollama', 'openai'];
 
 // Model presets — short aliases for popular models
 const MODEL_PRESETS = {
-  gpt:      'openai/gpt-4.1-mini',
-  gemini:   'google/gemini-2.5-flash',
+  gpt:      'openai/gpt-5.4',
+  gemini:   'google/gemini-3.1-flash-lite-preview',
   deepseek: 'deepseek/deepseek-r1-0528',
   qwen:     'qwen/qwen3-coder:free',
   nemotron: 'nvidia/nemotron-3-super-120b-a12b:free',
@@ -129,8 +129,8 @@ ${C.magenta('  anymodel')} — run Claude Code with any AI model
     anymodel claude                               ${C.cyan('# run Claude Code directly (no proxy)')}
 
   ${C.bold('Model Presets:')}
-    gpt       → openai/gpt-4.1-mini
-    gemini    → google/gemini-2.5-flash
+    gpt       → openai/gpt-5.4
+    gemini    → google/gemini-3.1-flash-lite
     deepseek  → deepseek/deepseek-r1-0528
     qwen      → qwen/qwen3-coder:free          ${C.cyan('(free)')}
     nemotron  → nvidia/nemotron-3-super-120b:free ${C.cyan('(free)')}

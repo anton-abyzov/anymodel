@@ -37,8 +37,8 @@ Pick a model by name — no `--model` flag needed. Start the proxy first, then c
 OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy
 
 # Then pick a model (Terminal 2):
-npx anymodel gpt        # → openai/gpt-4o
-npx anymodel gemini     # → google/gemini-2.5-flash
+npx anymodel gpt        # → openai/gpt-5.4
+npx anymodel gemini     # → google/gemini-3.1-flash-lite-preview
 npx anymodel qwen       # → qwen/qwen3-coder:free
 npx anymodel llama      # → meta-llama/llama-3.3-70b-instruct:free
 npx anymodel deepseek   # → deepseek/deepseek-r1
@@ -75,9 +75,9 @@ Run separate proxy instances on different ports — one per model:
 
 ```bash
 # Start each proxy with its own model and port:
-OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9090 --model openai/gpt-4o
+OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9090 --model openai/gpt-5.4
 OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9091 --model deepseek/deepseek-r1
-OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9092 --model google/gemini-2.5-flash
+OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9092 --model google/gemini-3.1-flash-lite-preview
 
 # Connect to any — the model is already set on the proxy:
 ANTHROPIC_BASE_URL=http://localhost:9090 npx anymodel    # GPT-4o
