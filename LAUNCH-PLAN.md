@@ -202,6 +202,63 @@ YouTube demo: [link]
 npm: npx anymodel
 ```
 
+### Threads: Post 3 hours after YouTube (5:30 AM EST)
+
+```
+I built AnyModel — run Claude Code with any AI model.
+
+GPT-5.4, DeepSeek R1, Gemini, Codex, Llama.
+Even free models at $0.
+
+Two terminals:
+→ npx anymodel proxy deepseek
+→ npx anymodel
+
+Open source. Zero dependencies.
+
+🔗 anymodel.dev
+📺 https://youtu.be/k0RI_M6lIsg
+
+#anymodel #claudecode #ai #coding #opensource #deepseek #gpt
+```
+
+### Instagram Reel: Post 4 hours after YouTube (6:30 AM EST)
+
+Record a 60-second screen capture reel from the video showing:
+- 0-5s: "Run Claude Code with ANY model" text overlay
+- 5-20s: Starting proxy with DeepSeek, connecting
+- 20-35s: The thinking process demo (127 × 389)
+- 35-50s: Agent swarm with multiple experts
+- 50-60s: "npx anymodel — link in bio" CTA
+
+Caption:
+```
+I built AnyModel — run Claude Code with GPT, DeepSeek, Gemini, and 200+ models. Free models included. Open source.
+
+🔗 Link in bio → anymodel.dev
+
+#ai #coding #claudecode #anymodel #opensource #deepseek #gpt #aitools #programming #developer #tech
+```
+
+### TikTok: Post same time as Instagram (6:30 AM EST)
+
+Same 60-second reel as Instagram. TikTok caption:
+
+```
+I built a tool that lets you use Claude Code with ANY AI model 🤯
+
+GPT, DeepSeek, Gemini, Llama — even FREE models
+
+Two commands. That's it.
+
+npx anymodel proxy deepseek
+npx anymodel
+
+Link in bio 🔗 anymodel.dev
+
+#ai #coding #tech #programming #opensource #claudecode #anymodel #deepseek #gpt #aitools #developer
+```
+
 ### Dev.to / Hashnode article: Post 24 hours after YouTube
 
 Title: "How I Built AnyModel: A Universal Proxy for AI Coding Tools"
@@ -227,9 +284,14 @@ URL: https://anymodel.dev
 | 2:30 AM EST | YouTube | Publish video |
 | 2:35 AM EST | Twitter/X | Tweet 1 (main) |
 | 4:30 AM EST | Twitter/X | Tweet 2 (thread) |
+| 5:30 AM EST | Threads | Post (same as tweet, with hashtags) |
 | 6:30 AM EST | Twitter/X | Tweet 3 (Ollama) |
+| 6:30 AM EST | Instagram | 60s reel from video highlights |
+| 6:30 AM EST | TikTok | Same 60s reel |
 | 8:30 AM EST | LinkedIn | Post |
 | 10:30 AM EST | Reddit | r/LocalLLaMA + r/ClaudeAI |
+| 12:00 PM EST | Discord | Post in your server |
+| 12:00 PM EST | Telegram | Post in @antonaipower |
 | Next day | Dev.to | Technical article |
 | Day after | Hacker News | Show HN |
 
