@@ -177,32 +177,43 @@ ${C.magenta('  anymodel')} — run Claude Code with any AI model
 function findClient() {
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
+  const home = process.env.HOME || process.env.USERPROFILE || '';
 
-  // 1. cli.js in current directory (user's local clone)
+  // 0. ANYMODEL_CLIENT env var — explicit path to custom cli.js (highest priority)
+  const envClient = process.env.ANYMODEL_CLIENT;
+  if (envClient && existsSync(envClient)) {
+    return { cmd: process.execPath, args: [envClient], label: 'cli.js (ANYMODEL_CLIENT)' };
+  }
+
+  // 1. cli.js in current directory
   const localCli = join(process.cwd(), 'cli.js');
   if (existsSync(localCli)) {
     return { cmd: process.execPath, args: [localCli], label: 'cli.js (local)' };
   }
 
-  // 2. cli.js next to this script (bundled with anymodel)
+  // 2. cli.js next to this script (bundled or local dev)
   const siblingCli = join(__dirname, 'cli.js');
   if (existsSync(siblingCli)) {
     return { cmd: process.execPath, args: [siblingCli], label: 'cli.js (bundled)' };
   }
 
-  // 3. cli.js in sibling claude-code directory (umbrella/monorepo)
-  const siblingRepoCli = join(__dirname, '..', 'claude-code', 'cli.js');
-  if (existsSync(siblingRepoCli)) {
-    return { cmd: process.execPath, args: [siblingRepoCli], label: 'cli.js (sibling repo)' };
+  // 3. Sibling repos (umbrella/monorepo layout)
+  for (const name of ['claude-code', 'claude-code-anymodel']) {
+    const p = join(__dirname, '..', name, 'cli.js');
+    if (existsSync(p)) {
+      return { cmd: process.execPath, args: [p], label: `cli.js (${name})` };
+    }
   }
 
-  // 4. claude-code-anymodel in sibling directory
-  const anymodelRepoCli = join(__dirname, '..', 'claude-code-anymodel', 'cli.js');
-  if (existsSync(anymodelRepoCli)) {
-    return { cmd: process.execPath, args: [anymodelRepoCli], label: 'cli.js (claude-code-anymodel)' };
+  // 4. Well-known home directory locations
+  for (const rel of ['claude-code-anymodel/cli.js', 'claude-code/cli.js']) {
+    const p = join(home, rel);
+    if (existsSync(p)) {
+      return { cmd: process.execPath, args: [p], label: `cli.js (~/${rel})` };
+    }
   }
 
-  // 5. claude in PATH (Anthropic's global install — fallback)
+  // 5. claude in PATH (global install — fallback)
   try {
     const isWin = process.platform === 'win32';
     const findCmd = isWin ? 'where claude 2>nul' : 'which claude 2>/dev/null';
