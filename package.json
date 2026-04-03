@@ -17,7 +17,9 @@
   ],
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "start": "node cli.mjs"
+    "start": "node cli.mjs",
+    "sync-version": "node -e \"const v=require('./package.json').version; const fs=require('fs'); let c=fs.readFileSync('cli.js','utf8'); c=c.replace(/VERSION:\\\"[0-9][^\\\"]*\\\",FEEDBACK/g,'VERSION:\\\"'+v+'\\\",FEEDBACK'); c=c.replace(/version:\\\"1\\.[0-9]+\\.[0-9]+\\\"/g,'version:\\\"'+v+'\\\"'); fs.writeFileSync('cli.js',c);\"",
+    "prepublishOnly": "npm run sync-version"
   },
   "keywords": [
     "openrouter",
