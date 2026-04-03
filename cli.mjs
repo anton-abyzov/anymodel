@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// anymodel CLI — Run Claude Code with any AI model
+// anymodel CLI — Universal AI coding tool
 //
 // Usage:
 //   npx anymodel                              # show usage
@@ -100,7 +100,7 @@ export async function detectProvider(model) {
 
 function printQuickUsage() {
   console.log(`
-${C.magenta('anymodel')} — run Claude Code with any AI model
+${C.magenta('anymodel')} — universal AI coding tool
 
 ${C.bold('Quick start:')}
   ${C.cyan('Terminal 1:')} OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy deepseek
@@ -120,7 +120,7 @@ Run ${C.bold('anymodel --help')} for full options.
 
 function printHelp() {
   console.log(`
-${C.magenta('  anymodel')} — run Claude Code with any AI model
+${C.magenta('  anymodel')} — universal AI coding tool
 
   ${C.bold('Commands:')}
     anymodel                                      ${C.cyan('# connect to running proxy')}
@@ -133,13 +133,13 @@ ${C.magenta('  anymodel')} — run Claude Code with any AI model
   ${C.bold('Model Presets:')}
     gpt       → openai/gpt-5.4
     codex     → openai/gpt-5.3-codex            ${C.cyan('(coding)')}
-    gemini    → google/gemini-3.1-flash-lite
+    gemini    → google/gemini-3.1-flash-lite-preview
     deepseek  → deepseek/deepseek-r1-0528
     mistral   → mistralai/devstral-2512         ${C.cyan('(coding)')}
     gemma     → google/gemma-4-31b-it
     qwen      → qwen/qwen3-coder:free          ${C.cyan('(free)')}
-    nemotron  → nvidia/nemotron-3-super-120b:free ${C.cyan('(free)')}
-    llama     → meta-llama/llama-3.3-70b:free   ${C.cyan('(free)')}
+    nemotron  → nvidia/nemotron-3-super-120b-a12b:free ${C.cyan('(free)')}
+    llama     → meta-llama/llama-3.3-70b-instruct:free ${C.cyan('(free)')}
 
   ${C.bold('Proxy Options:')} (only apply to ${C.bold('anymodel proxy')})
     --model, -m     Model to use (e.g., qwen/qwen3-coder:free)

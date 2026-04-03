@@ -45,8 +45,8 @@ npx anymodel proxy gemma      # → google/gemma-4-31b-it                (paid, 
 
 # Free models:
 npx anymodel proxy qwen       # → qwen/qwen3-coder:free                (free)
-npx anymodel proxy nemotron   # → nvidia/nemotron-3-super-120b:free     (free)
-npx anymodel proxy llama      # → meta-llama/llama-3.3-70b:free        (free)
+npx anymodel proxy nemotron   # → nvidia/nemotron-3-super-120b-a12b:free (free)
+npx anymodel proxy llama      # → meta-llama/llama-3.3-70b-instruct:free (free)
 ```
 
 Or any of 200+ models: `npx anymodel proxy --model mistralai/codestral-2508`
@@ -107,6 +107,8 @@ Options:
   --model, -m     Model ID
   --port, -p      Port (default: 9090)
   --free-only     Block paid models
+  --token, -t     Require auth token for requests
+  --rpm           Rate limit requests/min (default: 60)
   --help, -h      Help
 ```
 
@@ -120,6 +122,7 @@ Options:
 | `OPENAI_BASE_URL` | Custom endpoint (default: `https://api.openai.com/v1`) |
 | `PROXY_PORT` | Proxy port (default: `9090`) |
 | `ANYMODEL_CLIENT` | Path to custom client cli.js |
+| `ANYMODEL_TOKEN` | Auth token for remote mode |
 
 `OPENROUTER_API_KEY` is only needed when starting the proxy.
 
