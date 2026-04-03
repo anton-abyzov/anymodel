@@ -52,7 +52,7 @@ Or use `--model` for any of 200+ models on OpenRouter:
 OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy
 
 # Terminal 2:
-ANTHROPIC_BASE_URL=http://localhost:9090 claude
+ANTHROPIC_BASE_URL=http://localhost:9090 npx anymodel
 ```
 
 Or with a custom model via proxy:
@@ -80,9 +80,9 @@ OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9091 --model deepseek/
 OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9092 --model google/gemini-2.5-flash
 
 # Connect to any — the model is already set on the proxy:
-ANTHROPIC_BASE_URL=http://localhost:9090 claude    # GPT-4o
-ANTHROPIC_BASE_URL=http://localhost:9091 claude    # DeepSeek R1
-ANTHROPIC_BASE_URL=http://localhost:9092 claude    # Gemini
+ANTHROPIC_BASE_URL=http://localhost:9090 npx anymodel    # GPT-4o
+ANTHROPIC_BASE_URL=http://localhost:9091 npx anymodel    # DeepSeek R1
+ANTHROPIC_BASE_URL=http://localhost:9092 npx anymodel    # Gemini
 ```
 
 ### Fully Local with Ollama
@@ -109,7 +109,7 @@ Use **any OpenAI-compatible API** — OpenAI, Azure, Together, Groq, local vLLM,
 OPENAI_API_KEY=sk-your-key npx anymodel proxy openai --model gpt-4o
 
 # Terminal 2: run Claude Code
-ANTHROPIC_BASE_URL=http://localhost:9090 claude
+ANTHROPIC_BASE_URL=http://localhost:9090 npx anymodel
 ```
 
 The proxy translates between Anthropic Messages API and OpenAI Chat Completions:

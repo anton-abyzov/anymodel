@@ -343,13 +343,7 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10,
     }
     console.log('');
     console.log(`  ${C.green('Next step — run in another terminal:')}`);
-    const isWin = process.platform === 'win32';
-    if (isWin) {
-      console.log(`  ${C.bold(`set ANTHROPIC_BASE_URL=http://localhost:${actualPort}`)}`);
-      console.log(`  ${C.bold('claude')}`);
-    } else {
-      console.log(`  ${C.bold(`ANTHROPIC_BASE_URL=http://localhost:${actualPort} claude`)}`);
-    }
+    console.log(`  ${C.bold('npx anymodel')}`);
     console.log('');
   }
 
