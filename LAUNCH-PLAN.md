@@ -289,7 +289,12 @@ Built-in presets:
 
 Works with OpenRouter (cloud), Ollama (fully offline), or any OpenAI-compatible API.
 
-Zero dependencies. MIT licensed. Let me know what you think! 🙏
+Zero dependencies. MIT licensed.
+
+📺 YouTube: https://youtube.com/@AntonAbyzov
+🐦 Twitter: https://x.com/aabyzov
+
+Like & subscribe if you find it useful — it really helps! Let me know what you think! 🙏
 ```
 
 ### Telegram (@antonaipower): Post 12:00 PM EST
