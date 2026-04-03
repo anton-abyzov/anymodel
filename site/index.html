@@ -371,14 +371,6 @@
           <code class="model-id">mistralai/codestral-latest</code>
         </div>
 
-        <!-- 200+ more card (centered in grid) -->
-        <div class="model-card fade-in" style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background: var(--gradient-subtle); border-style:dashed;">
-          <div style="font-size:2rem; font-weight:700; background:var(--gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:8px;">200+</div>
-          <h3 style="margin-bottom:8px;">more models</h3>
-          <p style="font-size:0.85rem; color:var(--text-muted);">Qwen, Cohere, Phi, Yi, StableLM, Nous, WizardLM, and every model on OpenRouter.</p>
-          <a href="https://openrouter.ai/models" target="_blank" rel="noopener" style="margin-top:12px; color:var(--accent-cyan); font-size:0.85rem; text-decoration:underline; text-underline-offset:3px;">Browse all models &rarr;</a>
-        </div>
-
         <div class="model-card fade-in">
           <div class="model-header">
             <div class="model-icon"><img src="assets/providers/deepmind.svg" width="28" height="28" alt="Google DeepMind"></div>
@@ -401,6 +393,14 @@
           </div>
           <p>Run any GGUF model locally. Zero cloud dependency. Fully private. No API key required.</p>
           <code class="model-id">ollama --model gemma3n</code>
+        </div>
+
+        <!-- 200+ more card (last row, centered) -->
+        <div class="model-card fade-in" style="grid-column: 2; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background: var(--gradient-subtle); border-style:dashed;">
+          <div style="font-size:2rem; font-weight:700; background:var(--gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:8px;">200+</div>
+          <h3 style="margin-bottom:8px;">more models</h3>
+          <p style="font-size:0.85rem; color:var(--text-muted);">Qwen, Cohere, Phi, Yi, StableLM, Nous, WizardLM, and every model on OpenRouter.</p>
+          <a href="https://openrouter.ai/models" target="_blank" rel="noopener" style="margin-top:12px; color:var(--accent-cyan); font-size:0.85rem; text-decoration:underline; text-underline-offset:3px;">Browse all models &rarr;</a>
         </div>
       </div>
 
@@ -612,37 +612,7 @@
     </div>
   </section>
 
-  <!-- INSTALL -->
-  <section id="install">
-    <div class="container">
-      <div class="fade-in" style="text-align:center;">
-        <div class="section-label">Get Started</div>
-        <h2 class="section-title">Two terminals. Any model.</h2>
-        <p class="section-desc" style="margin-bottom:40px;">Get your free <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent-cyan)">OpenRouter key</a>, then run:</p>
-
-        <div class="install-terminal fade-in" style="max-width:640px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-          <div class="terminal" style="margin:0;">
-            <div class="terminal-bar">
-              <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
-              <span class="terminal-title">Terminal 1</span>
-            </div>
-            <div class="terminal-body" style="min-height:auto; padding:16px 20px; font-size:0.82rem; text-align:left;">$ OPENROUTER_API_KEY=<span style="color:#06b6d4">sk-or-v1-...</span> \
-  npx anymodel proxy deepseek</div>
-          </div>
-          <div class="terminal" style="margin:0;">
-            <div class="terminal-bar">
-              <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
-              <span class="terminal-title">Terminal 2</span>
-            </div>
-            <div class="terminal-body" style="min-height:auto; padding:16px 20px; font-size:0.82rem; text-align:left;">$ npx anymodel</div>
-          </div>
-        </div>
-        <button class="copy-btn fade-in" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy deepseek" aria-label="Copy" style="margin:12px auto 0; display:block;">Copy proxy command</button>
-
-        <p class="fade-in" style="font-size:0.78rem; color:var(--text-muted); margin-top:24px;">Or install globally: <code style="font-size:0.82rem;">npm i -g anymodel</code></p>
-      </div>
-    </div>
-  </section>
+  <!-- Install section removed — Get Started is already in How It Works at top -->
 
   <!-- ═══ SETUP GUIDES ═══ -->
   <section id="guides" class="section-alt">
