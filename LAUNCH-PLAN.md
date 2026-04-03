@@ -363,6 +363,30 @@ npx anymodel
 Open source, zero dependencies, MIT licensed.
 ```
 
+### Facebook: Post Friday 3:00 PM EST
+
+```
+🚀 Just shipped something I've been working on — AnyModel
+
+If you use AI for coding, you've probably been frustrated by being locked into one model provider. Claude Code is amazing, but $100/mo that burns out in an hour? And you can't even try other models?
+
+I built AnyModel — an open-source proxy that lets you use any AI model through one interface. GPT-5.4, DeepSeek R1 (with visible thinking process!), Gemini, Codex, and 200+ more. Including free models that cost $0.
+
+The setup is dead simple:
+→ npx anymodel proxy deepseek
+→ npx anymodel
+That's it. Two commands.
+
+You can even go fully offline with Ollama — no internet, no API key, everything runs on your machine.
+
+I recorded a full 17-minute demo showing everything:
+📺 https://youtu.be/k0RI_M6lIsg
+
+Try it: https://anymodel.dev
+
+Would love to hear what models you'd want to try. Happy building! 🙏
+```
+
 ### Dev.to / Hashnode article: Post 24 hours after YouTube
 
 Title: "How I Built AnyModel: A Universal Proxy for AI Coding Tools"
