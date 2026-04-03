@@ -14,25 +14,15 @@ anymodel is a CLI that runs Claude Code directly or proxies it through any model
 
 ## Quick Start
 
-**Claude (direct, no proxy):**
-
-```bash
-npx anymodel claude
-```
-
-Claude Code runs directly — no proxy needed, no API key required here.
-
-**Any other model (proxy required):**
-
 ```bash
 # Terminal 1 — start the proxy:
 OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy
 
 # Terminal 2 — pick a model:
-npx anymodel gpt
+npx anymodel deepseek
 ```
 
-The proxy runs on `:9090` by default. Model presets auto-connect to it.
+That's it. The proxy runs on `:9090`, presets auto-connect to it.
 
 Get your free OpenRouter key at [openrouter.ai/keys](https://openrouter.ai/keys) — no credit card for free models.
 
@@ -84,19 +74,15 @@ The proxy intercepts `/v1/messages`, translates formats if needed, strips incomp
 Run separate proxy instances on different ports — one per model:
 
 ```bash
-# Terminal 1: GPT-4o on :9090
+# Start each proxy with its own model and port:
 OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9090 --model openai/gpt-4o
-
-# Terminal 2: DeepSeek R1 on :9091
 OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9091 --model deepseek/deepseek-r1
-
-# Terminal 3: Gemini on :9092
 OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9092 --model google/gemini-2.5-flash
 
-# Connect to any of them:
-npx anymodel gpt --port 9090
-npx anymodel deepseek --port 9091
-npx anymodel gemini --port 9092
+# Connect to any — the model is already set on the proxy:
+ANTHROPIC_BASE_URL=http://localhost:9090 claude    # GPT-4o
+ANTHROPIC_BASE_URL=http://localhost:9091 claude    # DeepSeek R1
+ANTHROPIC_BASE_URL=http://localhost:9092 claude    # Gemini
 ```
 
 ### Fully Local with Ollama

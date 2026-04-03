@@ -169,14 +169,11 @@
   <section id="how-it-works">
     <div class="container">
       <div class="section-label fade-in">How It Works</div>
-      <h2 class="section-title fade-in">Two ways to run.</h2>
-      <p class="section-desc fade-in">Use Claude directly, or get a free <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent-cyan)">OpenRouter API key</a> (no credit card for free models) to use any model.</p>
+      <h2 class="section-title fade-in">Two terminals. Any model.</h2>
+      <p class="section-desc fade-in">Get a free <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent-cyan)">OpenRouter API key</a> (no credit card for free models), then:</p>
 
-      <div class="hiw-compare fade-in">
-        <!-- LEFT: Any Model (primary value prop) -->
-        <div class="hiw-col">
-          <div class="hiw-col-label" style="color: var(--accent-cyan);">ANY MODEL <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; two terminals</span></div>
-
+      <div class="fade-in" style="max-width:780px; margin:48px auto 0; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+        <div>
           <div class="hiw-step">
             <span class="hiw-step-num">1</span>
             <span class="hiw-step-text">Start the proxy:</span>
@@ -191,7 +188,9 @@
 
 <span style="color:var(--accent-cyan)">&#x2194;</span> Proxy on :9090 &#x2192; OpenRouter</div>
           </div>
+        </div>
 
+        <div>
           <div class="hiw-step">
             <span class="hiw-step-num">2</span>
             <span class="hiw-step-text">Pick a model:</span>
@@ -201,51 +200,15 @@
               <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
               <span class="terminal-title">Terminal 2 &mdash; Claude Code</span>
             </div>
-            <div class="terminal-body terminal-sm">$ npx anymodel deepseek    <span style="color:var(--text-muted)"># DeepSeek R1</span>
+            <div class="terminal-body terminal-sm">$ npx anymodel deepseek
 
 <span style="color:var(--accent-emerald)">&#x2713;</span> Connected to proxy on :9090
-  Model: deepseek/deepseek-r1
-
-<span style="color:var(--text-muted)"># Or try other models:</span>
-$ npx anymodel nemotron    <span style="color:var(--text-muted)"># NVIDIA Nemotron (free)</span>
-$ npx anymodel qwen        <span style="color:var(--text-muted)"># Qwen3 Coder (free)</span>
-$ npx anymodel gpt         <span style="color:var(--text-muted)"># GPT-4o</span></div>
-          </div>
-
-          <p class="hiw-col-note">Your <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter key</a> is only needed once &mdash; when starting the proxy. Model presets auto-connect. Works offline with <a href="#guides">Ollama</a> too.</p>
-        </div>
-
-        <!-- SEPARATOR -->
-        <div class="hiw-sep">
-          <div class="hiw-sep-line"></div>
-          <span class="hiw-sep-label">or</span>
-          <div class="hiw-sep-line"></div>
-        </div>
-
-        <!-- RIGHT: Claude Direct -->
-        <div class="hiw-col">
-          <div class="hiw-col-label">CLAUDE <span style="font-weight:400; color:var(--text-muted); font-size:0.75rem;">&mdash; direct, no proxy</span></div>
-
-          <div class="hiw-step">
-            <span class="hiw-step-num">1</span>
-            <span class="hiw-step-text">Run Claude Code directly:</span>
-          </div>
-          <div class="terminal terminal-stacked">
-            <div class="terminal-bar">
-              <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
-              <span class="terminal-title">Terminal</span>
-            </div>
-            <div class="terminal-body terminal-sm">$ npx anymodel claude
-
-<span style="color:var(--accent-emerald)">&#x2713;</span> Claude Code launched (no proxy needed)</div>
-          </div>
-
-          <div class="hiw-step">
-            <span class="hiw-step-num">2</span>
-            <span class="hiw-step-text">That's it. No proxy, no OpenRouter key. Claude Code runs with your Anthropic API key.</span>
+  Model: deepseek/deepseek-r1</div>
           </div>
         </div>
       </div>
+
+      <p class="fade-in" style="text-align:center; color:var(--text-muted); font-size:0.82rem; margin-top:20px;">Your OpenRouter key is set once on the proxy. Presets auto-connect. Works offline with <a href="#guides" style="color:var(--accent-cyan);">Ollama</a> too.</p>
 
       <!-- Architecture diagram — single unified flow -->
       <div class="arch-side fade-in">
@@ -269,24 +232,40 @@ $ npx anymodel gpt         <span style="color:var(--text-muted)"># GPT-4o</span>
         </div>
       </div>
 
-      <!-- Multi-instance example -->
-      <div class="fade-in" style="margin-top:32px;">
-        <p style="text-align:center; color:var(--text-muted); font-size:0.85rem; margin-bottom:16px;">Run multiple models simultaneously on different ports:</p>
-        <div class="terminal" style="max-width:600px; margin:0 auto;">
-          <div class="terminal-bar">
-            <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
-            <span class="terminal-title">Multiple instances</span>
-          </div>
-          <div class="terminal-body" style="min-height:auto; padding:16px 20px; font-size:0.82rem; text-align:left;"><span style="color:var(--text-muted)"># Each proxy on its own port with its own model:</span>
-npx anymodel proxy --port 9090 --model openai/gpt-4o
-npx anymodel proxy --port 9091 --model deepseek/deepseek-r1
-npx anymodel proxy --port 9092 --model google/gemini-2.5-flash
+      <!-- Built-in presets table -->
+      <div class="fade-in" style="margin-top:40px;">
+        <h3 style="text-align:center; font-size:1rem; font-weight:600; margin-bottom:8px;">Built-in presets</h3>
+        <p style="text-align:center; color:var(--text-muted); font-size:0.82rem; margin-bottom:20px;">Use a short name &mdash; the proxy resolves the full model ID automatically.</p>
+        <div style="max-width:560px; margin:0 auto; display:grid; grid-template-columns:auto 1fr auto; gap:0; font-family:var(--font-mono); font-size:0.8rem; border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden;">
+          <div style="padding:10px 16px; background:var(--bg-tertiary); color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border);">Preset</div>
+          <div style="padding:10px 16px; background:var(--bg-tertiary); color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border);">Model ID</div>
+          <div style="padding:10px 16px; background:var(--bg-tertiary); color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border); text-align:right;"></div>
 
-<span style="color:var(--text-muted)"># Connect to any of them:</span>
-npx anymodel gpt --port 9090
-npx anymodel deepseek --port 9091
-npx anymodel gemini --port 9092</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--accent-cyan);">gpt</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--text-secondary);">openai/gpt-4o</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); text-align:right;"></div>
+
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--accent-cyan);">gemini</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--text-secondary);">google/gemini-2.5-flash</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); text-align:right;"></div>
+
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--accent-cyan);">deepseek</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--text-secondary);">deepseek/deepseek-r1</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); text-align:right;"></div>
+
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--accent-cyan);">qwen</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--text-secondary);">qwen/qwen3-coder:free</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--accent-emerald); text-align:right; font-size:0.7rem;">FREE</div>
+
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--accent-cyan);">nemotron</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--text-secondary);">nvidia/nemotron-3-super-120b-a12b:free</div>
+          <div style="padding:8px 16px; border-bottom:1px solid var(--border); color:var(--accent-emerald); text-align:right; font-size:0.7rem;">FREE</div>
+
+          <div style="padding:8px 16px; color:var(--accent-cyan);">llama</div>
+          <div style="padding:8px 16px; color:var(--text-secondary);">meta-llama/llama-3.3-70b-instruct:free</div>
+          <div style="padding:8px 16px; color:var(--accent-emerald); text-align:right; font-size:0.7rem;">FREE</div>
         </div>
+        <p style="text-align:center; color:var(--text-muted); font-size:0.8rem; margin-top:14px;">Or use any of 200+ models: <code style="color:var(--accent-cyan);">npx anymodel proxy --model anthropic/claude-sonnet-4-6</code></p>
       </div>
     </div>
   </section>
@@ -556,46 +535,58 @@ npx anymodel gemini --port 9092</div>
       <p class="section-desc fade-in">Copy-paste examples for common scenarios.</p>
 
       <div class="examples-grid">
+        <!-- Card 1: Preset (auto-resolves model) -->
         <div class="example-card fade-in">
           <div class="example-header">
-            <span class="example-tag" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4;">Direct</span>
-            <h3>Quickest start</h3>
-          </div>
-          <pre><code><span class="hl-comment"># Run Claude Code directly — no proxy needed</span>
-<span class="hl-cmd">npx</span> anymodel claude</code></pre>
-          <button class="copy-btn" data-copy="npx anymodel claude" aria-label="Copy example">Copy</button>
-        </div>
-
-        <div class="example-card fade-in">
-          <div class="example-header">
-            <span class="example-tag">Proxy</span>
-            <h3>Two terminals, full control</h3>
+            <span class="example-tag" style="background: rgba(6, 182, 212, 0.15); color: #06b6d4;">Preset</span>
+            <h3>Use a built-in preset</h3>
           </div>
           <pre><code><span class="hl-comment"># Terminal 1 — start proxy:</span>
 <span class="hl-cmd">OPENROUTER_API_KEY</span>=sk-or-v1-... \
   npx anymodel proxy
 
-<span class="hl-comment"># Terminal 2 — pick a model:</span>
-<span class="hl-cmd">npx</span> anymodel gpt</code></pre>
+<span class="hl-comment"># Terminal 2 — pick a preset:</span>
+<span class="hl-cmd">npx</span> anymodel deepseek
+
+<span class="hl-comment"># "deepseek" resolves to</span>
+<span class="hl-comment"># deepseek/deepseek-r1 automatically</span></code></pre>
           <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy" aria-label="Copy example">Copy</button>
         </div>
 
+        <!-- Card 2: Custom model -->
         <div class="example-card fade-in">
           <div class="example-header">
-            <span class="example-tag" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">Offline</span>
-            <h3>Fully local with Ollama</h3>
+            <span class="example-tag" style="background: rgba(168, 85, 247, 0.15); color: #a855f7;">Custom</span>
+            <h3>Any of 200+ models</h3>
           </div>
-          <pre><code><span class="hl-comment"># No internet. No API key. Everything on your machine.</span>
+          <pre><code><span class="hl-comment"># Set the model on the proxy:</span>
+<span class="hl-cmd">OPENROUTER_API_KEY</span>=sk-or-v1-... \
+  npx anymodel proxy \
+  --model anthropic/claude-sonnet-4-6
 
-<span class="hl-comment"># 1. Pull a model:</span>
+<span class="hl-comment"># Connect Claude Code:</span>
+<span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://localhost:9090 \
+  claude</code></pre>
+          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --model anthropic/claude-sonnet-4-6" aria-label="Copy example">Copy</button>
+        </div>
+
+        <!-- Card 3: Fully local with Ollama -->
+        <div class="example-card fade-in">
+          <div class="example-header">
+            <span class="example-tag" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">Local</span>
+            <h3>Fully offline with Ollama</h3>
+          </div>
+          <pre><code><span class="hl-comment"># Pull a model (once):</span>
 <span class="hl-cmd">ollama</span> pull llama4-maverick
 
-<span class="hl-comment"># 2. Start proxy (Terminal 1):</span>
-<span class="hl-cmd">npx</span> anymodel proxy ollama --model llama4-maverick
+<span class="hl-comment"># Terminal 1 — proxy:</span>
+<span class="hl-cmd">npx</span> anymodel proxy ollama \
+  --model llama4-maverick
 
-<span class="hl-comment"># 3. Use it (Terminal 2):</span>
-<span class="hl-cmd">npx</span> anymodel llama --port 9090</code></pre>
-          <button class="copy-btn" data-copy="ollama pull llama4-maverick && npx anymodel proxy ollama --model llama4-maverick" aria-label="Copy example">Copy</button>
+<span class="hl-comment"># Terminal 2 — connect:</span>
+<span class="hl-cmd">ANTHROPIC_BASE_URL</span>=http://localhost:9090 \
+  claude</code></pre>
+          <button class="copy-btn" data-copy="npx anymodel proxy ollama --model llama4-maverick" aria-label="Copy example">Copy</button>
         </div>
       </div>
     </div>
@@ -606,45 +597,29 @@ npx anymodel gemini --port 9092</div>
     <div class="container">
       <div class="fade-in" style="text-align:center;">
         <div class="section-label">Get Started</div>
-        <h2 class="section-title">Two ways to start.</h2>
-        <p class="section-desc" style="margin-bottom:40px;">Use Claude directly, or start the proxy for any model.</p>
+        <h2 class="section-title">Two terminals. Any model.</h2>
+        <p class="section-desc" style="margin-bottom:40px;">Get your free <a href="https://openrouter.ai/keys" target="_blank" rel="noopener" style="color:var(--accent-cyan)">OpenRouter key</a>, then run:</p>
 
-        <div class="install-terminal fade-in">
-          <div class="terminal" style="max-width:600px; margin:0 auto;">
+        <div class="install-terminal fade-in" style="max-width:640px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <div class="terminal" style="margin:0;">
             <div class="terminal-bar">
               <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
-              <span class="terminal-title">Option A &mdash; Claude direct</span>
+              <span class="terminal-title">Terminal 1</span>
             </div>
-            <div class="terminal-body" style="min-height:auto; padding:20px 24px; font-size:0.85rem; text-align:left;">$ npx anymodel claude</div>
+            <div class="terminal-body" style="min-height:auto; padding:16px 20px; font-size:0.82rem; text-align:left;">$ OPENROUTER_API_KEY=<span style="color:#06b6d4">sk-or-v1-...</span> \
+  npx anymodel proxy</div>
           </div>
-          <button class="copy-btn" data-copy="npx anymodel claude" aria-label="Copy" style="margin:12px auto 0; display:block;">Copy command</button>
-        </div>
-
-        <div class="install-terminal fade-in" style="margin-top:24px;">
-          <div class="terminal" style="max-width:600px; margin:0 auto;">
+          <div class="terminal" style="margin:0;">
             <div class="terminal-bar">
               <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
-              <span class="terminal-title">Option B &mdash; Any model</span>
+              <span class="terminal-title">Terminal 2</span>
             </div>
-            <div class="terminal-body" style="min-height:auto; padding:20px 24px; font-size:0.85rem; text-align:left;"><span style="color:var(--text-muted)"># Terminal 1:</span>
-$ OPENROUTER_API_KEY=<span style="color:#06b6d4">sk-or-v1-your-key</span> npx anymodel proxy
-
-<span style="color:var(--text-muted)"># Terminal 2:</span>
-$ npx anymodel gpt</div>
-          </div>
-          <button class="copy-btn" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy" aria-label="Copy" style="margin:12px auto 0; display:block;">Copy command</button>
-        </div>
-
-        <div class="install-opts fade-in" style="display:flex; justify-content:center; gap:32px; margin-top:32px; flex-wrap:wrap;">
-          <div style="text-align:center;">
-            <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Or install globally:</p>
-            <code style="font-size:0.82rem;">npm i -g anymodel</code>
-          </div>
-          <div style="text-align:center;">
-            <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:6px;">Model presets <span style="font-size:0.72rem;">(need proxy running first)</span>:</p>
-            <code style="font-size:0.82rem;">npx anymodel gpt | gemini | qwen | deepseek</code>
+            <div class="terminal-body" style="min-height:auto; padding:16px 20px; font-size:0.82rem; text-align:left;">$ npx anymodel deepseek</div>
           </div>
         </div>
+        <button class="copy-btn fade-in" data-copy="OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy" aria-label="Copy" style="margin:12px auto 0; display:block;">Copy proxy command</button>
+
+        <p class="fade-in" style="font-size:0.78rem; color:var(--text-muted); margin-top:24px;">Or install globally: <code style="font-size:0.82rem;">npm i -g anymodel</code></p>
       </div>
     </div>
   </section>
