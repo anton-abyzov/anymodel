@@ -74,12 +74,30 @@ npx anymodel proxy --model qwen/qwen3.6-plus:free
 ## How It Works
 
 ```
-CLAUDE:  anymodel claude → runs Claude Code directly (no proxy)
-PROXY:   anymodel proxy → localhost:9090 → OpenRouter / Ollama / OpenAI-compatible
-PRESET:  anymodel gpt → connects to running proxy → launches Claude Code
+Claude Code → anymodel proxy → OpenRouter / Ollama / OpenAI-compatible
 ```
 
 The proxy intercepts `/v1/messages`, translates formats if needed, strips incompatible fields, retries with backoff, and streams back.
+
+### Multiple Models at Once
+
+Run separate proxy instances on different ports — one per model:
+
+```bash
+# Terminal 1: GPT-4o on :9090
+OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9090 --model openai/gpt-4o
+
+# Terminal 2: DeepSeek R1 on :9091
+OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9091 --model deepseek/deepseek-r1
+
+# Terminal 3: Gemini on :9092
+OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9092 --model google/gemini-2.5-flash
+
+# Connect to any of them:
+npx anymodel gpt --port 9090
+npx anymodel deepseek --port 9091
+npx anymodel gemini --port 9092
+```
 
 ### OpenAI-Compatible Provider
 
