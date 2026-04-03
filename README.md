@@ -1,149 +1,98 @@
-# anymodel
+# AnyModel
 
-**Run Claude Code with any AI model — Claude, GPT, Gemini, Llama, DeepSeek, and 200+ more.**
+**Run Claude Code with any AI model — GPT-5.4, Gemini 3.1, DeepSeek R1, Codex, and 200+ more.**
 
 [![npm version](https://img.shields.io/npm/v/anymodel)](https://www.npmjs.com/package/anymodel)
 [![license](https://img.shields.io/npm/l/anymodel)](https://github.com/anton-abyzov/anymodel/blob/main/LICENSE)
 [![node](https://img.shields.io/node/v/anymodel)](https://nodejs.org)
 
-anymodel is a CLI that runs Claude Code directly or proxies it through any model provider. It strips Anthropic-specific fields, handles retries, and routes requests to OpenRouter (200+ models), Ollama (local), or any OpenAI-compatible API. Zero dependencies — just Node.js.
+AnyModel is a proxy that routes requests to OpenRouter (200+ models), Ollama (local), or any OpenAI-compatible API. It strips Anthropic-specific fields, handles retries, and translates formats. Zero dependencies — just Node.js.
 
-**[anymodel.dev](https://anymodel.dev)** — full docs, guides, and FAQ.
+**[anymodel.dev](https://anymodel.dev)** — full docs, presets, and FAQ.
 
 ---
 
 ## Quick Start
 
 ```bash
-# Terminal 1 — start the proxy with a model:
+# Terminal 1 — start the proxy:
 OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy deepseek
 
 # Terminal 2 — connect:
 npx anymodel
 ```
 
-The model is set on the proxy (via preset or `--model`). The connect step is always just `npx anymodel`.
+The model is set on the proxy via preset or `--model`. Connecting is always just `npx anymodel`.
 
 Get your free OpenRouter key at [openrouter.ai/keys](https://openrouter.ai/keys) — no credit card for free models.
 
 ---
 
-## Model Presets
-
-Pick a model by name — no `--model` flag needed. Start the proxy first, then connect:
+## Presets
 
 ```bash
-# Start proxy first (Terminal 1):
-OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy
-
-# Then pick a model (Terminal 2):
-npx anymodel gpt        # → openai/gpt-5.4
-npx anymodel gemini     # → google/gemini-3.1-flash-lite-preview
-npx anymodel qwen       # → qwen/qwen3-coder:free
-npx anymodel llama      # → meta-llama/llama-3.3-70b-instruct:free
-npx anymodel deepseek   # → deepseek/deepseek-r1
-npx anymodel nemotron   # → nvidia/nemotron-3-super-120b-a12b:free
+npx anymodel proxy gpt        # → openai/gpt-5.4              (paid)
+npx anymodel proxy codex      # → openai/gpt-5.3-codex        (paid, coding)
+npx anymodel proxy gemini     # → google/gemini-3.1-flash-lite (paid)
+npx anymodel proxy deepseek   # → deepseek/deepseek-r1-0528   (paid)
+npx anymodel proxy qwen       # → qwen/qwen3-coder:free       (free)
+npx anymodel proxy nemotron   # → nvidia/nemotron-3-super-120b (free)
+npx anymodel proxy llama      # → meta-llama/llama-3.3-70b    (free)
+npx anymodel proxy gemma      # → google/gemma-4-31b-it        (paid)
 ```
 
-Or use `--model` for any of 200+ models on OpenRouter:
-
-```bash
-# Terminal 1:
-OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy
-
-# Terminal 2:
-ANTHROPIC_BASE_URL=http://localhost:9090 npx anymodel
-```
-
-Or with a custom model via proxy:
-
-```bash
-npx anymodel proxy --model qwen/qwen3.6-plus:free
-```
+Or any model: `npx anymodel proxy --model mistralai/codestral-latest`
 
 ## How It Works
 
 ```
-Claude Code → anymodel proxy → OpenRouter / Ollama / OpenAI-compatible
+AnyModel → anymodel proxy (:9090) → OpenRouter / Ollama
 ```
 
-The proxy intercepts `/v1/messages`, translates formats if needed, strips incompatible fields, retries with backoff, and streams back.
+The proxy intercepts `/v1/messages`, strips incompatible fields, retries with backoff, and streams back.
 
-### Multiple Models at Once
-
-Run separate proxy instances on different ports — one per model:
+### Multiple Models
 
 ```bash
-# Start each proxy with its own model and port:
-OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9090 --model openai/gpt-5.4
-OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9091 --model deepseek/deepseek-r1
-OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy --port 9092 --model google/gemini-3.1-flash-lite-preview
-
-# Connect to any — the model is already set on the proxy:
-ANTHROPIC_BASE_URL=http://localhost:9090 npx anymodel    # GPT-4o
-ANTHROPIC_BASE_URL=http://localhost:9091 npx anymodel    # DeepSeek R1
-ANTHROPIC_BASE_URL=http://localhost:9092 npx anymodel    # Gemini
+npx anymodel proxy --port 9090 --model openai/gpt-5.4
+npx anymodel proxy --port 9091 --model deepseek/deepseek-r1-0528
+npx anymodel proxy --port 9092 --model google/gemini-3.1-flash-lite-preview
 ```
 
-### Fully Local with Ollama
-
-No internet, no API key — everything stays on your machine:
+### Fully Local (Ollama)
 
 ```bash
-# 1. Pull a model:
-ollama pull llama4-maverick
+ollama pull gemma3n
+npx anymodel proxy ollama --model gemma3n
 
-# 2. Start proxy (Terminal 1):
-npx anymodel proxy ollama --model llama4-maverick
-
-# 3. Use it (Terminal 2):
-npx anymodel llama --port 9090
+# Terminal 2:
+npx anymodel
 ```
 
-### OpenAI-Compatible Provider
-
-Use **any OpenAI-compatible API** — OpenAI, Azure, Together, Groq, local vLLM, LMStudio:
+### OpenAI-Compatible APIs
 
 ```bash
-# Terminal 1: start proxy with OpenAI translation
 OPENAI_API_KEY=sk-your-key npx anymodel proxy openai --model gpt-4o
 
-# Terminal 2: run Claude Code
-ANTHROPIC_BASE_URL=http://localhost:9090 npx anymodel
+# Terminal 2:
+npx anymodel
 ```
 
-The proxy translates between Anthropic Messages API and OpenAI Chat Completions:
-- Messages, tool calls, streaming — all translated bidirectionally
-- Tool use (`tool_use`/`tool_result`) mapped to function calling (`tool_calls`/`tool`)
-- SSE streaming format conversion
-
-Custom endpoint (vLLM, LMStudio, etc.):
-```bash
-OPENAI_API_KEY=none OPENAI_BASE_URL=http://localhost:8080/v1 \
-  npx anymodel proxy openai --model llama3
-```
+Translates Anthropic Messages API ↔ OpenAI Chat Completions bidirectionally.
 
 ## CLI Reference
 
 ```
-anymodel                              # show usage / help
-anymodel claude                       # run Claude Code directly (no proxy)
-anymodel proxy                        # start proxy (requires OPENROUTER_API_KEY)
-anymodel gpt                          # connect to proxy with GPT-4o
-anymodel gemini                       # connect to proxy with Gemini 2.5 Flash
-anymodel qwen                         # connect to proxy with Qwen3 Coder (free)
-anymodel llama                        # connect to proxy with Llama 3.3 70B (free)
-anymodel deepseek                     # connect to proxy with DeepSeek R1
-anymodel nemotron                     # connect to proxy with Nemotron 120B (free)
-anymodel proxy ollama                 # proxy with local Ollama
-anymodel proxy openai                 # proxy with OpenAI-compatible (translates format)
+anymodel                              # connect to running proxy
+anymodel proxy <preset>               # start proxy with preset
+anymodel proxy --model <id>           # start proxy with any model
+anymodel proxy ollama --model <name>  # proxy with local Ollama
+anymodel claude                       # run with native Claude (no proxy)
 
 Options:
-  --model, -m     Model (e.g., qwen/qwen3-coder:free)
+  --model, -m     Model ID
   --port, -p      Port (default: 9090)
   --free-only     Block paid models
-  --token, -t     Require auth token
-  --rpm           Rate limit per minute (default: 60)
   --help, -h      Help
 ```
 
@@ -156,39 +105,16 @@ Options:
 | `OPENAI_API_KEY` | Key for OpenAI-compatible APIs |
 | `OPENAI_BASE_URL` | Custom endpoint (default: `https://api.openai.com/v1`) |
 | `PROXY_PORT` | Proxy port (default: `9090`) |
+| `ANYMODEL_CLIENT` | Path to custom client cli.js |
 
-`OPENROUTER_API_KEY` is only needed when starting the proxy (`anymodel proxy`). Model presets and `anymodel claude` don't require it.
-
-anymodel auto-loads `.env` from the current directory.
-
-## Cloudflare Worker
-
-The remote proxy runs as a Cloudflare Worker at `api.anymodel.dev`. Deploy your own:
-
-```bash
-cd worker/
-wrangler secret put OPENROUTER_API_KEY
-wrangler deploy
-```
-
-BYOK: the worker uses the caller's OpenRouter key from the request — no shared key.
-
-## Local Development (Optional)
-
-For contributing or customizing anymodel, you can clone the repo:
-
-```bash
-git clone https://github.com/antonoly/claude-code-anymodel && cd claude-code-anymodel
-```
-
-This is optional — `npx anymodel` works without cloning.
+`OPENROUTER_API_KEY` is only needed when starting the proxy.
 
 ## Links
 
-- [anymodel.dev](https://anymodel.dev) — Homepage, docs, guides
-- [api.anymodel.dev/health](https://api.anymodel.dev/health) — Remote proxy status
+- [anymodel.dev](https://anymodel.dev) — Homepage, docs, FAQ
 - [OpenRouter](https://openrouter.ai/keys) — Get your API key
 - [npm](https://www.npmjs.com/package/anymodel) — Package
+- [GitHub](https://github.com/anton-abyzov/anymodel) — Source
 
 ## License
 

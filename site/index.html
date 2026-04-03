@@ -538,7 +538,7 @@
               </div>
               <div class="doc-flow-item">
                 <code>/v1/*</code>
-                <span>&rarr; Passed through to api.anthropic.com</span>
+                <span>&rarr; Passed through to the model provider</span>
               </div>
               <div class="doc-flow-item">
                 <code>/health</code>
@@ -696,42 +696,46 @@ npx anymodel qwen</code></pre>
 
       <div class="faq-list">
         <details class="faq-item fade-in">
-          <summary>Is this free?</summary>
-          <p>AnyModel itself is free and open source (MIT). OpenRouter has 29 free models at $0 cost &mdash; no credit card needed. Paid models cost per-token through your own OpenRouter account.</p>
+          <summary>Is AnyModel free?</summary>
+          <p>AnyModel itself is free and open source (MIT). OpenRouter offers free models (marked FREE in the preset table) at $0 cost &mdash; no credit card needed. Paid models like GPT-5.4 and Gemini 3.1 cost per-token through your own OpenRouter account.</p>
         </details>
 
         <details class="faq-item fade-in">
-          <summary>Does my API key get stored on AnyModel servers?</summary>
-          <p>No. In remote mode, your OpenRouter key passes through the proxy to OpenRouter and is never stored, logged, or cached. In local mode, your key stays entirely on your machine. The proxy is open source &mdash; you can verify this yourself.</p>
+          <summary>Is my API key safe?</summary>
+          <p>Yes. Your OpenRouter key stays on your machine. The proxy runs locally &mdash; nothing is stored, logged, or sent to AnyModel servers. The code is open source so you can verify this yourself.</p>
         </details>
 
         <details class="faq-item fade-in">
-          <summary>Do I need a Claude subscription?</summary>
-          <p>For authentication: yes, AnyModel requires a Claude account (free or paid) to start. For model usage: no &mdash; AnyModel routes the actual AI calls through OpenRouter or Ollama, so you're not using Anthropic API credits.</p>
+          <summary>Which model should I use for coding?</summary>
+          <p><strong>Best paid:</strong> <code>openai/gpt-5.3-codex</code> &mdash; OpenAI's frontier coding model. Use preset <code>codex</code>.<br>
+          <strong>Best free:</strong> <code>qwen/qwen3-coder:free</code> &mdash; 480B MoE, excellent at code. Use preset <code>qwen</code>.<br>
+          <strong>Best reasoning:</strong> <code>deepseek/deepseek-r1-0528</code> &mdash; chain-of-thought. Use preset <code>deepseek</code>.<br>
+          <strong>Best local:</strong> <code>google/gemma-4-31b-it</code> &mdash; 256K context, runs via Ollama.</p>
         </details>
 
         <details class="faq-item fade-in">
-          <summary>Which model should I use?</summary>
-          <p><strong>Best free coding model:</strong> <code>qwen/qwen3-coder:free</code> &mdash; 480B MoE, excellent at code.<br>
-          <strong>Best reasoning:</strong> <code>nvidia/nemotron-3-super-120b-a12b:free</code> &mdash; chain-of-thought thinking.<br>
-          <strong>Largest context:</strong> <code>qwen/qwen3.6-plus:free</code> &mdash; 1M tokens.<br>
-          <strong>Best local:</strong> <code>qwen3-coder:30b</code> via Ollama.</p>
+          <summary>What are presets?</summary>
+          <p>Presets are short names for popular models. Instead of typing <code>--model deepseek/deepseek-r1-0528</code>, just use <code>npx anymodel proxy deepseek</code>. See the <a href="#how-it-works" style="color:var(--accent-cyan)">preset table</a> above for the full list.</p>
         </details>
 
         <details class="faq-item fade-in">
-          <summary>What's the difference between Claude direct and proxy mode?</summary>
-          <p><strong>Native Claude:</strong> <code>npx anymodel claude</code> &mdash; runs with native Claude. No proxy, no OpenRouter key needed.<br>
-          <strong>Proxy mode:</strong> Start <code>npx anymodel proxy deepseek</code>, then connect with <code>npx anymodel</code>. Requires OPENROUTER_API_KEY. Also supports Ollama for fully offline use.</p>
+          <summary>Can I run multiple models at once?</summary>
+          <p>Yes. Start each proxy on a different port: <code>npx anymodel proxy --port 9090 --model openai/gpt-5.4</code> and <code>npx anymodel proxy --port 9091 --model deepseek/deepseek-r1-0528</code>. Then connect to either with <code>npx anymodel --port 9090</code>.</p>
         </details>
 
         <details class="faq-item fade-in">
-          <summary>Can I use npx or do I need npm install?</summary>
-          <p><code>npx anymodel</code> works without installing. If <code>npx</code> fails (some <code>.npmrc</code> configs interfere), install globally instead: <code>npm i -g anymodel</code>. Both work the same way.</p>
+          <summary>Can I use it fully offline?</summary>
+          <p>Yes. Use Ollama for local models: <code>ollama pull gemma3n</code>, then <code>npx anymodel proxy ollama --model gemma3n</code>. No internet, no API key &mdash; everything stays on your machine.</p>
+        </details>
+
+        <details class="faq-item fade-in">
+          <summary>Do I need to install anything?</summary>
+          <p><code>npx anymodel</code> works without installing &mdash; npm downloads it on the fly. Or install globally: <code>npm i -g anymodel</code>. Both work the same way.</p>
         </details>
 
         <details class="faq-item fade-in">
           <summary>What does the proxy actually do?</summary>
-          <p>AnyModel sits between the client and OpenRouter. When a request is sent, the proxy strips Anthropic-specific fields (<code>cache_control</code>, <code>betas</code>, <code>thinking</code>, etc.), normalizes <code>tool_choice</code>, handles retries with exponential backoff, and forwards the cleaned request to OpenRouter. The response streams back unchanged.</p>
+          <p>AnyModel strips Anthropic-specific fields (<code>cache_control</code>, <code>betas</code>, <code>thinking</code>), normalizes <code>tool_choice</code>, handles retries with exponential backoff, and forwards the cleaned request to OpenRouter or Ollama. The response streams back unchanged.</p>
         </details>
       </div>
     </div>
@@ -756,13 +760,13 @@ npx anymodel qwen</code></pre>
             <h4>Links</h4>
             <a href="https://github.com/anton-abyzov/anymodel" target="_blank" rel="noopener">GitHub</a>
             <a href="https://www.npmjs.com/package/anymodel" target="_blank" rel="noopener">npm</a>
-            <a href="https://api.anymodel.dev/health" target="_blank" rel="noopener">Remote Proxy</a>
+            <a href="https://openrouter.ai/models" target="_blank" rel="noopener">Browse Models</a>
             <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">Get API Key</a>
           </div>
         </div>
       </div>
       <div class="footer-bottom">
-        <span>&copy; 2025 antonoly. MIT License.</span>
+        <span>&copy; 2026 antonoly. MIT License.</span>
       </div>
     </div>
   </footer>
