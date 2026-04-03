@@ -259,6 +259,55 @@ Link in bio 🔗 anymodel.dev
 #ai #coding #tech #programming #opensource #claudecode #anymodel #deepseek #gpt #aitools #developer
 ```
 
+### Discord: Post 12:00 PM EST (announcement channel)
+
+```
+@everyone
+
+🚀 AnyModel is LIVE — run Claude Code with ANY AI model
+
+I just released AnyModel — an open-source proxy that lets you use Claude Code with GPT-5.4, DeepSeek R1, Gemini, Codex, Llama, and 200+ more models. Free models included.
+
+Two terminals. That's it:
+Terminal 1: OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy deepseek
+Terminal 2: npx anymodel
+
+🎥 Full 17-min demo: https://youtu.be/k0RI_M6lIsg
+🌐 Website: https://anymodel.dev
+📦 npm: npx anymodel
+🔑 Free OpenRouter key: https://openrouter.ai/keys
+
+Built-in presets:
+• gpt → GPT-5.4
+• codex → GPT-5.3 Codex (coding)
+• deepseek → DeepSeek R1
+• gemini → Gemini 3.1 Flash Lite
+• mistral → Devstral 2 (coding)
+• qwen → Qwen3 Coder (FREE)
+• nemotron → Nemotron 120B (FREE)
+• llama → Llama 3.3 70B (FREE)
+
+Works with OpenRouter (cloud), Ollama (fully offline), or any OpenAI-compatible API.
+
+Zero dependencies. MIT licensed. Let me know what you think! 🙏
+```
+
+### Telegram (@antonaipower): Post 12:00 PM EST
+
+```
+🚀 AnyModel is live!
+
+Run Claude Code with any AI model — GPT-5.4, DeepSeek R1, Gemini, Codex, and 200+ more. Free models at $0.
+
+npx anymodel proxy deepseek
+npx anymodel
+
+🎥 Demo: https://youtu.be/k0RI_M6lIsg
+🌐 https://anymodel.dev
+
+Open source, zero dependencies, MIT licensed.
+```
+
 ### Dev.to / Hashnode article: Post 24 hours after YouTube
 
 Title: "How I Built AnyModel: A Universal Proxy for AI Coding Tools"
@@ -290,7 +339,7 @@ URL: https://anymodel.dev
 | 6:30 AM EST | TikTok | Same 60s reel |
 | 8:30 AM EST | LinkedIn | Post |
 | 10:30 AM EST | Reddit | r/LocalLLaMA + r/ClaudeAI |
-| 12:00 PM EST | Discord | Post in your server |
+| 12:00 PM EST | Discord | Announcement (see below) |
 | 12:00 PM EST | Telegram | Post in @antonaipower |
 | Next day | Dev.to | Technical article |
 | Day after | Hacker News | Show HN |
