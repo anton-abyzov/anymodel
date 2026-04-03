@@ -1,4 +1,4 @@
-**YouTube video:** https://youtu.be/z-J47nOQw2Q
+**YouTube video:** https://youtu.be/k0RI_M6lIsg
 
 # AnyModel Video Launch Plan
 
