@@ -354,7 +354,6 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10,
     server.once('error', (err) => {
       if (err.code === 'EADDRINUSE' && attempt < maxPortRetries) {
         console.log(`${C.yellow('[PORT]')} :${tryPort} is occupied. Trying :${tryPort + 1}...`);
-        console.log(`${C.yellow('[PORT]')} To use :${tryPort}, kill the process: ${C.bold(`lsof -ti:${tryPort} | xargs kill`)}`);
         console.log(`${C.yellow('[PORT]')} Or choose a port: ${C.bold(`npx anymodel proxy --port ${tryPort + 10}`)}`);
         attempt++;
         tryListen();

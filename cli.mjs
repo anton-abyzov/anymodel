@@ -88,7 +88,6 @@ export function parseArgs(argv) {
 
 export async function detectProvider(model) {
   if (model && model.includes('/')) {
-    if (process.env.OPENROUTER_API_KEY) return 'openrouter';
     return 'openrouter';
   }
   if (process.env.OPENROUTER_API_KEY) return 'openrouter';
@@ -185,16 +184,16 @@ function findClient() {
     return { cmd: process.execPath, args: [envClient], label: 'cli.js (ANYMODEL_CLIENT)' };
   }
 
-  // 1. cli.js in current directory
-  const localCli = join(process.cwd(), 'cli.js');
-  if (existsSync(localCli)) {
-    return { cmd: process.execPath, args: [localCli], label: 'cli.js (local)' };
-  }
-
-  // 2. cli.js next to this script (bundled or local dev)
+  // 1. cli.js next to this script (bundled with npm package)
   const siblingCli = join(__dirname, 'cli.js');
   if (existsSync(siblingCli)) {
     return { cmd: process.execPath, args: [siblingCli], label: 'cli.js (bundled)' };
+  }
+
+  // 2. cli.js in current directory (local dev clone)
+  const localCli = join(process.cwd(), 'cli.js');
+  if (existsSync(localCli)) {
+    return { cmd: process.execPath, args: [localCli], label: 'cli.js (local)' };
   }
 
   // 3. Sibling repos (umbrella/monorepo layout)
@@ -304,8 +303,23 @@ async function connectToProxy(args) {
     process.exit(1);
   }
 
+  // Query proxy for model name
+  let modelName = '';
+  try {
+    const http = await import('http');
+    const healthData = await new Promise((resolve) => {
+      http.default.get(`http://localhost:${port}/health`, (res) => {
+        let data = '';
+        res.on('data', (c) => data += c);
+        res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve({}); } });
+      }).on('error', () => resolve({}));
+    });
+    modelName = healthData.model || '';
+  } catch {}
+
   console.log(`${C.green('[anymodel]')} Connected to proxy on :${port}`);
-  console.log(`${C.green('[anymodel]')} Starting Claude Code...`);
+  if (modelName) console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelName)}`);
+  console.log(`${C.green('[anymodel]')} Starting...`);
   console.log('');
 
   const clientChild = spawn(client.cmd, client.args, {
@@ -313,6 +327,7 @@ async function connectToProxy(args) {
     env: {
       ...process.env,
       ANTHROPIC_BASE_URL: `http://localhost:${port}`,
+      ...(modelName ? { ANYMODEL_MODEL: modelName } : {}),
     },
   });
 
