@@ -441,6 +441,7 @@ const isProxyMode = firstArg === 'proxy' || PROVIDERS.includes(firstArg) || firs
 const isClientMode = firstArg === 'claude';
 const isPreset = firstArg && MODEL_PRESETS[firstArg];
 const isBare = rawArgs.length === 0;
+const isConnectWithFlags = !isBare && firstArg && firstArg.startsWith('-') && !isHelpFlag;
 
 const isMain = process.argv[1] && (
   process.argv[1].endsWith('/cli.mjs') ||
@@ -449,9 +450,9 @@ const isMain = process.argv[1] && (
 );
 
 if (isMain) {
-  if (isBare) {
-    // `anymodel` — auto-connect to running proxy, or show usage
-    connectToProxy([]);
+  if (isBare || isConnectWithFlags) {
+    // `anymodel` or `anymodel --port 9092` — connect to running proxy
+    connectToProxy(rawArgs);
   } else if (isHelpFlag && !isProxyMode) {
     // `anymodel --help` — show full help (but let proxy mode handle its own --help)
     printHelp();
