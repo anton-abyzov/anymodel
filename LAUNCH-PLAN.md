@@ -194,12 +194,23 @@ Full demo: https://youtu.be/k0RI_M6lIsg
 
 **r/ClaudeAI post:**
 ```
-Title: AnyModel — Use Claude Code's interface with GPT, DeepSeek, Gemini, and 200+ models
+Title: I tested Claude Code with 8 different models — here's what actually works for coding
 
-Built a proxy that lets you use Claude Code's amazing UI and tool system with any model. 9 presets including free ones. Two terminals, done.
+I've been frustrated with Claude Code's usage limits and wanted to see how other models perform in the same interface. So I ran the same coding tasks (web calculator, code review, agent swarms) through GPT-5.4, DeepSeek R1, Codex, Gemini 3.1, Qwen3 Coder, Nemotron, Gemma 4, and Llama 3.1.
 
-YouTube demo: https://youtu.be/k0RI_M6lIsg
-npm: npx anymodel
+Key findings:
+- DeepSeek R1 shows chain-of-thought thinking, amazing for debugging complex logic
+- Codex (GPT-5.3) is the best for pure code generation — fast and accurate tool use
+- Qwen3 Coder is surprisingly good AND free — no credit card needed
+- Gemma 4 (released yesterday) has native function calling and 256K context
+- Nemotron 120B is free and handles reasoning tasks well
+- Local models via Ollama work but are slow with many MCP tools (~86 tool definitions)
+
+The tool I used: anymodel (open source, MIT). It's a proxy that sits between the client and OpenRouter/Ollama, handles format translation and retries. Two terminals to set up.
+
+What models are you all using for coding? Curious if anyone's found good results with local models.
+
+(demo video if interested: https://youtu.be/k0RI_M6lIsg)
 ```
 
 ### Threads: Post 3 hours after YouTube (5:30 AM EST)
