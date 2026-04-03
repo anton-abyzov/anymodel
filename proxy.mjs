@@ -28,9 +28,13 @@ export function sanitizeBody(body) {
   delete body.context_management;
   delete body.thinking;
 
-  // Clamp max_tokens: some providers (GPT) require >= 16
-  if (body.max_tokens && body.max_tokens < 16) {
+  // Clamp max_tokens / max_output_tokens: OpenAI/GPT require >= 16
+  // OpenRouter translates max_tokens → max_output_tokens for GPT models
+  if (body.max_tokens != null && body.max_tokens < 16) {
     body.max_tokens = 16;
+  }
+  if (body.max_output_tokens != null && body.max_output_tokens < 16) {
+    body.max_output_tokens = 16;
   }
 
   // Strip cache_control from system blocks
