@@ -474,7 +474,8 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10,
     }
     console.log('');
     console.log(`  ${C.green('Next step — run in another terminal:')}`);
-    console.log(`  ${C.bold('npx anymodel')}`);
+    const portFlag = actualPort !== 9090 ? ` --port ${actualPort}` : '';
+    console.log(`  ${C.bold(`npx anymodel${portFlag}`)}`);
     console.log('');
   }
 
