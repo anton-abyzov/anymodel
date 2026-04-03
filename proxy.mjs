@@ -26,7 +26,8 @@ export function sanitizeBody(body) {
   delete body.speed;
   delete body.output_config;
   delete body.context_management;
-  delete body.thinking;
+  // Keep body.thinking — OpenRouter passes it to reasoning models (DeepSeek R1, etc.)
+  // to enable visible chain-of-thought. Only strip for providers that reject it.
 
   // Clamp max_tokens / max_output_tokens: OpenAI/GPT require >= 16
   // OpenRouter translates max_tokens → max_output_tokens for GPT models
