@@ -122,7 +122,7 @@ Two terminals. One command:
 Open source. Zero dependencies.
 
 🔗 https://anymodel.dev
-📺 [YouTube link]
+📺 https://youtu.be/k0RI_M6lIsg
 
 Built with @anthropic's Claude Code, routes through @OpenRouterAI
 ```
@@ -165,7 +165,7 @@ Why? Because the best model for your task isn't always from one provider. Someti
 AnyModel is a proxy that sits in the middle. One command to start, one command to connect. Zero dependencies, MIT licensed.
 
 → Website: https://anymodel.dev
-→ Full demo video: [YouTube link]
+→ Full demo video: https://youtu.be/k0RI_M6lIsg
 
 I also use Wispr Flow for voice-to-code dictation — game changer for productivity: https://wisprflow.ai/r?ANTON691
 
@@ -189,7 +189,7 @@ Works with any GGUF model. Zero dependencies. MIT licensed.
 
 Website: https://anymodel.dev
 GitHub: https://github.com/anton-abyzov/anymodel
-Full demo: [YouTube link]
+Full demo: https://youtu.be/k0RI_M6lIsg
 ```
 
 **r/ClaudeAI post:**
@@ -198,7 +198,7 @@ Title: AnyModel — Use Claude Code's interface with GPT, DeepSeek, Gemini, and 
 
 Built a proxy that lets you use Claude Code's amazing UI and tool system with any model. 9 presets including free ones. Two terminals, done.
 
-YouTube demo: [link]
+YouTube demo: https://youtu.be/k0RI_M6lIsg
 npm: npx anymodel
 ```
 
