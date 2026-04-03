@@ -583,16 +583,19 @@ npx anymodel gemini --port 9092</div>
         <div class="example-card fade-in">
           <div class="example-header">
             <span class="example-tag" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">Offline</span>
-            <h3>Ollama (fully local)</h3>
+            <h3>Fully local with Ollama</h3>
           </div>
-          <pre><code><span class="hl-comment"># No internet needed. No API key.</span>
-<span class="hl-cmd">ollama</span> pull qwen3-coder:30b
-<span class="hl-cmd">npx</span> anymodel proxy ollama
+          <pre><code><span class="hl-comment"># No internet. No API key. Everything on your machine.</span>
 
-<span class="hl-comment"># Then in another terminal:</span>
-<span class="hl-cmd">npx</span> anymodel qwen
-<span class="hl-comment"># Or: ANTHROPIC_BASE_URL=http://localhost:9090 claude</span></code></pre>
-          <button class="copy-btn" data-copy="ollama pull qwen3-coder:30b && npx anymodel proxy ollama" aria-label="Copy example">Copy</button>
+<span class="hl-comment"># 1. Pull a model:</span>
+<span class="hl-cmd">ollama</span> pull llama4-maverick
+
+<span class="hl-comment"># 2. Start proxy (Terminal 1):</span>
+<span class="hl-cmd">npx</span> anymodel proxy ollama --model llama4-maverick
+
+<span class="hl-comment"># 3. Use it (Terminal 2):</span>
+<span class="hl-cmd">npx</span> anymodel llama --port 9090</code></pre>
+          <button class="copy-btn" data-copy="ollama pull llama4-maverick && npx anymodel proxy ollama --model llama4-maverick" aria-label="Copy example">Copy</button>
         </div>
       </div>
     </div>

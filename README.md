@@ -99,6 +99,21 @@ npx anymodel deepseek --port 9091
 npx anymodel gemini --port 9092
 ```
 
+### Fully Local with Ollama
+
+No internet, no API key — everything stays on your machine:
+
+```bash
+# 1. Pull a model:
+ollama pull llama4-maverick
+
+# 2. Start proxy (Terminal 1):
+npx anymodel proxy ollama --model llama4-maverick
+
+# 3. Use it (Terminal 2):
+npx anymodel llama --port 9090
+```
+
 ### OpenAI-Compatible Provider
 
 Use **any OpenAI-compatible API** — OpenAI, Azure, Together, Groq, local vLLM, LMStudio:
