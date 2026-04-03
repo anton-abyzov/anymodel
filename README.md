@@ -44,7 +44,7 @@ npx anymodel proxy nemotron   # → nvidia/nemotron-3-super-120b:free     (free)
 npx anymodel proxy llama      # → meta-llama/llama-3.3-70b:free        (free)
 ```
 
-Or any of 200+ models: `npx anymodel proxy --model mistralai/codestral-latest`
+Or any of 200+ models: `npx anymodel proxy --model mistralai/codestral-2508`
 
 ## How It Works
 

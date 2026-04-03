@@ -54,10 +54,32 @@ export function sanitizeBody(body) {
     }
   }
 
-  // Strip Anthropic-only tool fields
+  // Strip Anthropic-only tool fields and fix empty input_schema.properties
   if (Array.isArray(body.tools)) {
     body.tools = body.tools.map(tool => {
       const { cache_control, defer_loading, eager_input_streaming, strict, ...rest } = tool;
+
+      // Fix empty properties: OpenAI rejects { properties: {} } with
+      // "object schema missing properties". Add a placeholder property.
+      if (rest.input_schema && typeof rest.input_schema === 'object') {
+        if (!rest.input_schema.type) {
+          rest.input_schema.type = 'object';
+        }
+        if (
+          rest.input_schema.type === 'object' &&
+          rest.input_schema.properties &&
+          typeof rest.input_schema.properties === 'object' &&
+          Object.keys(rest.input_schema.properties).length === 0
+        ) {
+          rest.input_schema.properties = {
+            _placeholder: { type: 'string', description: 'No parameters needed' },
+          };
+          if (!rest.input_schema.required) {
+            rest.input_schema.required = [];
+          }
+        }
+      }
+
       return rest;
     });
   }

@@ -68,14 +68,31 @@ export function translateRequest(anthropicBody) {
 
   // Tools: Anthropic → OpenAI function format
   if (anthropicBody.tools?.length) {
-    openaiBody.tools = anthropicBody.tools.map(t => ({
-      type: 'function',
-      function: {
-        name: t.name,
-        description: t.description || '',
-        parameters: t.input_schema || {},
-      },
-    }));
+    openaiBody.tools = anthropicBody.tools.map(t => {
+      const params = t.input_schema ? { ...t.input_schema } : { type: 'object', properties: {} };
+      // Ensure type is set
+      if (!params.type) params.type = 'object';
+      // Fix empty properties: OpenAI rejects { properties: {} }
+      if (
+        params.type === 'object' &&
+        params.properties &&
+        typeof params.properties === 'object' &&
+        Object.keys(params.properties).length === 0
+      ) {
+        params.properties = {
+          _placeholder: { type: 'string', description: 'No parameters needed' },
+        };
+        if (!params.required) params.required = [];
+      }
+      return {
+        type: 'function',
+        function: {
+          name: t.name,
+          description: t.description || '',
+          parameters: params,
+        },
+      };
+    });
   }
 
   // Tool choice
