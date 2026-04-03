@@ -9,6 +9,7 @@
   "main": "proxy.mjs",
   "files": [
     "cli.mjs",
+    "cli.js",
     "proxy.mjs",
     "providers/",
     "README.md",
