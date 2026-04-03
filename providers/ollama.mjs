@@ -1,16 +1,24 @@
 // Ollama provider for anymodel
-// Routes requests to local Ollama instance (OpenAI-compatible endpoint)
+// Routes to Ollama's OpenAI-compatible endpoint with num_ctx optimization
+// Uses /v1/chat/completions (not /v1/messages) to enable Ollama-specific options
 
 import http from 'http';
+import { translateRequest, translateResponse, createStreamTranslator } from './openai.mjs';
+
+// Default context size — keeps KV cache small for fast responses.
+// Ollama defaults to 131K+ which causes 30-60s delays even for simple prompts.
+const DEFAULT_NUM_CTX = 8192;
 
 export default {
   name: 'ollama',
 
   buildRequest(url, payload) {
+    // Always route to OpenAI-compatible endpoint (not /v1/messages)
+    // This allows us to inject num_ctx via Ollama's extended options
     return {
       hostname: 'localhost',
       port: 11434,
-      path: url,
+      path: '/v1/chat/completions',
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -19,8 +27,30 @@ export default {
     };
   },
 
+  // Translate Anthropic → OpenAI format + inject Ollama options
+  transformRequest(anthropicBody) {
+    const openaiBody = translateRequest(anthropicBody);
+
+    // Inject Ollama-specific options to limit KV cache allocation
+    const numCtx = parseInt(process.env.OLLAMA_NUM_CTX, 10) || DEFAULT_NUM_CTX;
+    openaiBody.options = { num_ctx: numCtx };
+
+    return openaiBody;
+  },
+
+  // Translate OpenAI → Anthropic format
+  transformResponse(openaiBody) {
+    return translateResponse(openaiBody);
+  },
+
+  // Streaming translator
+  createStreamTranslator() {
+    return createStreamTranslator();
+  },
+
   displayInfo(model) {
-    return model ? `(${model} @ localhost:11434)` : '(localhost:11434)';
+    const numCtx = parseInt(process.env.OLLAMA_NUM_CTX, 10) || DEFAULT_NUM_CTX;
+    return model ? `(${model} @ localhost:11434, ctx=${numCtx})` : '(localhost:11434)';
   },
 
   // Check if Ollama is running locally

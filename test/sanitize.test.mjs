@@ -20,7 +20,8 @@ describe('sanitizeBody', () => {
     assert.equal(result.speed, undefined);
     assert.equal(result.output_config, undefined);
     assert.equal(result.context_management, undefined);
-    assert.equal(result.thinking, undefined);
+    // thinking is preserved for reasoning models (DeepSeek R1, etc.)
+    assert.deepEqual(result.thinking, { type: 'enabled', budget_tokens: 5000 });
     // Preserves non-Anthropic fields
     assert.equal(result.model, 'claude-3-opus');
     assert.deepEqual(result.messages, []);
@@ -82,9 +83,11 @@ describe('sanitizeBody', () => {
       ],
     };
     const result = sanitizeBody(body);
-    assert.deepEqual(result.tools, [
-      { name: 'get_weather', description: 'Get weather', input_schema: { type: 'object' } },
-    ]);
+    // Tool fields stripped, empty properties gets _unused placeholder
+    assert.equal(result.tools[0].cache_control, undefined);
+    assert.equal(result.tools[0].defer_loading, undefined);
+    assert.equal(result.tools[0].name, 'get_weather');
+    assert.equal(result.tools[0].input_schema.type, 'object');
   });
 
   it('normalizes tool_choice string to object', () => {
