@@ -31,7 +31,7 @@ The clip shows:
 
 ## Record: Outro (15 seconds)
 
-"Full-stack app from one prompt. No subscription needed. AnyModel is free, open source, and I ship new features every week. If this was useful — subscribe. I'm just getting started. anymodel.dev — links below."
+"Full-stack app from one prompt. No subscription needed. AnyModel is free and open source — I built it in two days. If this was useful — subscribe. There's a lot more coming. anymodel.dev — links below."
 
 (Point right for end screen card — 5 seconds)
 
