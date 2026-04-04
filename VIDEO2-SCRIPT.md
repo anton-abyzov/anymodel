@@ -1,17 +1,25 @@
-# Video 2: AnyModel Builds a Full-Stack App from One Prompt
+# Video 2: Anthropic Just Cut Off Third-Party Tools — Here's the Alternative
 
 **Title options (pick one):**
-1. AnyModel Builds a Full-Stack App from One Prompt — AI Coding with Codex (Open Source)
-2. I Gave AnyModel One Prompt — It Built Frontend, Backend, and API
-3. AnyModel + Codex: Full-Stack App from One Sentence — No Manual Coding
+1. Anthropic Just Cut Off Third-Party Tools — I Built the Alternative (AnyModel)
+2. Claude Subscriptions Won't Cover Third-Party Tools — Use AnyModel Instead
+3. AnyModel: No Vendor Lock-In — Builds Full-Stack Apps from One Prompt (Free + Offline)
 **Source clip:** /Users/antonabyzov/Movies/OBS/2026-04-02 23-39-15.mkv (9 min, trim to 5-6 min)
-**Thumbnail:** /Users/antonabyzov/Pictures/anymodel_thumb_build_v5.png
+**Thumbnail:** /Users/antonabyzov/Pictures/anymodel_thumb_build_v7.png
 
 ---
 
-## Record: Intro (15 seconds)
+## Record: Intro — THE NEWS (30 seconds)
 
-"AnyModel is a proxy that lets you code with any AI model — locally with Ollama or through OpenRouter with GPT, DeepSeek, Codex, and hundreds more. It supports skills — reusable plugins that handle planning, frontend design, code review, and more. Watch what happens when I give it one prompt."
+[SCREEN: Show Boris Cherny's tweet on screen — 2.5M views]
+
+"If you haven't seen this yet — Anthropic just announced that Claude subscriptions will no longer cover third-party tools. Your $100 Max plan? Doesn't matter anymore for anything outside their official products.
+
+This affects everyone using alternative Claude Code clients, OpenClaw, and similar tools.
+
+But here's the thing — I've been building AnyModel, which doesn't need a Claude subscription at all. It routes through OpenRouter with 300+ models, or runs completely offline with Ollama. Free models, no vendor lock-in.
+
+Let me show you what it can do with just one prompt."
 
 ---
 
@@ -28,7 +36,11 @@ The clip shows:
 
 ## Record: Outro (15 seconds)
 
-"That's a full-stack app — frontend, backend, API — from one prompt. AnyModel handled the model, skills handled the planning and design. Links in the description. Watch the full AnyModel demo if you haven't — it's right here."
+"That's a full-stack app — frontend, backend, API — from one prompt. No Claude subscription needed. No vendor lock-in. AnyModel with Codex through OpenRouter.
+
+And if you want to go fully offline — Ollama runs everything on your machine. No internet, no API key, nothing leaves your computer.
+
+With Anthropic cutting off third-party tools, there's never been a better time to try this. Links in the description. And if you haven't seen the full AnyModel demo — it's right here."
 
 (Point/gesture right for end screen card)
 
@@ -37,9 +49,9 @@ The clip shows:
 ## Description
 
 ```
-Full build demo: one prompt → SpecWeave plans → Codex implements → working full-stack calculator.
+Anthropic just announced: Claude subscriptions no longer cover third-party tools. Here's the alternative.
 
-This is the extended build clip from my AnyModel video showing the complete process.
+AnyModel doesn't need a Claude subscription. It routes through OpenRouter (300+ models, including free ones) or runs fully offline with Ollama. In this video, I give it ONE prompt and it builds a full-stack app — frontend, backend, API.
 
 📺 Main AnyModel video: https://youtu.be/k0RI_M6lIsg
 🌐 AnyModel: https://anymodel.dev
@@ -58,7 +70,7 @@ This is the extended build clip from my AnyModel video showing the complete proc
 ## Tags
 
 ```
-anymodel, specweave, codex, ai coding, full stack, one prompt, ai build, gpt codex, claude code, ai development, live coding, ai tools, frontend design, web app, full stack app
+anymodel, claude code alternative, claude subscription, anthropic third party, codex, ai coding, full stack, one prompt, ai build, gpt codex, claude code, ai development, no vendor lock-in, free ai coding, ollama offline, openrouter
 ```
 
 ## Pinned comment on THIS video
