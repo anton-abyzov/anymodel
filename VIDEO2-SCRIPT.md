@@ -8,7 +8,7 @@
 
 ## Record: Intro (15 seconds)
 
-"AnyModel is a proxy that lets you code with any AI model — locally with Ollama or through OpenRouter with GPT, DeepSeek, Codex, and hundreds more. In my last video I showed how it works. Now let me show you what happens when you give it ONE prompt — it plans, designs, and builds a full-stack app."
+"AnyModel is a proxy that lets you code with any AI model — locally with Ollama or through OpenRouter with GPT, DeepSeek, Codex, and hundreds more. It supports skills — reusable plugins that handle planning, frontend design, code review, and more. Watch what happens when I give it one prompt."
 
 ---
 
@@ -25,7 +25,7 @@ The clip shows:
 
 ## Record: Outro (15 seconds)
 
-"That's a full-stack app — frontend, backend, API — from one sentence. AnyModel handles the model, SpecWeave handles the structure. Links in the description. Watch the full AnyModel demo if you haven't — it's right here."
+"That's a full-stack app — frontend, backend, API — from one prompt. AnyModel handled the model, skills handled the planning and design. Links in the description. Watch the full AnyModel demo if you haven't — it's right here."
 
 (Point/gesture right for end screen card)
 
