@@ -13,7 +13,11 @@
 
 [SCREEN: Show Boris Cherny's tweet briefly — 2.5M views]
 
-"Anthropic just cut off third-party tools from Claude subscriptions. Good news — check your email, they're giving a one-time credit equal to your plan. But here's the thing — I built AnyModel specifically for this. Same powerful ecosystem — skills, MCP servers, hooks — but you choose the model. GPT Codex, DeepSeek, Gemini, or completely free ones. I'm going to show you how one prompt builds a full-stack app. Subscribe if you want more tools like this — I'm shipping weekly."
+"Anthropic just cut off third-party tools from Claude subscriptions. Good news though — they're giving a one-time credit equal to your plan."
+
+[SCREEN: Live — open Claude Code Desktop, click "Claim your credit" button, show balance filling up]
+
+"There we go. Claimed. But here's the thing — I built AnyModel specifically for this. Same powerful ecosystem — skills, MCP servers, hooks — but you choose the model. GPT Codex, DeepSeek, Gemini, or completely free ones. Let me show you how one prompt builds a full-stack app. Subscribe if you want more tools like this — I'm shipping weekly."
 
 ---
 
