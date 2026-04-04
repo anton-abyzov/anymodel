@@ -3,38 +3,128 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AnyModel — Universal AI Model Proxy for CLI Tools</title>
-  <meta name="description" content="Route any AI coding tool through any LLM provider. GPT, Gemini, Llama, Mistral, DeepSeek — one command, zero dependencies.">
+  <title>AnyModel — Use Any AI Model with Claude Code, Cursor & CLI Tools</title>
+  <meta name="description" content="AnyModel is a free, open-source CLI proxy that routes Claude Code, Cursor, and any AI coding tool through GPT, Gemini, DeepSeek, Llama, or 200+ models via OpenRouter. One command, zero dependencies. npm install anymodel.">
   <link rel="canonical" href="https://anymodel.dev">
+  <meta name="keywords" content="anymodel, any model, AI model proxy, Claude Code proxy, use any model with Claude Code, OpenRouter proxy, Ollama proxy, LLM proxy, AI CLI tool, npx anymodel">
+  <meta name="author" content="antonoly">
+  <meta name="robots" content="index, follow">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="AnyModel — Universal AI Model Proxy">
-  <meta property="og:description" content="Route any AI coding tool through any LLM provider. One command, zero dependencies.">
+  <meta property="og:title" content="AnyModel — Use Any AI Model with Claude Code & CLI Tools">
+  <meta property="og:description" content="AnyModel: free, open-source CLI proxy for GPT, Gemini, DeepSeek, Llama & 200+ models. One command, zero dependencies.">
   <meta property="og:url" content="https://anymodel.dev">
   <meta property="og:image" content="https://anymodel.dev/assets/og.png?v=2">
   <meta property="og:site_name" content="AnyModel">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="AnyModel — Universal AI Model Proxy">
-  <meta name="twitter:description" content="Route any AI coding tool through any LLM provider. One command, zero dependencies.">
+  <meta name="twitter:title" content="AnyModel — Use Any AI Model with Claude Code & CLI Tools">
+  <meta name="twitter:description" content="AnyModel: free, open-source CLI proxy for GPT, Gemini, DeepSeek, Llama & 200+ models. One command, zero dependencies.">
   <meta name="twitter:image" content="https://anymodel.dev/assets/og.png?v=2">
 
-  <!-- Structured Data -->
+  <!-- Structured Data: SoftwareApplication -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "AnyModel",
-    "operatingSystem": "Cross-platform",
+    "alternateName": "anymodel",
+    "operatingSystem": "Windows, macOS, Linux",
     "applicationCategory": "DeveloperApplication",
-    "description": "Universal CLI proxy that routes AI coding tools through any LLM provider — OpenRouter, Ollama, or any compatible endpoint.",
+    "applicationSubCategory": "AI Development Tools",
+    "description": "AnyModel is a free, open-source CLI proxy that routes Claude Code, Cursor, and any AI coding tool through GPT, Gemini, DeepSeek, Llama, or 200+ models via OpenRouter and Ollama.",
     "url": "https://anymodel.dev",
     "downloadUrl": "https://www.npmjs.com/package/anymodel",
-    "author": { "@type": "Person", "name": "antonoly" },
+    "installUrl": "https://www.npmjs.com/package/anymodel",
+    "softwareVersion": "1.0",
+    "fileSize": "8KB",
+    "author": {
+      "@type": "Person",
+      "name": "antonoly",
+      "url": "https://github.com/anton-abyzov"
+    },
+    "codeRepository": "https://github.com/anton-abyzov/anymodel",
+    "programmingLanguage": "JavaScript",
+    "runtimePlatform": "Node.js",
     "license": "https://opensource.org/licenses/MIT",
-    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+      "availability": "https://schema.org/InStock"
+    },
+    "keywords": "anymodel, AI model proxy, Claude Code proxy, LLM proxy, OpenRouter, Ollama, CLI tool"
+  }
+  </script>
+
+  <!-- Structured Data: FAQPage (enables rich FAQ snippets in Google) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Is AnyModel free?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "AnyModel itself is free and open source (MIT). OpenRouter offers free models at $0 cost — no credit card needed. Paid models like GPT-5.4 and Gemini 3.1 cost per-token through your own OpenRouter account."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is my API key safe with AnyModel?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Your OpenRouter key stays on your machine. The proxy runs locally — nothing is stored, logged, or sent to AnyModel servers. The code is open source so you can verify this yourself."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Which AI model should I use for coding?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Best paid: openai/gpt-5.3-codex — OpenAI's frontier coding model. Best free: qwen/qwen3-coder:free — 480B MoE, excellent at code. Best reasoning: deepseek/deepseek-r1-0528 — chain-of-thought. Best local: google/gemma-4-31b-it — 256K context, runs via Ollama."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I use AnyModel fully offline?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Use Ollama for local models: ollama pull gemma3n, then npx anymodel proxy ollama --model gemma3n. No internet, no API key — everything stays on your machine."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do I need to install AnyModel?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "npx anymodel works without installing — npm downloads it on the fly. Or install globally: npm i -g anymodel. Both work the same way."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What does the AnyModel proxy actually do?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "AnyModel strips Anthropic-specific fields (cache_control, betas, thinking), normalizes tool_choice, handles retries with exponential backoff, and forwards the cleaned request to OpenRouter or Ollama. The response streams back unchanged."
+        }
+      }
+    ]
+  }
+  </script>
+
+  <!-- Structured Data: WebSite (enables sitelinks search box) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "AnyModel",
+    "url": "https://anymodel.dev",
+    "description": "AnyModel — free, open-source CLI proxy for using any AI model with Claude Code, Cursor, and other AI coding tools."
   }
   </script>
 
@@ -114,8 +204,8 @@
     <div class="container">
       <div class="hero-content">
         <div class="hero-badge fade-in">Open Source &middot; Zero Dependencies &middot; Free Models Available</div>
-        <h1 class="fade-in"><span class="gradient-text">AnyModel.</span><br><span class="gradient-text">Any AI. One proxy.</span></h1>
-        <p class="hero-sub fade-in">Run <strong>AnyModel</strong> with <strong>GPT</strong>, <strong>Gemini</strong>, <strong>DeepSeek</strong>, <strong>Llama</strong>, <strong>Qwen</strong>, or any of 200+ models via <strong>OpenRouter</strong>. You bring your own key &mdash; free models cost $0.</p>
+        <h1 class="fade-in"><span class="gradient-text">AnyModel</span><br><span class="gradient-text">Use Any AI Model with One Proxy</span></h1>
+        <p class="hero-sub fade-in"><strong>AnyModel</strong> is a free, open-source CLI proxy that lets you run <strong>Claude Code</strong>, <strong>Cursor</strong>, or any AI coding tool with <strong>GPT</strong>, <strong>Gemini</strong>, <strong>DeepSeek</strong>, <strong>Llama</strong>, <strong>Qwen</strong>, or any of 200+ models via <strong>OpenRouter</strong>. Bring your own key &mdash; free models cost $0.</p>
 
         <div class="cta-group fade-in">
           <a href="#how-it-works" class="btn-primary">Get Started</a>
