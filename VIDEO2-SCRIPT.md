@@ -9,11 +9,11 @@
 
 ---
 
-## Record: Intro — THE NEWS (20 seconds)
+## Record: Intro — THE NEWS (25 seconds)
 
 [SCREEN: Show Boris Cherny's tweet briefly — 2.5M views]
 
-"Anthropic just cut off third-party tools from Claude subscriptions. But why pay $200 a month when free models can build a full-stack app from one prompt? Watch this."
+"Anthropic just cut off third-party tools from Claude subscriptions. Look — Claude with Opus is still the best for complex tasks. But not every task needs the most expensive model. And many people simply can't afford $200 a month. AnyModel gives you the same ecosystem — skills, MCP, hooks — with any model. Free ones included. Watch what Codex builds from one prompt."
 
 ---
 
@@ -30,7 +30,7 @@ The clip shows:
 
 ## Record: Outro (15 seconds)
 
-"Full-stack app. One prompt. Free models or Ollama — completely offline. No subscription, no vendor lock-in. AnyModel. Links below."
+"Full-stack app. One prompt. Use Claude when you need the best. Use Codex, DeepSeek, or free models for everything else. Or go fully offline with Ollama. AnyModel — links below."
 
 (Point right for end screen card — 5 seconds)
 
