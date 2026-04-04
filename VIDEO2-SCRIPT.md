@@ -31,7 +31,7 @@ The clip shows:
 
 ## Record: Outro (15 seconds)
 
-"Full-stack app from one prompt. No $200 subscription needed. AnyModel is free, open source, and I'm adding new features every week. Hit subscribe — next video I'm showing agent swarms with multiple AI models working in parallel. Links in the description. anymodel.dev."
+"Full-stack app from one prompt. No subscription needed. AnyModel is free, open source, and I ship new features every week. If this was useful — subscribe. I'm just getting started. anymodel.dev — links below."
 
 (Point right for end screen card — 5 seconds)
 
