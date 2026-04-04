@@ -1,6 +1,6 @@
 {
   "name": "anymodel",
-  "version": "1.6.39",
+  "version": "1.6.40",
   "description": "Universal AI model proxy — route any coding tool through OpenRouter, Ollama, or any LLM provider",
   "type": "module",
   "bin": {
