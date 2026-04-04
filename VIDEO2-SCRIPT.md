@@ -13,7 +13,7 @@
 
 [SCREEN: Show Boris Cherny's tweet briefly — 2.5M views]
 
-"Anthropic just cut off third-party tools from Claude subscriptions. Good news — they're giving everyone a one-time credit equal to your plan cost. Check your email for the link to claim it. But long term, not every task needs the most expensive model, and many people can't afford $200 a month. AnyModel gives you the same ecosystem — skills, MCP, hooks — with any model. Free ones included. Watch what Codex builds from one prompt."
+"Anthropic just cut off third-party tools from Claude subscriptions. Good news — check your email, they're giving a one-time credit equal to your plan. But here's the thing — I built AnyModel specifically for this. Same powerful ecosystem — skills, MCP servers, hooks — but you choose the model. GPT Codex, DeepSeek, Gemini, or completely free ones. I'm going to show you how one prompt builds a full-stack app. Subscribe if you want more tools like this — I'm shipping weekly."
 
 ---
 
@@ -30,7 +30,7 @@ The clip shows:
 
 ## Record: Outro (15 seconds)
 
-"Full-stack app. One prompt. Use Claude when you need the best. Use Codex, DeepSeek, or free models for everything else. Or go fully offline with Ollama. AnyModel — links below."
+"Full-stack app from one prompt. No $200 subscription needed. AnyModel is free, open source, and I'm adding new features every week. Hit subscribe — next video I'm showing agent swarms with multiple AI models working in parallel. Links in the description. anymodel.dev."
 
 (Point right for end screen card — 5 seconds)
 
