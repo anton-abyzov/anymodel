@@ -1,9 +1,6 @@
 # Video 2: Anthropic Just Cut Off Third-Party Tools — Here's the Alternative
 
-**Title options (pick one):**
-1. Anthropic Just Cut Off Third-Party Tools — I Built the Alternative (AnyModel)
-2. Claude Subscriptions Won't Cover Third-Party Tools — Use AnyModel Instead
-3. AnyModel: No Vendor Lock-In — Builds Full-Stack Apps from One Prompt (Free + Offline)
+**Title:** Claude Subscriptions Changed — Here's How I Code with Free AI Models Instead
 **Source clip:** /Users/antonabyzov/Movies/OBS/2026-04-02 23-39-15.mkv (9 min, trim to 5-6 min)
 **Thumbnail:** /Users/antonabyzov/Pictures/anymodel_thumb_build_v7.png
 
