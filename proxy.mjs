@@ -20,7 +20,8 @@ const C = {
 };
 
 // Strip Anthropic-specific fields that break non-Anthropic providers
-export function sanitizeBody(body) {
+// keepCache=true preserves cache_control for providers that support it (OpenRouter → Anthropic models)
+export function sanitizeBody(body, { keepCache = false } = {}) {
   delete body.betas;
   delete body.metadata;
   delete body.speed;
@@ -38,28 +39,28 @@ export function sanitizeBody(body) {
     body.max_output_tokens = 16;
   }
 
-  // Strip cache_control from system blocks
-  if (Array.isArray(body.system)) {
-    body.system = body.system.map(block => {
-      if (block && typeof block === 'object' && block.cache_control) {
-        const { cache_control, ...rest } = block;
-        return rest;
-      }
-      return block;
-    });
-  }
-
-  // Strip cache_control from message content blocks
-  if (Array.isArray(body.messages)) {
-    for (const msg of body.messages) {
-      if (Array.isArray(msg.content)) {
-        msg.content = msg.content.map(block => {
-          if (block && typeof block === 'object' && block.cache_control) {
-            const { cache_control, ...rest } = block;
-            return rest;
-          }
-          return block;
-        });
+  // Strip cache_control from system/message/tool blocks (only for providers that don't support it)
+  if (!keepCache) {
+    if (Array.isArray(body.system)) {
+      body.system = body.system.map(block => {
+        if (block && typeof block === 'object' && block.cache_control) {
+          const { cache_control, ...rest } = block;
+          return rest;
+        }
+        return block;
+      });
+    }
+    if (Array.isArray(body.messages)) {
+      for (const msg of body.messages) {
+        if (Array.isArray(msg.content)) {
+          msg.content = msg.content.map(block => {
+            if (block && typeof block === 'object' && block.cache_control) {
+              const { cache_control, ...rest } = block;
+              return rest;
+            }
+            return block;
+          });
+        }
       }
     }
   }
@@ -67,7 +68,11 @@ export function sanitizeBody(body) {
   // Strip Anthropic-only tool fields and fix empty input_schema.properties
   if (Array.isArray(body.tools)) {
     body.tools = body.tools.map(tool => {
-      const { cache_control, defer_loading, eager_input_streaming, strict, ...rest } = tool;
+      const stripFields = keepCache
+        ? { defer_loading: true, eager_input_streaming: true, strict: true }
+        : { cache_control: true, defer_loading: true, eager_input_streaming: true, strict: true };
+      const rest = { ...tool };
+      for (const key of Object.keys(stripFields)) delete rest[key];
 
       // Fix schemas that OpenAI rejects:
       // 1. Missing input_schema entirely
@@ -196,7 +201,10 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     return;
   }
 
-  sanitizeBody(parsed);
+  // Preserve cache_control for OpenRouter (supports Anthropic prompt caching)
+  // Strip it for Ollama/OpenAI providers that reject it
+  const keepCache = provider.name === 'openrouter';
+  sanitizeBody(parsed, { keepCache });
 
   // Strip tools for local models (Ollama) — 86 MCP tool definitions add ~50K tokens
   // to every request, making even simple prompts take minutes on small models.
