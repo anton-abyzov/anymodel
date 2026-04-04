@@ -1,12 +1,12 @@
 # AnyModel
 
-**Universal AI coding tool — use GPT-5.4, Gemini 3.1, DeepSeek R1, Codex, Llama, and 200+ models through one interface.**
+**Universal AI coding tool — use GPT-5.4, Gemini 3.1, DeepSeek R1, Codex, Llama, and 300+ models through one interface.**
 
 [![npm version](https://img.shields.io/npm/v/anymodel)](https://www.npmjs.com/package/anymodel)
 [![license](https://img.shields.io/npm/l/anymodel)](https://github.com/anton-abyzov/anymodel/blob/main/LICENSE)
 [![node](https://img.shields.io/node/v/anymodel)](https://nodejs.org)
 
-AnyModel is an AI coding assistant that works with any model. It includes a proxy that routes requests to OpenRouter (200+ cloud models), Ollama (local/offline), or any OpenAI-compatible API — with smart retries, format translation, and zero dependencies.
+AnyModel is an AI coding assistant that works with any model. It includes a proxy that routes requests to OpenRouter (300+ cloud models), Ollama (local/offline), or any OpenAI-compatible API — with smart retries, format translation, and zero dependencies.
 
 **[anymodel.dev](https://anymodel.dev)** — full docs, presets, and FAQ.
 
@@ -49,7 +49,7 @@ npx anymodel proxy nemotron   # → nvidia/nemotron-3-super-120b-a12b:free (free
 npx anymodel proxy llama      # → meta-llama/llama-3.3-70b-instruct:free (free)
 ```
 
-Or any of 200+ models: `npx anymodel proxy --model mistralai/codestral-2508`
+Or any of 300+ models: `npx anymodel proxy --model mistralai/codestral-2508`
 
 ## How It Works
 
