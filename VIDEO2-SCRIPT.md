@@ -1,6 +1,9 @@
 # Video 2: AnyModel Builds a Full-Stack App from One Prompt
 
-**Title:** AnyModel Builds a Full-Stack App from One Prompt — Codex + SpecWeave
+**Title options (pick one):**
+1. AnyModel Builds a Full-Stack App from One Prompt — AI Coding with Codex (Open Source)
+2. I Gave AnyModel One Prompt — It Built Frontend, Backend, and API
+3. AnyModel + Codex: Full-Stack App from One Sentence — No Manual Coding
 **Source clip:** /Users/antonabyzov/Movies/OBS/2026-04-02 23-39-15.mkv (9 min, trim to 5-6 min)
 **Thumbnail:** /Users/antonabyzov/Pictures/anymodel_thumb_build_v5.png
 
