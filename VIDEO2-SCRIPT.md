@@ -9,17 +9,11 @@
 
 ---
 
-## Record: Intro — THE NEWS (30 seconds)
+## Record: Intro — THE NEWS (20 seconds)
 
-[SCREEN: Show Boris Cherny's tweet on screen — 2.5M views]
+[SCREEN: Show Boris Cherny's tweet briefly — 2.5M views]
 
-"If you haven't seen this yet — Anthropic just announced that Claude subscriptions will no longer cover third-party tools. Your $100 Max plan? Doesn't matter anymore for anything outside their official products.
-
-This affects everyone using alternative Claude Code clients, OpenClaw, and similar tools.
-
-But here's the thing — I've been building AnyModel, which doesn't need a Claude subscription at all. It routes through OpenRouter with 300+ models, or runs completely offline with Ollama. Free models, no vendor lock-in.
-
-Let me show you what it can do with just one prompt."
+"Anthropic just cut off third-party tools from Claude subscriptions. But why pay $200 a month when free models can build a full-stack app from one prompt? Watch this."
 
 ---
 
@@ -36,13 +30,9 @@ The clip shows:
 
 ## Record: Outro (15 seconds)
 
-"That's a full-stack app — frontend, backend, API — from one prompt. No Claude subscription needed. No vendor lock-in. AnyModel with Codex through OpenRouter.
+"Full-stack app. One prompt. Free models or Ollama — completely offline. No subscription, no vendor lock-in. AnyModel. Links below."
 
-And if you want to go fully offline — Ollama runs everything on your machine. No internet, no API key, nothing leaves your computer.
-
-With Anthropic cutting off third-party tools, there's never been a better time to try this. Links in the description. And if you haven't seen the full AnyModel demo — it's right here."
-
-(Point/gesture right for end screen card)
+(Point right for end screen card — 5 seconds)
 
 ---
 
