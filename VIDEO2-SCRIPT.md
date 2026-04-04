@@ -13,7 +13,7 @@
 
 [SCREEN: Show Boris Cherny's tweet briefly — 2.5M views]
 
-"Anthropic just cut off third-party tools from Claude subscriptions. Look — Claude with Opus is still the best for complex tasks. But not every task needs the most expensive model. And many people simply can't afford $200 a month. AnyModel gives you the same ecosystem — skills, MCP, hooks — with any model. Free ones included. Watch what Codex builds from one prompt."
+"Anthropic just cut off third-party tools from Claude subscriptions. Good news — they're giving everyone a one-time credit equal to your plan cost. Check your email for the link to claim it. But long term, not every task needs the most expensive model, and many people can't afford $200 a month. AnyModel gives you the same ecosystem — skills, MCP, hooks — with any model. Free ones included. Watch what Codex builds from one prompt."
 
 ---
 
