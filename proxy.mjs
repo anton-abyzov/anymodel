@@ -251,13 +251,86 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     delete parsed.tool_choice;
   }
 
+  // Condense system prompt for local models (Ollama)
+  // Claude Code sends 50-100KB system prompts with every request. On local models,
+  // processing 15K+ tokens of system instructions takes 2-3 minutes BEFORE any output.
+  // Condense to essential context only — keeps CLAUDE.md project instructions,
+  // strips Claude Code behavioral rules that local models can't follow anyway.
+  if (provider.name === 'ollama' && parsed.system) {
+    const MAX_SYSTEM_CHARS = parseInt(process.env.OLLAMA_MAX_SYSTEM_CHARS, 10) || 4000;
+    // Flatten system prompt to text
+    let fullSystem = '';
+    if (Array.isArray(parsed.system)) {
+      fullSystem = parsed.system.map(b => typeof b === 'string' ? b : b.text || '').join('\n');
+    } else if (typeof parsed.system === 'string') {
+      fullSystem = parsed.system;
+    }
+
+    if (fullSystem.length > MAX_SYSTEM_CHARS) {
+      const originalLen = fullSystem.length;
+      // Extract CLAUDE.md / project-specific content (user's custom instructions)
+      const claudeMdSections = [];
+      const claudeMdPattern = /Contents of [^\n]*CLAUDE\.md[^\n]*:\n([\s\S]*?)(?=\nContents of |$)/gi;
+      let match;
+      while ((match = claudeMdPattern.exec(fullSystem)) !== null) {
+        claudeMdSections.push(match[1].trim());
+      }
+      // Also extract any "# currentDate" or environment context
+      const dateMatch = fullSystem.match(/# currentDate\n.*?(\d{4}-\d{2}-\d{2})/);
+      const dateInfo = dateMatch ? `Today: ${dateMatch[1]}` : '';
+
+      // Build condensed system prompt
+      const condensed = [
+        'You are a helpful AI coding assistant. Answer concisely and accurately.',
+        'Use the tools available to you when needed. Write clean, working code.',
+        dateInfo,
+        claudeMdSections.length > 0
+          ? `\n# Project Instructions\n${claudeMdSections.join('\n\n').slice(0, MAX_SYSTEM_CHARS - 500)}`
+          : '',
+      ].filter(Boolean).join('\n').slice(0, MAX_SYSTEM_CHARS);
+
+      parsed.system = condensed;
+      console.log(`${C.yellow('[OLLAMA]')} Condensed system prompt: ${originalLen} → ${condensed.length} chars (${Math.round((1 - condensed.length / originalLen) * 100)}% reduction)`);
+    }
+  }
+
+  // Condense message history for local models
+  // Long conversations send the full history with every request.
+  // Keep the first message (establishes context) and recent messages,
+  // drop middle turns to stay under the token budget.
+  if (provider.name === 'ollama' && parsed.messages) {
+    const MAX_MSG_CHARS = parseInt(process.env.OLLAMA_MAX_MSG_CHARS, 10) || 32000;
+    const totalChars = parsed.messages.reduce((sum, m) => {
+      const content = typeof m.content === 'string' ? m.content
+        : Array.isArray(m.content) ? m.content.reduce((s, b) => s + (b.text || JSON.stringify(b.input || '')).length, 0)
+        : 0;
+      return sum + content;
+    }, 0);
+
+    if (totalChars > MAX_MSG_CHARS && parsed.messages.length > 4) {
+      const originalCount = parsed.messages.length;
+      // Keep first 2 messages (establishes context) + last N messages (recent conversation)
+      const keep = Math.max(4, Math.min(parsed.messages.length, Math.floor(MAX_MSG_CHARS / (totalChars / parsed.messages.length))));
+      if (keep < parsed.messages.length) {
+        const head = parsed.messages.slice(0, 2);
+        const tail = parsed.messages.slice(-(keep - 2));
+        parsed.messages = [...head, { role: 'user', content: '[Earlier conversation condensed for performance]' }, ...tail];
+        console.log(`${C.yellow('[OLLAMA]')} Condensed messages: ${originalCount} → ${parsed.messages.length} (${totalChars} → ~${MAX_MSG_CHARS} chars)`);
+      }
+    }
+  }
+
   // If provider has format translation (e.g., openai), apply it
   const isStreaming = parsed.stream;
   const requestBody = provider.transformRequest ? provider.transformRequest(parsed) : parsed;
   const payload = JSON.stringify(requestBody);
   const modelDisplay = model ? `${originalModel} \u2192 ${model}` : originalModel;
   const toolCount = parsed.tools ? parsed.tools.length : 0;
-  console.log(`${C.cyan(`[${provider.name.toUpperCase()}]`)} ${req.method} ${req.url} model=${modelDisplay}${toolCount ? ` tools=${toolCount}` : ''}${isStreaming ? ' stream=true' : ''}`);
+
+  const reqStartTime = Date.now();
+  const payloadKB = (Buffer.byteLength(payload) / 1024).toFixed(1);
+  const msgCount = (parsed.messages || []).length;
+  console.log(`${C.cyan(`[${provider.name.toUpperCase()}]`)} ${req.method} ${req.url} model=${modelDisplay}${toolCount ? ` tools=${toolCount}` : ''}${isStreaming ? ' stream=true' : ''} (${payloadKB} KB, ${msgCount} msgs)`);
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -374,7 +447,8 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         return;
       }
 
-      console.log(`${C.green(`[${provider.name.toUpperCase()}]`)} 200 \u2190 streaming response (attempt ${attempt})`);
+      const ttfb = ((Date.now() - reqStartTime) / 1000).toFixed(1);
+      console.log(`${C.green(`[${provider.name.toUpperCase()}]`)} 200 \u2190 response (attempt ${attempt}, ${ttfb}s)`);
 
       // If provider needs response translation (e.g., openai)
       if (provider.transformResponse && !isStreaming) {
