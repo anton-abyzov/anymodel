@@ -449,7 +449,8 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
           console.log(`${C.red(`[${provider.name.toUpperCase()}]`)} Retry without tools also failed: ${retryUpstream.statusCode}`);
         }
 
-        console.log(`${C.red(`[${provider.name.toUpperCase()}]`)} ${upstream.statusCode}: ${errBody.slice(0, 300)}`);
+        const tag = C.red(`[${provider.name.toUpperCase()}]`);
+        console.log(`${tag} ${upstream.statusCode}: ${errBody.slice(0, 300)}`);
 
         // Intercept upstream auth errors — return Anthropic-shaped error so Claude Code
         // shows "provider key invalid" instead of misleading "Not logged in"
@@ -461,6 +462,55 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
             error: {
               type: 'invalid_request_error',
               message: `[anymodel] ${providerLabel} API key is invalid or expired. Check your ${provider.name === 'openrouter' ? 'OPENROUTER_API_KEY' : provider.name === 'openai' ? 'OPENAI_API_KEY' : 'provider API key'}.`,
+            },
+          }));
+          return;
+        }
+
+        // Auto-fallback to :free model on 402 (insufficient credits)
+        if (upstream.statusCode === 402 && parsed.model && !parsed.model.endsWith(':free')) {
+          const freeModel = parsed.model + ':free';
+          console.log(`${C.yellow(`[${provider.name.toUpperCase()}]`)} No credits — trying free variant: ${C.bold(freeModel)}`);
+          const freeBody = { ...requestBody, model: freeModel };
+          const freePayload = JSON.stringify(freeBody);
+          try {
+            const freeUpstream = await sendRequest(provider, req.url, freePayload);
+            if (freeUpstream.statusCode === 200) {
+              console.log(`${C.green(`[${provider.name.toUpperCase()}]`)} ${C.bold(':free')} fallback succeeded — using ${freeModel}`);
+              if (!isStreaming) {
+                const respChunks = [];
+                freeUpstream.on('data', c => respChunks.push(c));
+                await new Promise(r => freeUpstream.on('end', r));
+                let respStr = Buffer.concat(respChunks).toString();
+                if (provider.transformResponse) {
+                  const respBody = JSON.parse(respStr);
+                  const translated = provider.transformResponse(respBody);
+                  sanitizeToolUseResponse(translated);
+                  respStr = JSON.stringify(translated);
+                }
+                res.writeHead(200, { 'content-type': 'application/json' });
+                res.end(respStr);
+              } else {
+                res.writeHead(200, freeUpstream.headers);
+                freeUpstream.pipe(res);
+              }
+              return;
+            }
+            // Drain failed free response
+            const freeErr = [];
+            freeUpstream.on('data', c => freeErr.push(c));
+            await new Promise(r => freeUpstream.on('end', r));
+            console.log(`${C.yellow(`[${provider.name.toUpperCase()}]`)} :free fallback also failed (${freeUpstream.statusCode})`);
+          } catch (e) {
+            console.log(`${C.red(`[${provider.name.toUpperCase()}]`)} :free fallback error: ${e.message}`);
+          }
+          // Free fallback failed — return helpful error
+          res.writeHead(400, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({
+            type: 'error',
+            error: {
+              type: 'invalid_request_error',
+              message: `[anymodel] No credits on OpenRouter and no free variant available for ${parsed.model}. Add credits at https://openrouter.ai/settings/credits or use a free model: npx anymodel proxy --model qwen/qwen3-coder:free`,
             },
           }));
           return;
