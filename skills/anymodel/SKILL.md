@@ -1,5 +1,6 @@
 ---
 name: anymodel
+version: 1.0.1
 description: >
   AnyModel development skill — the universal AI coding proxy. Use this skill whenever working on AnyModel source code
   (proxy.mjs, cli.mjs, providers/*, site/*, test/*), adding providers or presets, debugging proxy issues, deploying
@@ -246,3 +247,7 @@ node --test test/*.test.mjs
 ```
 
 Tests cover: sanitization, tool schema fixing, provider translation, preset resolution, max_tokens clamping, streaming, error handling. When adding features, add corresponding tests. The test count should only go up.
+
+## Changelog
+
+- 1.0.1: Added version tracking support
