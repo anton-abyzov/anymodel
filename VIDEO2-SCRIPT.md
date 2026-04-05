@@ -67,14 +67,13 @@ anymodel, claude code alternative, claude subscription, anthropic third party, c
 ## Pinned comment on THIS video
 
 ```
-This is the full build from my AnyModel video. If you haven't seen it — AnyModel lets you use 200+ AI models through one proxy: https://youtu.be/k0RI_M6lIsg
+Want the full walkthrough? AnyModel lets you use 200+ AI models through one proxy — full 17-minute demo with DeepSeek, GPT, Ollama, and more: https://youtu.be/k0RI_M6lIsg
 ```
 
 ## Pinned comment on MAIN video (k0RI_M6lIsg)
 
 ```
-🔧 Full calculator build demo — one prompt, full-stack app: [new video link]
-Watch SpecWeave + Codex build the entire app from one sentence.
+One-prompt full-stack build demo — calculator app from a single sentence, built with Codex in 2 minutes: https://youtu.be/68ac6lgDFBw
 ```
 
 ## Playlist
