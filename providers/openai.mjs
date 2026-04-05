@@ -80,7 +80,7 @@ export function translateRequest(anthropicBody) {
         Object.keys(params.properties).length === 0
       ) {
         params.properties = {
-          _placeholder: { type: 'string', description: 'No parameters needed' },
+          _unused: { type: 'string', description: 'No parameters needed' },
         };
         if (!params.required) params.required = [];
       }
@@ -129,11 +129,14 @@ export function translateResponse(openaiResponse) {
 
   if (choice.message?.tool_calls) {
     for (const tc of choice.message.tool_calls) {
+      const input = (() => { try { return JSON.parse(tc.function.arguments || '{}'); } catch { return {}; } })();
+      delete input._unused;
+      delete input._placeholder;
       content.push({
         type: 'tool_use',
         id: tc.id,
         name: tc.function.name,
-        input: (() => { try { return JSON.parse(tc.function.arguments || '{}'); } catch { return {}; } })(),
+        input,
       });
     }
   }
@@ -237,11 +240,17 @@ export function createStreamTranslator() {
                 blockIndex++;
               }
               if (tc.function?.arguments) {
-                output.push(formatSSE('content_block_delta', {
-                  type: 'content_block_delta',
-                  index: blockIndex - 1,
-                  delta: { type: 'input_json_delta', partial_json: tc.function.arguments },
-                }));
+                let args = tc.function.arguments;
+                // Strip placeholder fields injected during request sanitization
+                args = args.replace(/"_unused"\s*:\s*"[^"]*"\s*,?\s*/g, '');
+                args = args.replace(/"_placeholder"\s*:\s*"[^"]*"\s*,?\s*/g, '');
+                if (args) {
+                  output.push(formatSSE('content_block_delta', {
+                    type: 'content_block_delta',
+                    index: blockIndex - 1,
+                    delta: { type: 'input_json_delta', partial_json: args },
+                  }));
+                }
               }
             }
           }

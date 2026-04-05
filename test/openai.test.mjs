@@ -161,6 +161,19 @@ describe('translateRequest', () => {
     });
   });
 
+  it('uses _unused (not _placeholder) for empty properties', () => {
+    const result = translateRequest({
+      model: 'x',
+      tools: [{
+        name: 'no_params',
+        input_schema: { type: 'object', properties: {} },
+      }],
+    });
+    const params = result.tools[0].function.parameters;
+    assert.ok(params.properties._unused, 'should use _unused placeholder');
+    assert.equal(params.properties._placeholder, undefined, 'should not use _placeholder');
+  });
+
   it('translates tool_choice string passthrough', () => {
     const result = translateRequest({ model: 'x', tool_choice: 'auto' });
     assert.equal(result.tool_choice, 'auto');
@@ -324,6 +337,26 @@ describe('translateResponse', () => {
       }],
     });
     assert.deepEqual(result.content[0].input, {});
+  });
+
+  it('strips _unused and _placeholder from tool_use inputs', () => {
+    const result = translateResponse({
+      id: 'x',
+      model: 'gpt-4o',
+      choices: [{
+        message: {
+          tool_calls: [{
+            id: 'call_1',
+            type: 'function',
+            function: { name: 'Read', arguments: '{"file_path":"/a.ts","_unused":"","_placeholder":"x"}' },
+          }],
+        },
+        finish_reason: 'tool_calls',
+      }],
+    });
+    assert.equal(result.content[0].input._unused, undefined);
+    assert.equal(result.content[0].input._placeholder, undefined);
+    assert.equal(result.content[0].input.file_path, '/a.ts');
   });
 });
 

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { sanitizeBody } from '../proxy.mjs';
+import { sanitizeBody, sanitizeToolUseResponse } from '../proxy.mjs';
 
 describe('sanitizeBody', () => {
   it('strips top-level Anthropic-specific fields', () => {
@@ -131,5 +131,131 @@ describe('sanitizeBody', () => {
   it('preserves tool_choice when null or undefined', () => {
     assert.deepEqual(sanitizeBody({ tool_choice: null }), { tool_choice: null });
     assert.deepEqual(sanitizeBody({}), {});
+  });
+
+  it('adds _unused placeholder for empty tool properties', () => {
+    const body = {
+      tools: [{
+        name: 'no_params',
+        input_schema: { type: 'object', properties: {} },
+      }],
+    };
+    const result = sanitizeBody(body);
+    assert.deepEqual(result.tools[0].input_schema.properties, { _unused: { type: 'string' } });
+    assert.deepEqual(result.tools[0].input_schema.required, []);
+  });
+
+  it('adds _unused placeholder for missing input_schema', () => {
+    const body = { tools: [{ name: 'bare' }] };
+    const result = sanitizeBody(body);
+    assert.deepEqual(result.tools[0].input_schema, {
+      type: 'object',
+      properties: { _unused: { type: 'string' } },
+      required: [],
+    });
+  });
+
+  it('fixes nested empty object properties recursively', () => {
+    const body = {
+      tools: [{
+        name: 'nested',
+        input_schema: {
+          type: 'object',
+          properties: {
+            config: { type: 'object', properties: {} },
+          },
+        },
+      }],
+    };
+    const result = sanitizeBody(body);
+    assert.deepEqual(result.tools[0].input_schema.properties.config.properties, {
+      _unused: { type: 'string' },
+    });
+  });
+});
+
+describe('sanitizeToolUseResponse', () => {
+  it('strips _unused and _placeholder from tool_use inputs', () => {
+    const resp = {
+      content: [
+        { type: 'tool_use', id: 'toolu_1', name: 'Read', input: { file_path: '/a.ts', _unused: '', _placeholder: '' } },
+      ],
+    };
+    sanitizeToolUseResponse(resp);
+    assert.equal(resp.content[0].input._unused, undefined);
+    assert.equal(resp.content[0].input._placeholder, undefined);
+    assert.equal(resp.content[0].input.file_path, '/a.ts');
+  });
+
+  it('strips _unused recursively from nested objects', () => {
+    const resp = {
+      content: [
+        {
+          type: 'tool_use', id: 'toolu_1', name: 'TeamCreate',
+          input: {
+            name: 'test-team',
+            config: { _unused: '' },
+            _unused: '',
+          },
+        },
+      ],
+    };
+    sanitizeToolUseResponse(resp);
+    assert.equal(resp.content[0].input._unused, undefined);
+    assert.equal(resp.content[0].input.config._unused, undefined);
+    assert.equal(resp.content[0].input.name, 'test-team');
+    assert.deepEqual(resp.content[0].input.config, {});
+  });
+
+  it('drops tool_use blocks with no name', () => {
+    const resp = {
+      content: [
+        { type: 'text', text: 'hello' },
+        { type: 'tool_use', id: 'toolu_1', name: '', input: {} },
+        { type: 'tool_use', id: 'toolu_2', name: 'Read', input: {} },
+      ],
+    };
+    sanitizeToolUseResponse(resp);
+    assert.equal(resp.content.length, 2);
+    assert.equal(resp.content[0].type, 'text');
+    assert.equal(resp.content[1].name, 'Read');
+  });
+
+  it('generates id when missing', () => {
+    const resp = {
+      content: [
+        { type: 'tool_use', name: 'Bash', input: { command: 'ls' } },
+      ],
+    };
+    sanitizeToolUseResponse(resp);
+    assert.ok(resp.content[0].id.startsWith('toolu_'));
+  });
+
+  it('defaults input to empty object when missing or non-object', () => {
+    const resp = {
+      content: [
+        { type: 'tool_use', id: 'toolu_1', name: 'Read', input: null },
+        { type: 'tool_use', id: 'toolu_2', name: 'Read' },
+      ],
+    };
+    sanitizeToolUseResponse(resp);
+    assert.deepEqual(resp.content[0].input, {});
+    assert.deepEqual(resp.content[1].input, {});
+  });
+
+  it('passes through non-tool_use blocks untouched', () => {
+    const resp = {
+      content: [
+        { type: 'text', text: 'hello' },
+      ],
+    };
+    sanitizeToolUseResponse(resp);
+    assert.equal(resp.content[0].text, 'hello');
+  });
+
+  it('handles missing or non-array content', () => {
+    assert.deepEqual(sanitizeToolUseResponse({}), {});
+    assert.deepEqual(sanitizeToolUseResponse({ content: 'text' }), { content: 'text' });
+    assert.deepEqual(sanitizeToolUseResponse(null), null);
   });
 });

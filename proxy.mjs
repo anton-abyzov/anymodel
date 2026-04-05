@@ -19,6 +19,40 @@ const C = {
   bold: s => `\x1b[1m${s}\x1b[0m`,
 };
 
+// Recursively strip _unused/_placeholder from all nested objects
+function stripPlaceholders(obj) {
+  if (!obj || typeof obj !== 'object') return;
+  delete obj._unused;
+  delete obj._placeholder;
+  for (const val of Object.values(obj)) {
+    if (val && typeof val === 'object' && !Array.isArray(val)) {
+      stripPlaceholders(val);
+    }
+  }
+}
+
+// Sanitize tool_use blocks in responses from non-Anthropic models
+// Fixes structural issues that cause "Invalid tool parameters" in Claude Code
+export function sanitizeToolUseResponse(respObj) {
+  if (!respObj?.content || !Array.isArray(respObj.content)) return respObj;
+
+  respObj.content = respObj.content.filter(block => {
+    if (block.type !== 'tool_use') return true;
+
+    // Recursively strip placeholder fields from input and all nested objects
+    if (block.input) stripPlaceholders(block.input);
+
+    // Ensure required fields exist
+    if (!block.id) block.id = `toolu_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    if (!block.name) return false; // drop tool_use with no name — invalid
+    if (!block.input || typeof block.input !== 'object') block.input = {};
+
+    return true;
+  });
+
+  return respObj;
+}
+
 // Strip Anthropic-specific fields that break non-Anthropic providers
 // keepCache=true preserves cache_control for providers that support it (OpenRouter → Anthropic models)
 export function sanitizeBody(body, { keepCache = false } = {}) {
@@ -350,6 +384,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         await new Promise(r => upstream.on('end', r));
         const respBody = JSON.parse(Buffer.concat(respChunks).toString());
         const translated = provider.transformResponse(respBody);
+        sanitizeToolUseResponse(translated);
         const translatedPayload = JSON.stringify(translated);
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(translatedPayload);
@@ -384,17 +419,10 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         upstream.on('data', c => respChunks.push(c));
         await new Promise(r => upstream.on('end', r));
         let respStr = Buffer.concat(respChunks).toString();
-        // Strip _unused from tool_use inputs in the response
+        // Sanitize tool_use blocks: strip placeholders, fix structure
         try {
           const respObj = JSON.parse(respStr);
-          if (respObj.content && Array.isArray(respObj.content)) {
-            for (const block of respObj.content) {
-              if (block.type === 'tool_use' && block.input) {
-                delete block.input._unused;
-                delete block.input._placeholder;
-              }
-            }
-          }
+          sanitizeToolUseResponse(respObj);
           respStr = JSON.stringify(respObj);
         } catch {}
         res.writeHead(200, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(respStr) });
