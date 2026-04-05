@@ -157,7 +157,9 @@ export function loadEnv(dir) {
         if (!process.env[key]) process.env[key] = val;
       }
     }
-  } catch {}
+  } catch (e) {
+    if (e.code !== 'ENOENT') console.warn(`[ENV] Failed to load .env: ${e.message}`);
+  }
 }
 
 function sendRequest(provider, url, payload) {
@@ -360,10 +362,18 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'connection': 'keep-alive' });
         upstream.on('data', chunk => {
           const translated = translator.transform(chunk.toString());
-          if (translated) res.write(translated);
+          if (translated) {
+            const ok = res.write(translated);
+            if (!ok) upstream.pause();
+          }
         });
+        res.on('drain', () => upstream.resume());
         upstream.on('end', () => res.end());
-        upstream.on('error', () => res.end());
+        upstream.on('error', (e) => {
+          console.error(`${C.red('[STREAM]')} Upstream error: ${e.message}`);
+          if (!res.writableEnded) res.end();
+        });
+        res.on('close', () => upstream.destroy());
         return;
       }
 
@@ -399,10 +409,16 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         // Quick string replace for _unused in streaming tool input deltas
         str = str.replace(/"_unused"\s*:\s*"[^"]*"\s*,?\s*/g, '');
         str = str.replace(/"_placeholder"\s*:\s*"[^"]*"\s*,?\s*/g, '');
-        res.write(str);
+        const ok = res.write(str);
+        if (!ok) upstream.pause();
       });
+      res.on('drain', () => upstream.resume());
       upstream.on('end', () => res.end());
-      upstream.on('error', () => res.end());
+      upstream.on('error', (e) => {
+        console.error(`${C.red('[STREAM]')} Upstream error: ${e.message}`);
+        if (!res.writableEnded) res.end();
+      });
+      res.on('close', () => upstream.destroy());
       return;
 
     } catch (e) {
@@ -420,6 +436,10 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
 function proxyToAnthropic(req, res) {
   const body = [];
   req.on('data', c => body.push(c));
+  req.on('error', e => {
+    console.error(`${C.red('[PASSTHROUGH]')} Client error: ${e.message}`);
+    if (!res.writableEnded) { res.writeHead(502); res.end(); }
+  });
   req.on('end', () => {
     const opts = {
       hostname: 'api.anthropic.com',
@@ -495,7 +515,13 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10,
         res.end(JSON.stringify({ error: { type: 'rate_limit', message: `Rate limit: ${rpm} requests/minute exceeded` } }));
         return;
       }
-      handleMessages(req, res, provider, model, isFreeTierModel);
+      handleMessages(req, res, provider, model, isFreeTierModel).catch(e => {
+        console.error(`${C.red('[PROXY]')} Unhandled error: ${e.message}`);
+        if (!res.writableEnded) {
+          res.writeHead(502, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ error: { type: 'proxy_error', message: 'Internal proxy error' } }));
+        }
+      });
     } else {
       console.log(`${C.yellow('[PASSTHROUGH]')} ${req.method} ${req.url}`);
       proxyToAnthropic(req, res);

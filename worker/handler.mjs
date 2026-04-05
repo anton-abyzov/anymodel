@@ -21,8 +21,6 @@ export function checkAuth(headers, token) {
   const auth = headers.authorization || headers['x-api-key'] || '';
   // Exact token match (x-api-key or Bearer prefix)
   if (auth === `Bearer ${token}` || auth === token) return true;
-  // Accept Claude Max/Pro OAuth bearer tokens (long JWT-like tokens)
-  if (auth.startsWith('Bearer ') && auth.length > 50) return true;
   return false;
 }
 
@@ -79,7 +77,7 @@ export function sanitizeBody(body) {
   delete body.speed;
   delete body.output_config;
   delete body.context_management;
-  delete body.thinking;
+  // Preserve body.thinking — reasoning models (DeepSeek R1) need it for chain-of-thought
 
   if (Array.isArray(body.system)) {
     body.system = body.system.map(block => {
@@ -130,7 +128,7 @@ export async function handleRequest(request, env) {
   const url = new URL(request.url);
   const token = env.ANYMODEL_TOKEN || '';
   const apiKey = env.OPENROUTER_API_KEY || '';
-  const freeOnly = env.FREE_ONLY !== 'false'; // default true
+  const freeOnly = env.FREE_ONLY === 'true'; // default false — set FREE_ONLY=true to restrict to free models
   const rpm = parseInt(env.RPM || '60', 10);
   const model = env.MODEL || '';
 

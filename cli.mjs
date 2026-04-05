@@ -66,7 +66,8 @@ export function parseArgs(argv) {
     } else if (arg === '--model' || arg === '-m') {
       opts.model = argv[++i] || null;
     } else if (arg === '--port' || arg === '-p') {
-      opts.port = parseInt(argv[++i], 10) || 9090;
+      const p = parseInt(argv[++i], 10);
+      opts.port = (p > 0 && p <= 65535) ? p : 9090;
     } else if (arg === '--free-only' || arg === '--free') {
       opts.freeOnly = true;
     } else if (arg === '--token' || arg === '-t') {
@@ -271,7 +272,7 @@ function launchClaude() {
     env: process.env,
   });
 
-  clientChild.on('exit', (code) => process.exit(code || 0));
+  clientChild.on('exit', (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
   process.on('SIGINT', () => { clientChild.kill('SIGTERM'); process.exit(0); });
 }
 
@@ -333,7 +334,7 @@ async function connectToProxy(args) {
     },
   });
 
-  clientChild.on('exit', (code) => process.exit(code || 0));
+  clientChild.on('exit', (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
   process.on('SIGINT', () => { clientChild.kill('SIGTERM'); process.exit(0); });
 }
 

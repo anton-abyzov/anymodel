@@ -28,7 +28,7 @@ export function translateRequest(anthropicBody) {
       const toolCalls = msg.content.filter(b => b.type === 'tool_use').map(b => ({
         id: b.id,
         type: 'function',
-        function: { name: b.name, arguments: JSON.stringify(b.input) },
+        function: { name: b.name, arguments: JSON.stringify(b.input ?? {}) },
       }));
       const omsg = { role: 'assistant' };
       if (textParts) omsg.content = textParts;
@@ -98,11 +98,12 @@ export function translateRequest(anthropicBody) {
   // Tool choice
   if (anthropicBody.tool_choice) {
     if (typeof anthropicBody.tool_choice === 'string') {
-      openaiBody.tool_choice = anthropicBody.tool_choice; // "auto", "none", "required"
+      openaiBody.tool_choice = anthropicBody.tool_choice === 'any' ? 'required' : anthropicBody.tool_choice;
     } else if (anthropicBody.tool_choice.type === 'tool') {
       openaiBody.tool_choice = { type: 'function', function: { name: anthropicBody.tool_choice.name } };
     } else {
-      openaiBody.tool_choice = anthropicBody.tool_choice.type || 'auto';
+      const t = anthropicBody.tool_choice.type || 'auto';
+      openaiBody.tool_choice = t === 'any' ? 'required' : t;
     }
   }
 
@@ -132,7 +133,7 @@ export function translateResponse(openaiResponse) {
         type: 'tool_use',
         id: tc.id,
         name: tc.function.name,
-        input: JSON.parse(tc.function.arguments || '{}'),
+        input: (() => { try { return JSON.parse(tc.function.arguments || '{}'); } catch { return {}; } })(),
       });
     }
   }
@@ -143,7 +144,7 @@ export function translateResponse(openaiResponse) {
     role: 'assistant',
     content,
     model: openaiResponse.model,
-    stop_reason: choice.finish_reason === 'tool_calls' ? 'tool_use' : 'end_turn',
+    stop_reason: { tool_calls: 'tool_use', length: 'max_tokens', stop: 'end_turn' }[choice.finish_reason] || 'end_turn',
     stop_sequence: null,
     usage: {
       input_tokens: openaiResponse.usage?.prompt_tokens || 0,
@@ -162,6 +163,7 @@ export function createStreamTranslator() {
   let buffer = '';
   let blockIndex = 0;
   let started = false;
+  let finished = false;
 
   return {
     transform(chunk) {
@@ -174,12 +176,15 @@ export function createStreamTranslator() {
         if (!line.startsWith('data: ')) continue;
         const data = line.slice(6).trim();
         if (data === '[DONE]') {
-          output.push(formatSSE('message_delta', {
-            type: 'message_delta',
-            delta: { stop_reason: 'end_turn' },
-            usage: { output_tokens: 0 },
-          }));
-          output.push(formatSSE('message_stop', { type: 'message_stop' }));
+          if (!finished) {
+            finished = true;
+            output.push(formatSSE('message_delta', {
+              type: 'message_delta',
+              delta: { stop_reason: 'end_turn' },
+              usage: { output_tokens: 0 },
+            }));
+            output.push(formatSSE('message_stop', { type: 'message_stop' }));
+          }
           continue;
         }
 
@@ -241,13 +246,13 @@ export function createStreamTranslator() {
             }
           }
 
-          if (parsed.choices?.[0]?.finish_reason) {
-            const reason = parsed.choices[0].finish_reason === 'tool_calls' ? 'tool_use' : 'end_turn';
-            if (blockIndex > 0) {
-              output.push(formatSSE('content_block_stop', {
-                type: 'content_block_stop',
-                index: blockIndex - 1,
-              }));
+          if (parsed.choices?.[0]?.finish_reason && !finished) {
+            finished = true;
+            const fr = parsed.choices[0].finish_reason;
+            const reason = { tool_calls: 'tool_use', length: 'max_tokens', stop: 'end_turn' }[fr] || 'end_turn';
+            // Emit content_block_stop for ALL open blocks
+            for (let i = 0; i < blockIndex; i++) {
+              output.push(formatSSE('content_block_stop', { type: 'content_block_stop', index: i }));
             }
             output.push(formatSSE('message_delta', {
               type: 'message_delta',
@@ -256,7 +261,9 @@ export function createStreamTranslator() {
             }));
             output.push(formatSSE('message_stop', { type: 'message_stop' }));
           }
-        } catch {}
+        } catch (e) {
+          console.warn(`[SSE PARSE] Dropped chunk: ${e.message}`);
+        }
       }
 
       return output.join('');
