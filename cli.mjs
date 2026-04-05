@@ -375,8 +375,8 @@ async function startProxyOnly(args) {
   let model = opts.model || process.env.OPENROUTER_MODEL;
   const port = opts.port || parseInt(process.env.PROXY_PORT, 10) || 9090;
 
-  // For Ollama: auto-detect first installed model if none specified
-  if (!model && providerName === 'ollama') {
+  // For Ollama: validate model exists or auto-detect first installed model
+  if (providerName === 'ollama') {
     try {
       const http = await import('http');
       const models = await new Promise((resolve) => {
@@ -386,14 +386,7 @@ async function startProxyOnly(args) {
           res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve(null); } });
         }).on('error', () => resolve(null));
       });
-      if (models?.models?.length > 0) {
-        model = models.models[0].name;
-        console.log(`${C.cyan('[OLLAMA]')} Found ${models.models.length} model(s). Using: ${C.bold(model)}`);
-        if (models.models.length > 1) {
-          console.log(`${C.cyan('[OLLAMA]')} Other available: ${models.models.slice(1, 5).map(m => m.name).join(', ')}`);
-          console.log(`${C.cyan('[OLLAMA]')} List all: ${C.bold('ollama list')}`);
-        }
-      } else {
+      if (!models?.models?.length) {
         console.error(`${C.red('Error:')} No models installed in Ollama.`);
         console.error('');
         console.error(`  Pull a model first:`);
@@ -403,6 +396,37 @@ async function startProxyOnly(args) {
         console.error(`    ${C.bold('npx anymodel proxy ollama --model gemma3n')}`);
         console.error('');
         process.exit(1);
+      }
+      const names = models.models.map(m => m.name);
+      if (model) {
+        // Validate that the specified model exists in Ollama
+        const exact = names.includes(model);
+        const withTag = names.includes(`${model}:latest`);
+        const baseMatch = names.find(n => n.split(':')[0] === model.split(':')[0]);
+        if (!exact && !withTag) {
+          console.error(`${C.red('Error:')} Model ${C.bold(model)} not found in Ollama.`);
+          console.error('');
+          if (baseMatch) {
+            console.error(`  Did you mean: ${C.bold(baseMatch)}?`);
+            console.error('');
+          }
+          console.error(`  Pull it first:`);
+          console.error(`    ${C.bold(`ollama pull ${model}`)}`);
+          console.error('');
+          console.error(`  Available models:`);
+          names.slice(0, 10).forEach(n => console.error(`    ${n}`));
+          if (names.length > 10) console.error(`    ... and ${names.length - 10} more (${C.bold('ollama list')})`);
+          console.error('');
+          process.exit(1);
+        }
+      } else {
+        // Auto-detect first installed model
+        model = names[0];
+        console.log(`${C.cyan('[OLLAMA]')} Found ${names.length} model(s). Using: ${C.bold(model)}`);
+        if (names.length > 1) {
+          console.log(`${C.cyan('[OLLAMA]')} Other available: ${names.slice(1, 5).join(', ')}`);
+          console.log(`${C.cyan('[OLLAMA]')} List all: ${C.bold('ollama list')}`);
+        }
       }
     } catch {
       console.error(`${C.red('Error:')} Cannot connect to Ollama at localhost:11434.`);
