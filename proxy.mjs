@@ -251,6 +251,14 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     delete parsed.tool_choice;
   }
 
+  // Strip thinking/extended-thinking for Ollama
+  // Claude Code sends thinking: {type: "enabled", budget_tokens: N} which causes
+  // reasoning models (qwen3, deepseek) to waste output tokens on hidden chain-of-thought
+  // instead of producing actual text. Disable it for local models.
+  if (provider.name === 'ollama') {
+    delete parsed.thinking;
+  }
+
   // Condense system prompt for local models (Ollama)
   // Claude Code sends 50-100KB system prompts with every request. On local models,
   // processing 15K+ tokens of system instructions takes 2-3 minutes BEFORE any output.

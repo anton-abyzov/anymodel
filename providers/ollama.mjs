@@ -35,6 +35,20 @@ export default {
     const numCtx = parseInt(process.env.OLLAMA_NUM_CTX, 10) || DEFAULT_NUM_CTX;
     openaiBody.options = { num_ctx: numCtx };
 
+    // Disable thinking/reasoning for all models — prevents qwen3, deepseek etc.
+    // from wasting output tokens on hidden chain-of-thought.
+    // Models like qwen3 enable thinking by default which can add 30-120s of
+    // invisible token generation before producing any visible output.
+    // Inject /no_think into system message (prompt-level control, works across all API formats).
+    if (openaiBody.messages?.length > 0) {
+      const sysMsg = openaiBody.messages.find(m => m.role === 'system');
+      if (sysMsg) {
+        sysMsg.content = '/no_think\n' + sysMsg.content;
+      } else {
+        openaiBody.messages.unshift({ role: 'system', content: '/no_think' });
+      }
+    }
+
     return openaiBody;
   },
 
