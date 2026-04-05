@@ -450,6 +450,22 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         }
 
         console.log(`${C.red(`[${provider.name.toUpperCase()}]`)} ${upstream.statusCode}: ${errBody.slice(0, 300)}`);
+
+        // Intercept upstream auth errors — return Anthropic-shaped error so Claude Code
+        // shows "provider key invalid" instead of misleading "Not logged in"
+        if (upstream.statusCode === 401 || upstream.statusCode === 403) {
+          const providerLabel = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
+          res.writeHead(400, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({
+            type: 'error',
+            error: {
+              type: 'invalid_request_error',
+              message: `[anymodel] ${providerLabel} API key is invalid or expired. Check your ${provider.name === 'openrouter' ? 'OPENROUTER_API_KEY' : provider.name === 'openai' ? 'OPENAI_API_KEY' : 'provider API key'}.`,
+            },
+          }));
+          return;
+        }
+
         res.writeHead(upstream.statusCode, upstream.headers);
         res.end(errBody);
         return;

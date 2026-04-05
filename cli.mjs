@@ -330,6 +330,8 @@ async function connectToProxy(args) {
     env: {
       ...process.env,
       ANTHROPIC_BASE_URL: `http://localhost:${port}`,
+      // Suppress "Not logged in" — proxy handles auth, Claude Code doesn't need its own key
+      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || 'anymodel-proxy',
       ...(modelName ? { ANYMODEL_MODEL: modelName } : {}),
     },
   });
