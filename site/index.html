@@ -94,7 +94,7 @@
         "name": "Can I use AnyModel fully offline?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes. Use Ollama for local models: ollama pull gemma3n, then npx anymodel proxy ollama --model gemma3n. No internet, no API key — everything stays on your machine."
+          "text": "Yes. Use Ollama (easiest): ollama pull gemma3n, then npx anymodel proxy ollama --model gemma3n. Or use llama-server (llama.cpp) for maximum control: llama-server -m model.gguf --port 8080, then OPENAI_BASE_URL=http://localhost:8080/v1 npx anymodel proxy openai --model my-model. No internet, no API key — everything stays on your machine."
         }
       },
       {
@@ -708,6 +708,25 @@
 <span class="hl-cmd">npx</span> anymodel</code></pre>
           <button class="copy-btn" data-copy="npx anymodel proxy ollama --model gemma3n" aria-label="Copy example">Copy</button>
         </div>
+
+        <!-- Card 4: llama-server (llama.cpp) -->
+        <div class="example-card fade-in">
+          <div class="example-header">
+            <span class="example-tag" style="background: rgba(251, 146, 60, 0.15); color: #fb923c;">Advanced</span>
+            <h3>Raw llama.cpp with llama-server</h3>
+          </div>
+          <pre><code><span class="hl-comment"># Start llama-server with a GGUF model:</span>
+<span class="hl-cmd">llama-server</span> -m model.gguf --port 8080
+
+<span class="hl-comment"># Terminal 1 — proxy:</span>
+<span class="hl-cmd">OPENAI_BASE_URL</span>=http://localhost:8080/v1 \
+  npx anymodel proxy openai \
+  --model my-model
+
+<span class="hl-comment"># Terminal 2 — connect:</span>
+<span class="hl-cmd">npx</span> anymodel</code></pre>
+          <button class="copy-btn" data-copy="OPENAI_BASE_URL=http://localhost:8080/v1 npx anymodel proxy openai --model my-model" aria-label="Copy example">Copy</button>
+        </div>
       </div>
     </div>
   </section>
@@ -784,6 +803,48 @@ npx anymodel qwen</code></pre>
           </div>
           <p class="guide-note">Fully offline. Nothing leaves your machine. Requires 16GB+ RAM for 30B models, 8GB for smaller ones.</p>
         </div>
+
+        <!-- llama-server Guide -->
+        <div class="guide-card fade-in">
+          <h3 style="color: var(--accent-orange, #fb923c);">llama-server (llama.cpp)</h3>
+          <div class="guide-steps">
+            <div class="guide-step">
+              <span class="guide-num">1</span>
+              <div>Install llama.cpp:
+                <pre style="margin-top:6px;"><code># macOS
+brew install llama.cpp
+
+# Build from source
+git clone https://github.com/ggml-org/llama.cpp
+cd llama.cpp && cmake -B build && cmake --build build --config Release</code></pre>
+              </div>
+            </div>
+            <div class="guide-step">
+              <span class="guide-num">2</span>
+              <div>Download a GGUF model from <a href="https://huggingface.co/models?sort=trending&search=gguf" target="_blank" rel="noopener">HuggingFace</a>
+                <p style="font-size:0.78rem; color:var(--text-muted);">Look for Q4_K_M or Q5_K_S quantizations. Example: <code>Qwen3-Coder-30B-Q4_K_M.gguf</code></p>
+              </div>
+            </div>
+            <div class="guide-step">
+              <span class="guide-num">3</span>
+              <div>Start llama-server:
+                <pre style="margin-top:6px;"><code>llama-server -m your-model.gguf --port 8080</code></pre>
+              </div>
+            </div>
+            <div class="guide-step">
+              <span class="guide-num">4</span>
+              <div>Start the proxy, then connect:
+                <pre style="margin-top:6px;"><code># Terminal 1 — start proxy:
+OPENAI_BASE_URL=http://localhost:8080/v1 \
+  npx anymodel proxy openai --model my-model
+
+# Terminal 2 — use it:
+npx anymodel</code></pre>
+              </div>
+            </div>
+          </div>
+          <p class="guide-note">Maximum control over inference. llama.cpp is the engine behind Ollama and LM Studio. Use it directly to tune context size, GPU layers, batch size, and quantization. No API key needed.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -825,7 +886,7 @@ npx anymodel qwen</code></pre>
 
         <details class="faq-item fade-in">
           <summary>Can I use it fully offline?</summary>
-          <p>Yes. Use Ollama for local models: <code>ollama pull gemma3n</code>, then <code>npx anymodel proxy ollama --model gemma3n</code>. No internet, no API key &mdash; everything stays on your machine.</p>
+          <p>Yes. Two options: <strong>Ollama</strong> (easiest) &mdash; <code>ollama pull gemma3n</code>, then <code>npx anymodel proxy ollama --model gemma3n</code>. Or <strong>llama-server</strong> (maximum control) &mdash; <code>llama-server -m model.gguf --port 8080</code>, then <code>OPENAI_BASE_URL=http://localhost:8080/v1 npx anymodel proxy openai --model my-model</code>. No internet, no API key &mdash; everything stays on your machine.</p>
         </details>
 
         <details class="faq-item fade-in">
@@ -835,7 +896,7 @@ npx anymodel qwen</code></pre>
 
         <details class="faq-item fade-in">
           <summary>What does the proxy actually do?</summary>
-          <p>AnyModel strips Anthropic-specific fields (<code>cache_control</code>, <code>betas</code>, <code>thinking</code>), normalizes <code>tool_choice</code>, handles retries with exponential backoff, and forwards the cleaned request to OpenRouter or Ollama. The response streams back unchanged.</p>
+          <p>AnyModel strips Anthropic-specific fields (<code>cache_control</code>, <code>betas</code>, <code>thinking</code>), normalizes <code>tool_choice</code>, handles retries with exponential backoff, and forwards the cleaned request to OpenRouter, Ollama, llama-server, or any OpenAI-compatible API. The response streams back unchanged.</p>
         </details>
       </div>
     </div>

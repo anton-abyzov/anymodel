@@ -123,6 +123,12 @@ export function translateResponse(openaiResponse) {
 
   const content = [];
 
+  // Reasoning/thinking content (DeepSeek R1, Qwen3, etc.)
+  const reasoning = choice.message?.reasoning_content ?? choice.message?.reasoning;
+  if (reasoning) {
+    content.push({ type: 'thinking', thinking: reasoning });
+  }
+
   if (choice.message?.content) {
     content.push({ type: 'text', text: choice.message.content });
   }
@@ -167,6 +173,9 @@ export function createStreamTranslator() {
   let blockIndex = 0;
   let started = false;
   let finished = false;
+  let thinkingBlockIndex = -1;
+  let textBlockIndex = -1;
+  const stoppedBlocks = new Set();
 
   return {
     transform(chunk) {
@@ -212,18 +221,44 @@ export function createStreamTranslator() {
             started = true;
           }
 
-          if (delta.content) {
-            if (blockIndex === 0) {
+          // Reasoning/thinking content (DeepSeek R1, Qwen3, etc.)
+          const reasoningText = delta.reasoning_content ?? delta.reasoning;
+          if (reasoningText != null && reasoningText !== '') {
+            if (thinkingBlockIndex === -1) {
+              thinkingBlockIndex = blockIndex++;
               output.push(formatSSE('content_block_start', {
                 type: 'content_block_start',
-                index: 0,
-                content_block: { type: 'text', text: '' },
+                index: thinkingBlockIndex,
+                content_block: { type: 'thinking', thinking: '' },
               }));
-              blockIndex = 1;
             }
             output.push(formatSSE('content_block_delta', {
               type: 'content_block_delta',
-              index: 0,
+              index: thinkingBlockIndex,
+              delta: { type: 'thinking_delta', thinking: reasoningText },
+            }));
+          }
+
+          if (delta.content) {
+            // Close thinking block when text content starts
+            if (thinkingBlockIndex !== -1 && !stoppedBlocks.has(thinkingBlockIndex)) {
+              output.push(formatSSE('content_block_stop', {
+                type: 'content_block_stop',
+                index: thinkingBlockIndex,
+              }));
+              stoppedBlocks.add(thinkingBlockIndex);
+            }
+            if (textBlockIndex === -1) {
+              textBlockIndex = blockIndex++;
+              output.push(formatSSE('content_block_start', {
+                type: 'content_block_start',
+                index: textBlockIndex,
+                content_block: { type: 'text', text: '' },
+              }));
+            }
+            output.push(formatSSE('content_block_delta', {
+              type: 'content_block_delta',
+              index: textBlockIndex,
               delta: { type: 'text_delta', text: delta.content },
             }));
           }
@@ -259,9 +294,11 @@ export function createStreamTranslator() {
             finished = true;
             const fr = parsed.choices[0].finish_reason;
             const reason = { tool_calls: 'tool_use', length: 'max_tokens', stop: 'end_turn' }[fr] || 'end_turn';
-            // Emit content_block_stop for ALL open blocks
+            // Emit content_block_stop for all blocks not already stopped
             for (let i = 0; i < blockIndex; i++) {
-              output.push(formatSSE('content_block_stop', { type: 'content_block_stop', index: i }));
+              if (!stoppedBlocks.has(i)) {
+                output.push(formatSSE('content_block_stop', { type: 'content_block_stop', index: i }));
+              }
             }
             output.push(formatSSE('message_delta', {
               type: 'message_delta',

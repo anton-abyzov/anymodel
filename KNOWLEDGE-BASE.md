@@ -32,7 +32,7 @@ AnyModel client (cli.js) → anymodel proxy (:9090) → OpenRouter / Ollama / Op
 ### Three providers:
 - **OpenRouter** (`providers/openrouter.mjs`) — 300+ cloud models, passes through Anthropic format, preserves cache_control
 - **Ollama** (`providers/ollama.mjs`) — local models, translates to OpenAI format via /v1/chat/completions, injects num_ctx=8192, strips tools
-- **OpenAI** (`providers/openai.mjs`) — any OpenAI-compatible API, full bidirectional Anthropic ↔ OpenAI translation
+- **OpenAI** (`providers/openai.mjs`) — any OpenAI-compatible API (OpenAI, Azure, Together, Groq, vLLM, LM Studio, llama-server), full bidirectional Anthropic ↔ OpenAI translation
 
 ## CLI Commands
 
@@ -42,6 +42,7 @@ npx anymodel --port 9091            # connect to specific port
 npx anymodel proxy deepseek         # start proxy with preset
 npx anymodel proxy --model <id>     # start proxy with any model
 npx anymodel proxy ollama --model X # proxy with local Ollama
+OPENAI_BASE_URL=http://localhost:8080/v1 npx anymodel proxy openai --model X  # proxy with llama-server
 npx anymodel claude                 # run with native Claude (no proxy)
 ```
 

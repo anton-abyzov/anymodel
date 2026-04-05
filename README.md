@@ -81,9 +81,26 @@ npx anymodel proxy ollama --model gemma3n
 npx anymodel
 ```
 
+### Local with llama-server (llama.cpp)
+
+Run any GGUF model directly — no Ollama needed:
+
+```bash
+# Start llama-server with your GGUF model:
+llama-server -m model.gguf --port 8080
+
+# Terminal 1 — proxy:
+OPENAI_BASE_URL=http://localhost:8080/v1 npx anymodel proxy openai --model my-model
+
+# Terminal 2:
+npx anymodel
+```
+
+llama.cpp is the engine behind Ollama and LM Studio. Use `llama-server` directly for maximum control over context size, GPU layers, batch size, and quantization.
+
 ### OpenAI-Compatible APIs
 
-Works with OpenAI, Azure, Together, Groq, vLLM, LMStudio:
+Works with OpenAI, Azure, Together, Groq, vLLM, LMStudio, llama-server:
 
 ```bash
 OPENAI_API_KEY=sk-your-key npx anymodel proxy openai --model gpt-4o
@@ -119,7 +136,7 @@ Options:
 | `OPENROUTER_API_KEY` | Your OpenRouter key ([get one free](https://openrouter.ai/keys)) |
 | `OPENROUTER_MODEL` | Default model override |
 | `OPENAI_API_KEY` | Key for OpenAI-compatible APIs |
-| `OPENAI_BASE_URL` | Custom endpoint (default: `https://api.openai.com/v1`) |
+| `OPENAI_BASE_URL` | Custom endpoint (default: `https://api.openai.com/v1`). Set to `http://localhost:8080/v1` for llama-server |
 | `PROXY_PORT` | Proxy port (default: `9090`) |
 | `ANYMODEL_CLIENT` | Path to custom client cli.js |
 | `ANYMODEL_TOKEN` | Auth token for remote mode |
