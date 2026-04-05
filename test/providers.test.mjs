@@ -61,6 +61,6 @@ describe('provider configs', () => {
     const opts = ollama.buildRequest('/v1/messages', 'test-payload');
     assert.equal(opts.hostname, 'localhost');
     assert.equal(opts.port, 11434);
-    assert.equal(opts.path, '/v1/chat/completions');
+    assert.equal(opts.path, '/api/chat');
   });
 });
