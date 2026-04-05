@@ -1,0 +1,20 @@
+{
+  "skill_name": "anymodel",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I want to add a new preset called 'phi' that maps to microsoft/phi-4:free on OpenRouter. It should be marked as free.",
+      "expected_output": "Should know to edit MODEL_PRESETS in cli.mjs, update help text, KNOWLEDGE-BASE.md, site/index.html, README.md, and run the full deployment pipeline (test, commit, push, npm publish)"
+    },
+    {
+      "id": 2,
+      "prompt": "The proxy is returning 400 errors when I use GPT-5.4 with MCP tools. The error says something about empty properties in the tool schema.",
+      "expected_output": "Should identify this as the empty properties issue in sanitizeBody(), explain the _unused placeholder fix, check the tool schema sanitization code in proxy.mjs around line 77-116"
+    },
+    {
+      "id": 3,
+      "prompt": "I want to add Azure OpenAI as a new provider for AnyModel. Where do I start?",
+      "expected_output": "Should guide through creating providers/azure.mjs, explain the format differences (deployment names vs model IDs, api-version param, api-key header), reference the existing provider pattern, and mention the deployment pipeline"
+    }
+  ]
+}
