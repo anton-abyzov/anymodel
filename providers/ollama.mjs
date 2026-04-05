@@ -37,15 +37,17 @@ export default {
 
     // Disable thinking/reasoning for all models — prevents qwen3, deepseek etc.
     // from wasting output tokens on hidden chain-of-thought.
-    // Models like qwen3 enable thinking by default which can add 30-120s of
-    // invisible token generation before producing any visible output.
-    // Inject /no_think into system message (prompt-level control, works across all API formats).
+    // qwen3 only respects /no_think in USER messages (not system messages).
+    // Inject into the last user message content.
     if (openaiBody.messages?.length > 0) {
-      const sysMsg = openaiBody.messages.find(m => m.role === 'system');
-      if (sysMsg) {
-        sysMsg.content = '/no_think\n' + sysMsg.content;
-      } else {
-        openaiBody.messages.unshift({ role: 'system', content: '/no_think' });
+      for (let i = openaiBody.messages.length - 1; i >= 0; i--) {
+        if (openaiBody.messages[i].role === 'user') {
+          const msg = openaiBody.messages[i];
+          if (typeof msg.content === 'string') {
+            msg.content = '/no_think\n' + msg.content;
+          }
+          break;
+        }
       }
     }
 
