@@ -255,12 +255,20 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
   // Inject Windows path hint — LLMs default to Unix-style paths
   injectPlatformHints(parsed, process.platform);
 
-  // Strip tools for local models (Ollama) — 86 MCP tool definitions add ~50K tokens
-  // to every request, making even simple prompts take minutes on small models.
-  // Cloud providers handle tools fine; local models can't use them meaningfully.
+  // Tool handling for Ollama — capability-aware instead of blanket strip.
+  // Many Ollama models (Qwen 3, Llama 3.1+, Mistral, etc.) support tool calling.
+  // OLLAMA_TOOLS env: 'auto' (default) tries with tools and caches result per model,
+  // 'on' always passes tools, 'off' always strips (legacy behavior).
   if (provider.name === 'ollama' && parsed.tools && parsed.tools.length > 0) {
-    console.log(`${C.yellow('[OLLAMA]')} Stripping ${parsed.tools.length} tools (local models can't use MCP tools effectively)`);
-    delete parsed.tools;
+    const { shouldSendTools, ollamaToolMode } = await import('./providers/ollama-tools.mjs');
+    const mode = ollamaToolMode();
+    if (!shouldSendTools(parsed.model)) {
+      console.log(`${C.yellow('[OLLAMA]')} Stripping ${parsed.tools.length} tools (mode=${mode}, model=${parsed.model} cached as no-tool-support)`);
+      delete parsed.tools;
+    } else {
+      console.log(`${C.yellow('[OLLAMA]')} Passing ${parsed.tools.length} tools to ${parsed.model} (mode=${mode})`);
+    }
+    // Always strip tool_choice — Ollama doesn't support it
     delete parsed.tool_choice;
   }
 
@@ -483,8 +491,14 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         const errBody = Buffer.concat(errChunks).toString();
 
         // Auto-retry without tools if model doesn't support tool use
-        if (errBody.includes('support tool use') && parsed.tools && parsed.tools.length > 0) {
+        const { isToolError: checkToolErr, cacheToolResult: cacheResult } = await import('./providers/ollama-tools.mjs');
+        if ((errBody.includes('support tool use') || checkToolErr(errBody)) && parsed.tools && parsed.tools.length > 0) {
           console.log(`${C.yellow(`[${provider.name.toUpperCase()}]`)} Model doesn't support tool use (${parsed.tools.length} tools). Retrying without tools...`);
+          // Cache this model as not supporting tools (for Ollama auto mode)
+          if (provider.name === 'ollama') {
+            cacheResult(parsed.model, false);
+            console.log(`${C.yellow('[OLLAMA]')} Cached: ${parsed.model} does not support tools`);
+          }
           const noToolsBody = { ...parsed };
           delete noToolsBody.tools;
           delete noToolsBody.tool_choice;
@@ -599,6 +613,12 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
 
       const ttfb = ((Date.now() - reqStartTime) / 1000).toFixed(1);
       console.log(`${C.green(`[${provider.name.toUpperCase()}]`)} 200 \u2190 response (attempt ${attempt}, ${ttfb}s)`);
+
+      // Cache successful tool use for Ollama auto mode
+      if (provider.name === 'ollama' && toolCount > 0) {
+        const { cacheToolResult: cacheOk } = await import('./providers/ollama-tools.mjs');
+        cacheOk(parsed.model, true);
+      }
 
       // If provider needs response translation (e.g., openai)
       if (provider.transformResponse && !isStreaming) {

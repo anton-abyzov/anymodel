@@ -23,9 +23,31 @@ function ollamaToAnthropic(ollamaResp, model) {
     content.push({ type: 'text', text: msg.content });
   }
 
+  // Handle tool_calls → Anthropic tool_use blocks
+  if (msg.tool_calls && msg.tool_calls.length > 0) {
+    for (const tc of msg.tool_calls) {
+      let input;
+      if (typeof tc.function.arguments === 'string') {
+        try { input = JSON.parse(tc.function.arguments); } catch { input = {}; }
+      } else {
+        input = tc.function.arguments || {};
+      }
+      delete input._unused;
+      delete input._placeholder;
+      content.push({
+        type: 'tool_use',
+        id: tc.id || `toolu_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: tc.function.name,
+        input,
+      });
+    }
+  }
+
   if (!content.length) {
     content.push({ type: 'text', text: '' });
   }
+
+  const hasToolCalls = msg.tool_calls && msg.tool_calls.length > 0;
 
   return {
     id: `msg_${Date.now()}`,
@@ -33,7 +55,8 @@ function ollamaToAnthropic(ollamaResp, model) {
     role: 'assistant',
     content,
     model: ollamaResp.model || model,
-    stop_reason: ollamaResp.done_reason === 'length' ? 'max_tokens' : 'end_turn',
+    stop_reason: hasToolCalls ? 'tool_use'
+      : ollamaResp.done_reason === 'length' ? 'max_tokens' : 'end_turn',
     stop_sequence: null,
     usage: {
       input_tokens: ollamaResp.prompt_eval_count || 0,
@@ -53,6 +76,8 @@ function createOllamaStreamTranslator() {
   let started = false;
   let blockIndex = 0;
   let textBlockStarted = false;
+  let hasToolCalls = false;
+  const toolCallStarted = new Map(); // track which tool call indices have emitted start
 
   return {
     transform(chunk) {
@@ -99,6 +124,54 @@ function createOllamaStreamTranslator() {
             }));
           }
 
+          // Handle streamed tool calls
+          if (parsed.message?.tool_calls) {
+            hasToolCalls = true;
+            // Close text block if open
+            if (textBlockStarted) {
+              output.push(formatSSE('content_block_stop', {
+                type: 'content_block_stop',
+                index: blockIndex,
+              }));
+              blockIndex++;
+              textBlockStarted = false;
+            }
+
+            for (const tc of parsed.message.tool_calls) {
+              const tcIdx = tc.index ?? 0;
+              if (tc.function?.name && !toolCallStarted.has(tcIdx)) {
+                // New tool call — emit content_block_start
+                output.push(formatSSE('content_block_start', {
+                  type: 'content_block_start',
+                  index: blockIndex,
+                  content_block: {
+                    type: 'tool_use',
+                    id: tc.id || `toolu_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                    name: tc.function.name,
+                    input: {},
+                  },
+                }));
+                toolCallStarted.set(tcIdx, blockIndex);
+                blockIndex++;
+              }
+
+              if (tc.function?.arguments) {
+                let args = tc.function.arguments;
+                // Strip placeholder fields
+                args = args.replace(/"_unused"\s*:\s*"[^"]*"\s*,?\s*/g, '');
+                args = args.replace(/"_placeholder"\s*:\s*"[^"]*"\s*,?\s*/g, '');
+                if (args) {
+                  const bi = toolCallStarted.get(tcIdx) ?? (blockIndex - 1);
+                  output.push(formatSSE('content_block_delta', {
+                    type: 'content_block_delta',
+                    index: bi,
+                    delta: { type: 'input_json_delta', partial_json: args },
+                  }));
+                }
+              }
+            }
+          }
+
           if (parsed.done) {
             if (textBlockStarted) {
               output.push(formatSSE('content_block_stop', {
@@ -106,7 +179,15 @@ function createOllamaStreamTranslator() {
                 index: blockIndex,
               }));
             }
-            const reason = parsed.done_reason === 'length' ? 'max_tokens' : 'end_turn';
+            // Close any open tool call blocks
+            for (const [, bi] of toolCallStarted) {
+              output.push(formatSSE('content_block_stop', {
+                type: 'content_block_stop',
+                index: bi,
+              }));
+            }
+            const reason = hasToolCalls ? 'tool_use'
+              : parsed.done_reason === 'length' ? 'max_tokens' : 'end_turn';
             output.push(formatSSE('message_delta', {
               type: 'message_delta',
               delta: { stop_reason: reason },
@@ -158,6 +239,12 @@ export default {
       keep_alive: keepAlive, // Keep model in GPU between requests (avoids cold-start)
       options: { num_ctx: numCtx },
     };
+
+    // Pass tools through — Ollama uses the same format as OpenAI
+    // tool_choice is intentionally NOT passed (Ollama doesn't support it)
+    if (openaiBody.tools) {
+      ollamaBody.tools = openaiBody.tools;
+    }
 
     // Map max_tokens → num_predict (Ollama's equivalent)
     if (openaiBody.max_tokens) {
