@@ -157,10 +157,12 @@ function createOllamaStreamTranslator() {
 
               if (tc.function?.arguments) {
                 let args = tc.function.arguments;
-                // Strip placeholder fields
+                // Strip placeholder fields and fix trailing commas
                 args = args.replace(/"_unused"\s*:\s*"[^"]*"\s*,?\s*/g, '');
                 args = args.replace(/"_placeholder"\s*:\s*"[^"]*"\s*,?\s*/g, '');
-                if (args) {
+                // Fix trailing commas left after stripping (e.g. {"city":"NYC",} → {"city":"NYC"})
+                args = args.replace(/,\s*([}\]])/g, '$1');
+                if (args && args.trim()) {
                   const bi = toolCallStarted.get(tcIdx) ?? (blockIndex - 1);
                   output.push(formatSSE('content_block_delta', {
                     type: 'content_block_delta',

@@ -492,7 +492,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
 
         // Auto-retry without tools if model doesn't support tool use
         const { isToolError: checkToolErr, cacheToolResult: cacheResult } = await import('./providers/ollama-tools.mjs');
-        if ((errBody.includes('support tool use') || checkToolErr(errBody)) && parsed.tools && parsed.tools.length > 0) {
+        if (checkToolErr(errBody) && parsed.tools && parsed.tools.length > 0) {
           console.log(`${C.yellow(`[${provider.name.toUpperCase()}]`)} Model doesn't support tool use (${parsed.tools.length} tools). Retrying without tools...`);
           // Cache this model as not supporting tools (for Ollama auto mode)
           if (provider.name === 'ollama') {
@@ -615,7 +615,9 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
       console.log(`${C.green(`[${provider.name.toUpperCase()}]`)} 200 \u2190 response (attempt ${attempt}, ${ttfb}s)`);
 
       // Cache successful tool use for Ollama auto mode
-      if (provider.name === 'ollama' && toolCount > 0) {
+      // Check parsed.tools (post-strip) not toolCount (pre-strip) to avoid
+      // caching true for models whose tools were stripped
+      if (provider.name === 'ollama' && parsed.tools && parsed.tools.length > 0) {
         const { cacheToolResult: cacheOk } = await import('./providers/ollama-tools.mjs');
         cacheOk(parsed.model, true);
       }

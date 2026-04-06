@@ -40,6 +40,11 @@ describe('ollamaToolMode', () => {
     process.env.OLLAMA_TOOLS = 'maybe';
     assert.equal(ollamaToolMode(), 'auto');
   });
+
+  it('returns "auto" for empty string', () => {
+    process.env.OLLAMA_TOOLS = '';
+    assert.equal(ollamaToolMode(), 'auto');
+  });
 });
 
 describe('shouldSendTools', () => {
@@ -133,5 +138,13 @@ describe('isToolError', () => {
 
   it('is case-insensitive', () => {
     assert.equal(isToolError('Does Not Support Tools'), true);
+  });
+
+  it('returns false for null', () => {
+    assert.equal(isToolError(null), false);
+  });
+
+  it('returns false for undefined', () => {
+    assert.equal(isToolError(undefined), false);
   });
 });

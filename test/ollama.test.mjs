@@ -148,6 +148,38 @@ describe('ollamaToAnthropic (via transformResponse)', () => {
     assert.deepEqual(toolUse.input, { key: 'value' });
   });
 
+  it('empty tool_calls array does NOT trigger tool_use stop_reason', () => {
+    const result = ollamaProvider.transformResponse({
+      model: 'qwen3',
+      message: { role: 'assistant', content: 'Hello', tool_calls: [] },
+      done: true,
+      done_reason: 'stop',
+    });
+    assert.equal(result.stop_reason, 'end_turn');
+    assert.equal(result.content.length, 1);
+    assert.equal(result.content[0].type, 'text');
+  });
+
+  it('handles multiple tool_calls in a single response', () => {
+    const result = ollamaProvider.transformResponse({
+      model: 'qwen3',
+      message: {
+        role: 'assistant',
+        content: '',
+        tool_calls: [
+          { function: { name: 'Read', arguments: '{"file":"/a.ts"}' } },
+          { function: { name: 'Bash', arguments: '{"command":"ls"}' } },
+        ],
+      },
+      done: true,
+    });
+    const toolBlocks = result.content.filter(b => b.type === 'tool_use');
+    assert.equal(toolBlocks.length, 2);
+    assert.equal(toolBlocks[0].name, 'Read');
+    assert.equal(toolBlocks[1].name, 'Bash');
+    assert.equal(result.stop_reason, 'tool_use');
+  });
+
   it('sets stop_reason to max_tokens when done_reason is length', () => {
     const result = ollamaProvider.transformResponse({
       model: 'qwen3',
@@ -265,6 +297,48 @@ describe('createOllamaStreamTranslator — tool calls', () => {
     const output = translator.transform(argChunk);
 
     assert.ok(!output.includes('_unused'), 'should strip _unused from arguments');
+    assert.ok(output.includes('city'), 'should keep real arguments');
+  });
+
+  it('closes text block before starting tool blocks', () => {
+    const translator = ollamaProvider.createStreamTranslator();
+    // Text chunk
+    translator.transform('{"model":"qwen3","message":{"content":"thinking..."},"done":false}\n');
+    // Tool chunk — should close text block first
+    const output = translator.transform('{"model":"qwen3","message":{"tool_calls":[{"function":{"name":"Bash","arguments":"{\\"cmd\\":\\"ls\\"}"}}]},"done":false}\n');
+
+    // Find positions: text block stop should come before tool block start
+    const textStopIdx = output.indexOf('"content_block_stop"');
+    const toolStartIdx = output.indexOf('"tool_use"');
+    assert.ok(textStopIdx !== -1, 'should emit content_block_stop for text');
+    assert.ok(toolStartIdx !== -1, 'should emit tool_use content_block_start');
+    assert.ok(textStopIdx < toolStartIdx, 'text block should close before tool block starts');
+  });
+
+  it('handles multiple tool calls in a single streaming chunk', () => {
+    const translator = ollamaProvider.createStreamTranslator();
+    translator.transform('{"model":"qwen3","message":{"content":""},"done":false}\n');
+
+    // Single chunk with two tool calls
+    const output = translator.transform('{"model":"qwen3","message":{"tool_calls":[{"index":0,"function":{"name":"Read","arguments":"{\\"file\\":\\"/a.ts\\"}"}},{"index":1,"function":{"name":"Bash","arguments":"{\\"cmd\\":\\"ls\\"}"}}]},"done":false}\n');
+
+    // Should have two content_block_start events
+    const starts = output.match(/content_block_start/g);
+    assert.ok(starts && starts.length >= 2, 'should emit 2 content_block_start events');
+    assert.ok(output.includes('Read'), 'should include first tool name');
+    assert.ok(output.includes('Bash'), 'should include second tool name');
+  });
+
+  it('fixes trailing comma after _unused stripping', () => {
+    const translator = ollamaProvider.createStreamTranslator();
+    translator.transform('{"model":"qwen3","message":{"content":""},"done":false}\n');
+    translator.transform('{"model":"qwen3","message":{"tool_calls":[{"function":{"name":"fn","arguments":""}}]},"done":false}\n');
+
+    // _unused is last key — stripping should not leave trailing comma
+    const argChunk = '{"model":"qwen3","message":{"tool_calls":[{"function":{"arguments":"{\\"city\\":\\"NYC\\",\\"_unused\\":\\"\\"}"}}]},"done":false}\n';
+    const output = translator.transform(argChunk);
+
+    assert.ok(!output.includes(',}'), 'should not leave trailing comma');
     assert.ok(output.includes('city'), 'should keep real arguments');
   });
 });
