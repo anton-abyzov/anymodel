@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { sanitizeBody, sanitizeToolUseResponse } from '../proxy.mjs';
+import { sanitizeBody, sanitizeToolUseResponse, injectPlatformHints } from '../proxy.mjs';
 
 describe('sanitizeBody', () => {
   it('strips top-level Anthropic-specific fields', () => {
@@ -257,5 +257,53 @@ describe('sanitizeToolUseResponse', () => {
     assert.deepEqual(sanitizeToolUseResponse({}), {});
     assert.deepEqual(sanitizeToolUseResponse({ content: 'text' }), { content: 'text' });
     assert.deepEqual(sanitizeToolUseResponse(null), null);
+  });
+});
+
+describe('injectPlatformHints', () => {
+  it('appends hint to array system prompt on win32', () => {
+    const parsed = {
+      system: [{ type: 'text', text: 'You are helpful' }],
+    };
+    injectPlatformHints(parsed, 'win32');
+    assert.equal(parsed.system.length, 2);
+    assert.ok(parsed.system[1].text.includes('Windows'));
+    assert.equal(parsed.system[1].type, 'text');
+  });
+
+  it('appends hint to string system prompt on win32', () => {
+    const parsed = { system: 'You are helpful' };
+    injectPlatformHints(parsed, 'win32');
+    assert.ok(parsed.system.includes('Windows'));
+    assert.ok(parsed.system.startsWith('You are helpful\n'));
+  });
+
+  it('no-op on non-win32 platforms', () => {
+    const parsed = {
+      system: [{ type: 'text', text: 'You are helpful' }],
+    };
+    injectPlatformHints(parsed, 'darwin');
+    assert.equal(parsed.system.length, 1);
+
+    const parsed2 = { system: 'You are helpful' };
+    injectPlatformHints(parsed2, 'linux');
+    assert.equal(parsed2.system, 'You are helpful');
+  });
+
+  it('no-op when system is missing or undefined', () => {
+    const parsed = { messages: [] };
+    injectPlatformHints(parsed, 'win32');
+    assert.equal(parsed.system, undefined);
+
+    const parsed2 = {};
+    injectPlatformHints(parsed2, 'win32');
+    assert.equal(parsed2.system, undefined);
+  });
+
+  it('appends to empty array system prompt', () => {
+    const parsed = { system: [] };
+    injectPlatformHints(parsed, 'win32');
+    assert.equal(parsed.system.length, 1);
+    assert.ok(parsed.system[0].text.includes('Windows'));
   });
 });

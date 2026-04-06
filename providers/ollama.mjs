@@ -10,6 +10,10 @@ import { translateRequest } from './openai.mjs';
 // Ollama defaults to 131K+ which causes 30-60s delays even for simple prompts.
 const DEFAULT_NUM_CTX = 8192;
 
+// Keep model loaded in GPU for 30 minutes between requests.
+// Without this, Ollama unloads the model after 5min, causing 4-5s cold-start penalties.
+const DEFAULT_KEEP_ALIVE = '30m';
+
 // Convert Ollama native response → Anthropic Messages API format
 function ollamaToAnthropic(ollamaResp, model) {
   const content = [];
@@ -143,12 +147,15 @@ export default {
 
     const numCtx = parseInt(process.env.OLLAMA_NUM_CTX, 10) || DEFAULT_NUM_CTX;
 
+    const keepAlive = process.env.OLLAMA_KEEP_ALIVE || DEFAULT_KEEP_ALIVE;
+
     // Build Ollama native request
     const ollamaBody = {
       model: openaiBody.model,
       messages: openaiBody.messages,
       stream: openaiBody.stream || false,
       think: false, // Disable thinking — this is why we use native API
+      keep_alive: keepAlive, // Keep model in GPU between requests (avoids cold-start)
       options: { num_ctx: numCtx },
     };
 
@@ -188,6 +195,38 @@ export default {
       });
       req.on('error', () => resolve(false));
       req.setTimeout(1000, () => { req.destroy(); resolve(false); });
+    });
+  },
+
+  // Pre-load model into GPU on proxy start to eliminate cold-start latency
+  // Uses the SAME num_ctx as real requests so Ollama doesn't re-allocate KV cache
+  warmup(model) {
+    if (!model) return Promise.resolve();
+    const keepAlive = process.env.OLLAMA_KEEP_ALIVE || DEFAULT_KEEP_ALIVE;
+    const numCtx = parseInt(process.env.OLLAMA_NUM_CTX, 10) || DEFAULT_NUM_CTX;
+    const body = JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: 'hi' }],
+      think: false,
+      keep_alive: keepAlive,
+      stream: false,
+      options: { num_ctx: numCtx, num_predict: 1 },
+    });
+    return new Promise(resolve => {
+      const req = http.request({
+        hostname: 'localhost',
+        port: 11434,
+        path: '/api/chat',
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) },
+      }, res => {
+        res.resume();
+        res.on('end', () => resolve(true));
+      });
+      req.on('error', () => resolve(false));
+      req.setTimeout(30000, () => { req.destroy(); resolve(false); });
+      req.write(body);
+      req.end();
     });
   },
 };

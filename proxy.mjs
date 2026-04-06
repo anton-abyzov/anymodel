@@ -168,6 +168,16 @@ export function isProviderRoute(url) {
   return url.startsWith('/v1/messages');
 }
 
+export function injectPlatformHints(parsed, platform) {
+  if (platform !== 'win32' || !parsed.system) return;
+  const hint = 'The user is on Windows. Use Windows-style file paths (e.g., C:\\Users\\name\\project). Use backslashes for paths in shell commands.';
+  if (Array.isArray(parsed.system)) {
+    parsed.system.push({ type: 'text', text: hint });
+  } else if (typeof parsed.system === 'string') {
+    parsed.system += '\n' + hint;
+  }
+}
+
 export function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
@@ -241,6 +251,9 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
   // Strip it for Ollama/OpenAI providers that reject it
   const keepCache = provider.name === 'openrouter';
   sanitizeBody(parsed, { keepCache });
+
+  // Inject Windows path hint — LLMs default to Unix-style paths
+  injectPlatformHints(parsed, process.platform);
 
   // Strip tools for local models (Ollama) — 86 MCP tool definitions add ~50K tokens
   // to every request, making even simple prompts take minutes on small models.
@@ -752,6 +765,15 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10,
       // Notify parent process of actual port (IPC)
       if (process.send) process.send({ type: 'port', port: tryPort });
       printBanner(tryPort);
+
+      // Warm up model for Ollama — pre-load into GPU to eliminate cold-start
+      if (provider.warmup && model) {
+        console.log(`${C.yellow('[WARMUP]')} Pre-loading ${C.cyan(model)} into GPU...`);
+        provider.warmup(model).then(ok => {
+          if (ok) console.log(`${C.green('[WARMUP]')} ${C.cyan(model)} ready — first request will be fast`);
+          else console.log(`${C.yellow('[WARMUP]')} Could not pre-load model (will load on first request)`);
+        });
+      }
     });
   }
   tryListen();
