@@ -516,16 +516,28 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         const tag = C.red(`[${provider.name.toUpperCase()}]`);
         console.log(`${tag} ${upstream.statusCode}: ${errBody.slice(0, 300)}`);
 
-        // Intercept upstream auth errors — return Anthropic-shaped error so Claude Code
-        // shows "provider key invalid" instead of misleading "Not logged in"
+        // Intercept upstream auth/ToS errors — return clear Anthropic-shaped error
         if (upstream.statusCode === 401 || upstream.statusCode === 403) {
           const providerLabel = provider.name.charAt(0).toUpperCase() + provider.name.slice(1);
+          const isToS = errBody.includes('Terms') || errBody.includes('prohibited') || errBody.includes('ToS');
+          const isFreeModel = parsed.model && parsed.model.endsWith(':free');
+
+          let userMessage;
+          if (isToS && isFreeModel) {
+            userMessage = `[anymodel] Free model "${parsed.model}" rejected this request (too large or restricted by provider ToS). Free models have strict limits on prompt size and tool use. Fix: use a paid model instead — e.g. npx anymodel proxy --model qwen/qwen3-coder (without :free)`;
+          } else if (isToS) {
+            userMessage = `[anymodel] ${providerLabel} rejected this request due to provider Terms of Service. This can happen with large prompts or tool-heavy requests. Try a different model or check your provider account status.`;
+          } else {
+            userMessage = `[anymodel] ${providerLabel} API key is invalid or expired. Check your ${provider.name === 'openrouter' ? 'OPENROUTER_API_KEY' : provider.name === 'openai' ? 'OPENAI_API_KEY' : 'provider API key'}.`;
+          }
+
+          console.log(`${tag} ${isToS ? 'ToS rejection' : 'Auth error'}: ${isFreeModel ? '(free model) ' : ''}${errBody.slice(0, 200)}`);
           res.writeHead(400, { 'content-type': 'application/json' });
           res.end(JSON.stringify({
             type: 'error',
             error: {
               type: 'invalid_request_error',
-              message: `[anymodel] ${providerLabel} API key is invalid or expired. Check your ${provider.name === 'openrouter' ? 'OPENROUTER_API_KEY' : provider.name === 'openai' ? 'OPENAI_API_KEY' : 'provider API key'}.`,
+              message: userMessage,
             },
           }));
           return;
