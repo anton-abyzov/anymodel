@@ -315,12 +315,37 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     }
   }
 
-  // Condense message history for local models
-  // Long conversations send the full history with every request.
-  // Keep the first message (establishes context) and recent messages,
-  // drop middle turns to stay under the token budget.
+  // Strip Claude Code boilerplate from messages for local models.
+  // Claude Code injects <system-reminder> blocks, skill lists, MCP instructions,
+  // and other XML-tagged content into user messages. These can add 20-30KB per message
+  // that local models can't use — causing 50s+ processing on first request.
   if (provider.name === 'ollama' && parsed.messages) {
-    const MAX_MSG_CHARS = parseInt(process.env.OLLAMA_MAX_MSG_CHARS, 10) || 32000;
+    const xmlTagPattern = /<(?:system-reminder|local-command-caveat|command-name|command-message|command-args|local-command-stdout|functions|function)>[\s\S]*?<\/(?:system-reminder|local-command-caveat|command-name|command-message|command-args|local-command-stdout|functions|function)>/gi;
+
+    let strippedChars = 0;
+    for (const msg of parsed.messages) {
+      if (typeof msg.content === 'string') {
+        const before = msg.content.length;
+        msg.content = msg.content.replace(xmlTagPattern, '').trim();
+        strippedChars += before - msg.content.length;
+      } else if (Array.isArray(msg.content)) {
+        for (const block of msg.content) {
+          if (block.type === 'text' && typeof block.text === 'string') {
+            const before = block.text.length;
+            block.text = block.text.replace(xmlTagPattern, '').trim();
+            strippedChars += before - block.text.length;
+          }
+        }
+      }
+    }
+    if (strippedChars > 0) {
+      console.log(`${C.yellow('[OLLAMA]')} Stripped ${(strippedChars / 1024).toFixed(1)}KB of XML boilerplate from messages`);
+    }
+
+    // Condense message history — drop middle turns to stay under token budget.
+    // Scale limit to context window: num_ctx tokens × ~4 chars/token × 75% (leave room for output)
+    const numCtx = parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192;
+    const MAX_MSG_CHARS = parseInt(process.env.OLLAMA_MAX_MSG_CHARS, 10) || Math.max(4000, numCtx * 3);
     const totalChars = parsed.messages.reduce((sum, m) => {
       const content = typeof m.content === 'string' ? m.content
         : Array.isArray(m.content) ? m.content.reduce((s, b) => s + (b.text || JSON.stringify(b.input || '')).length, 0)
@@ -328,16 +353,42 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
       return sum + content;
     }, 0);
 
-    if (totalChars > MAX_MSG_CHARS && parsed.messages.length > 4) {
+    if (totalChars > MAX_MSG_CHARS) {
       const originalCount = parsed.messages.length;
-      // Keep first 2 messages (establishes context) + last N messages (recent conversation)
-      const keep = Math.max(4, Math.min(parsed.messages.length, Math.floor(MAX_MSG_CHARS / (totalChars / parsed.messages.length))));
-      if (keep < parsed.messages.length) {
-        const head = parsed.messages.slice(0, 2);
-        const tail = parsed.messages.slice(-(keep - 2));
-        parsed.messages = [...head, { role: 'user', content: '[Earlier conversation condensed for performance]' }, ...tail];
-        console.log(`${C.yellow('[OLLAMA]')} Condensed messages: ${originalCount} → ${parsed.messages.length} (${totalChars} → ~${MAX_MSG_CHARS} chars)`);
+      if (parsed.messages.length > 4) {
+        // Keep first 2 + last N messages
+        const keep = Math.max(4, Math.min(parsed.messages.length, Math.floor(MAX_MSG_CHARS / (totalChars / parsed.messages.length))));
+        if (keep < parsed.messages.length) {
+          const head = parsed.messages.slice(0, 2);
+          const tail = parsed.messages.slice(-(keep - 2));
+          parsed.messages = [...head, { role: 'user', content: '[Earlier conversation condensed]' }, ...tail];
+        }
+      } else {
+        // Few messages but still too large — truncate each message's content
+        for (const msg of parsed.messages) {
+          const maxPerMsg = Math.floor(MAX_MSG_CHARS / parsed.messages.length);
+          if (typeof msg.content === 'string' && msg.content.length > maxPerMsg) {
+            msg.content = msg.content.slice(-maxPerMsg);
+          } else if (Array.isArray(msg.content)) {
+            let msgLen = 0;
+            for (const block of msg.content) {
+              if (block.type === 'text' && block.text) {
+                msgLen += block.text.length;
+                if (msgLen > maxPerMsg) {
+                  block.text = block.text.slice(-(maxPerMsg));
+                }
+              }
+            }
+          }
+        }
       }
+      const newChars = parsed.messages.reduce((sum, m) => {
+        const content = typeof m.content === 'string' ? m.content
+          : Array.isArray(m.content) ? m.content.reduce((s, b) => s + (b.text || '').length, 0)
+          : 0;
+        return sum + content;
+      }, 0);
+      console.log(`${C.yellow('[OLLAMA]')} Condensed messages: ${originalCount} → ${parsed.messages.length} msgs, ${(totalChars / 1024).toFixed(1)}KB → ${(newChars / 1024).toFixed(1)}KB`);
     }
   }
 
