@@ -686,6 +686,15 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
 }
 
 function proxyToAnthropic(req, res) {
+  // Mock known Claude Code internal endpoints that don't need Anthropic auth.
+  // Without this, Claude Code's auth/capability checks hit api.anthropic.com
+  // and fail with 401/403, causing misleading "Please run /login" errors.
+  if (req.url === '/api/auth/session' || req.url === '/api/auth') {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ authenticated: true }));
+    return;
+  }
+
   const body = [];
   req.on('data', c => body.push(c));
   req.on('error', e => {
@@ -701,6 +710,14 @@ function proxyToAnthropic(req, res) {
       headers: { ...req.headers, host: 'api.anthropic.com' },
     };
     const pr = https.request(opts, upstream => {
+      // If Anthropic returns auth error on passthrough, don't forward it raw —
+      // it confuses Claude Code into showing "Please run /login"
+      if (upstream.statusCode === 401 || upstream.statusCode === 403) {
+        console.log(`${C.yellow('[PASSTHROUGH]')} ${req.url} → ${upstream.statusCode} (suppressed — proxy mode)`);
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ type: 'message', content: [] }));
+        return;
+      }
       res.writeHead(upstream.statusCode, upstream.headers);
       upstream.pipe(res);
     });
