@@ -434,6 +434,22 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     }
   }
 
+  // Prefix caching for Ollama — ensure byte-stable system+tools prefix
+  // so llama.cpp's implicit KV cache reuse kicks in (17.7x speedup).
+  let prefixCacheResult = null;
+  if (provider.name === 'ollama') {
+    const { getOrStore } = await import('./providers/prefix-cache.mjs');
+    const systemStr = typeof parsed.system === 'string' ? parsed.system
+      : Array.isArray(parsed.system) ? parsed.system.map(b => typeof b === 'string' ? b : b.text || '').join('\n')
+      : '';
+    prefixCacheResult = getOrStore(parsed.model, systemStr, parsed.tools || null);
+    parsed.system = prefixCacheResult.system;
+    if (prefixCacheResult.tools) parsed.tools = prefixCacheResult.tools;
+    if (!prefixCacheResult.hit) {
+      console.log(`${C.yellow('[PREFIX]')} Cache miss for ${parsed.model} — new prefix stored (${prefixCacheResult.tokenEstimate} est. tokens)`);
+    }
+  }
+
   // If provider has format translation (e.g., openai), apply it
   const isStreaming = parsed.stream;
   const requestBody = provider.transformRequest ? provider.transformRequest(parsed) : parsed;
@@ -663,7 +679,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         upstream.on('data', c => respChunks.push(c));
         await new Promise(r => upstream.on('end', r));
         const respBody = JSON.parse(Buffer.concat(respChunks).toString());
-        const translated = provider.transformResponse(respBody);
+        const translated = provider.transformResponse(respBody, prefixCacheResult);
         sanitizeToolUseResponse(translated);
         const translatedPayload = JSON.stringify(translated);
         res.writeHead(200, { 'content-type': 'application/json' });
@@ -673,7 +689,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
 
       if (provider.createStreamTranslator && isStreaming) {
         // Streaming: pipe through translator to convert SSE format
-        const translator = provider.createStreamTranslator();
+        const translator = provider.createStreamTranslator(prefixCacheResult);
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'connection': 'keep-alive' });
         upstream.on('data', chunk => {
           const translated = translator.transform(chunk.toString());

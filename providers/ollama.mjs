@@ -15,7 +15,7 @@ const DEFAULT_NUM_CTX = 8192;
 const DEFAULT_KEEP_ALIVE = '30m';
 
 // Convert Ollama native response → Anthropic Messages API format
-function ollamaToAnthropic(ollamaResp, model) {
+function ollamaToAnthropic(ollamaResp, model, cacheMetrics) {
   const content = [];
   const msg = ollamaResp.message || {};
 
@@ -61,6 +61,10 @@ function ollamaToAnthropic(ollamaResp, model) {
     usage: {
       input_tokens: ollamaResp.prompt_eval_count || 0,
       output_tokens: ollamaResp.eval_count || 0,
+      ...(cacheMetrics ? {
+        cache_read_input_tokens: cacheMetrics.hit ? cacheMetrics.tokenEstimate : 0,
+        cache_creation_input_tokens: cacheMetrics.hit ? 0 : cacheMetrics.tokenEstimate,
+      } : {}),
     },
   };
 }
@@ -71,7 +75,7 @@ function formatSSE(event, data) {
 }
 
 // Create stream translator for Ollama native → Anthropic SSE format
-function createOllamaStreamTranslator() {
+function createOllamaStreamTranslator(cacheMetrics) {
   let buffer = '';
   let started = false;
   let blockIndex = 0;
@@ -193,7 +197,13 @@ function createOllamaStreamTranslator() {
             output.push(formatSSE('message_delta', {
               type: 'message_delta',
               delta: { stop_reason: reason },
-              usage: { output_tokens: parsed.eval_count || 0 },
+              usage: {
+                output_tokens: parsed.eval_count || 0,
+                ...(cacheMetrics ? {
+                  cache_read_input_tokens: cacheMetrics.hit ? cacheMetrics.tokenEstimate : 0,
+                  cache_creation_input_tokens: cacheMetrics.hit ? 0 : cacheMetrics.tokenEstimate,
+                } : {}),
+              },
             }));
             output.push(formatSSE('message_stop', { type: 'message_stop' }));
           }
@@ -279,13 +289,13 @@ export default {
   },
 
   // Translate Ollama native → Anthropic format (non-streaming)
-  transformResponse(ollamaResp) {
-    return ollamaToAnthropic(ollamaResp);
+  transformResponse(ollamaResp, cacheMetrics) {
+    return ollamaToAnthropic(ollamaResp, undefined, cacheMetrics);
   },
 
   // Streaming translator (Ollama NDJSON → Anthropic SSE)
-  createStreamTranslator() {
-    return createOllamaStreamTranslator();
+  createStreamTranslator(cacheMetrics) {
+    return createOllamaStreamTranslator(cacheMetrics);
   },
 
   displayInfo(model) {

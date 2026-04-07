@@ -342,3 +342,32 @@ describe('createOllamaStreamTranslator — tool calls', () => {
     assert.ok(output.includes('city'), 'should keep real arguments');
   });
 });
+
+describe('cache metrics in ollamaToAnthropic', () => {
+  const ollamaResp = {
+    model: 'test',
+    message: { role: 'assistant', content: 'hello' },
+    done: true,
+    done_reason: 'stop',
+    prompt_eval_count: 100,
+    eval_count: 50,
+  };
+
+  it('includes cache_read_input_tokens on hit', () => {
+    const result = ollamaProvider.transformResponse(ollamaResp, { hit: true, tokenEstimate: 500 });
+    assert.equal(result.usage.cache_read_input_tokens, 500);
+    assert.equal(result.usage.cache_creation_input_tokens, 0);
+  });
+
+  it('includes cache_creation_input_tokens on miss', () => {
+    const result = ollamaProvider.transformResponse(ollamaResp, { hit: false, tokenEstimate: 500 });
+    assert.equal(result.usage.cache_creation_input_tokens, 500);
+    assert.equal(result.usage.cache_read_input_tokens, 0);
+  });
+
+  it('omits cache fields when no cacheMetrics', () => {
+    const result = ollamaProvider.transformResponse(ollamaResp);
+    assert.equal(result.usage.cache_read_input_tokens, undefined);
+    assert.equal(result.usage.cache_creation_input_tokens, undefined);
+  });
+});
