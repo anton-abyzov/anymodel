@@ -7,6 +7,11 @@ import { readFileSync } from 'fs';
 
 const pkg = JSON.parse(readFileSync(new URL('package.json', import.meta.url), 'utf8'));
 
+// HTTP keep-alive agents — reuse TCP connections to reduce per-request latency.
+// Without these, every request opens a new TCP connection (3-way handshake + TLS for HTTPS).
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 10 });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 10 });
+
 export const MAX_RETRIES = 3;
 
 // ANSI colors
@@ -211,8 +216,10 @@ function sendRequest(provider, url, payload) {
   const opts = provider.buildRequest(url, payload, apiKey);
 
   return new Promise((resolve, reject) => {
-    const transport = opts.port === 443 || opts.protocol === 'https:' ? https : http;
-    const req = transport.request(opts, upstream => resolve(upstream));
+    const isSecure = opts.port === 443 || opts.protocol === 'https:';
+    const transport = isSecure ? https : http;
+    const agent = isSecure ? httpsAgent : httpAgent;
+    const req = transport.request({ ...opts, agent }, upstream => resolve(upstream));
     req.on('error', reject);
     req.write(payload);
     req.end();
@@ -270,6 +277,33 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     }
     // Always strip tool_choice — Ollama doesn't support it
     delete parsed.tool_choice;
+
+    // Limit tool count — local models struggle with 80+ tool definitions.
+    // Each tool is ~1-3KB of JSON. With 86 tools that's 40-100KB+ of tool schemas
+    // which can overflow the entire context window on small models.
+    // OLLAMA_MAX_TOOLS=N keeps core tools (Bash/Read/Write/Edit/Grep/Glob) and
+    // fills remaining slots by priority. Default: 0 (no limit).
+    const maxTools = parseInt(process.env.OLLAMA_MAX_TOOLS, 10) || 0;
+    if (maxTools > 0 && parsed.tools && parsed.tools.length > maxTools) {
+      const CORE = new Set(['Bash', 'Read', 'Write', 'Edit', 'Grep', 'Glob']);
+      const IMPORTANT = new Set(['Agent', 'TodoWrite', 'WebFetch', 'WebSearch', 'Skill', 'ToolSearch', 'NotebookEdit']);
+      const core = parsed.tools.filter(t => CORE.has(t.name));
+      const important = parsed.tools.filter(t => !CORE.has(t.name) && IMPORTANT.has(t.name));
+      const rest = parsed.tools.filter(t => !CORE.has(t.name) && !IMPORTANT.has(t.name));
+      const budget = maxTools - core.length;
+      parsed.tools = [...core, ...important.slice(0, budget), ...rest.slice(0, Math.max(0, budget - important.length))].slice(0, maxTools);
+      console.log(`${C.yellow('[OLLAMA]')} Trimmed tools: ${toolCount} → ${parsed.tools.length} (max=${maxTools}, core=${core.length})`);
+    }
+
+    // Warn if tool payload likely exceeds context budget
+    if (parsed.tools && parsed.tools.length > 0) {
+      const numCtx = parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192;
+      const toolJsonSize = JSON.stringify(parsed.tools).length;
+      const estToolTokens = Math.ceil(toolJsonSize / 4);
+      if (estToolTokens > numCtx * 0.5) {
+        console.log(`${C.red('[OLLAMA]')} ⚠ ${parsed.tools.length} tools ≈ ${estToolTokens} tokens, context=${numCtx}. Tools use ${Math.round(estToolTokens / numCtx * 100)}% of context. Set OLLAMA_MAX_TOOLS=15 or increase OLLAMA_NUM_CTX.`);
+      }
+    }
   }
 
   // Strip thinking/extended-thinking for Ollama
@@ -806,6 +840,25 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10,
         res.end(JSON.stringify({ error: { type: 'rate_limit', message: `Rate limit: ${rpm} requests/minute exceeded` } }));
         return;
       }
+
+      // Mock /v1/messages/count_tokens for providers that don't support it.
+      // Claude Code calls this endpoint frequently. Ollama and OpenAI-compatible
+      // providers don't implement it, causing cascading 500 errors and server
+      // instability (Ollama GitHub #13949). Return approximate token count.
+      if (req.url.includes('/count_tokens') && provider.name !== 'openrouter') {
+        const chunks = [];
+        req.on('data', c => chunks.push(c));
+        req.on('end', () => {
+          const raw = Buffer.concat(chunks).toString();
+          // Rough estimate: ~4 chars per token for English/code text
+          const inputTokens = Math.ceil(raw.length / 4);
+          console.log(`${C.cyan(`[${provider.name.toUpperCase()}]`)} count_tokens mock → ${inputTokens} tokens (${(raw.length / 1024).toFixed(1)}KB payload)`);
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ input_tokens: inputTokens }));
+        });
+        return;
+      }
+
       handleMessages(req, res, provider, model, isFreeTierModel).catch(e => {
         console.error(`${C.red('[PROXY]')} Unhandled error: ${e.message}`);
         if (!res.writableEnded) {
