@@ -110,7 +110,7 @@
         "name": "What does the AnyModel proxy actually do?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "AnyModel strips Anthropic-specific fields (cache_control, betas, thinking), normalizes tool_choice, handles retries with exponential backoff, and forwards the cleaned request to OpenRouter or Ollama. The response streams back unchanged."
+          "text": "AnyModel translates Anthropic Messages API requests for each provider. For OpenRouter, it preserves cache_control for prompt caching and strips unsupported fields. For Ollama, it condenses large system prompts, trims tool descriptions, and stabilizes prefix ordering for KV cache reuse. All providers get retries with exponential backoff."
         }
       }
     ]
@@ -545,6 +545,11 @@
           <h3>Rate Limiting</h3>
           <p>60 req/min default, configurable with <code>--rpm</code>. Protects shared deployments.</p>
         </div>
+        <div class="feature-card fade-in">
+          <span class="feature-icon" aria-hidden="true">&#9889;</span>
+          <h3>Ollama Optimized</h3>
+          <p>Prompt condensing, tool trimming, prefix-aware KV caching, and HTTP keep-alive. Local models run faster out of the box.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -605,8 +610,28 @@
               <code>PROXY_PORT</code>
               <span>Proxy listen port (default: 9090)</span>
             </div>
+            <div class="doc-row">
+              <code>OLLAMA_NUM_CTX</code>
+              <span>Context window size (default: 8192)</span>
+            </div>
+            <div class="doc-row">
+              <code>OLLAMA_KEEP_ALIVE</code>
+              <span>GPU model retention (default: 30m)</span>
+            </div>
+            <div class="doc-row">
+              <code>OLLAMA_MAX_TOOLS</code>
+              <span>Max tools to send (default: unlimited)</span>
+            </div>
+            <div class="doc-row">
+              <code>OLLAMA_MAX_TOOL_DESC</code>
+              <span>Max tool description chars (default: 100)</span>
+            </div>
+            <div class="doc-row">
+              <code>OLLAMA_MAX_SYSTEM_CHARS</code>
+              <span>System prompt condensing threshold (default: 4000)</span>
+            </div>
           </div>
-          <p class="doc-note">AnyModel auto-loads <code>.env</code> from the current directory.</p>
+          <p class="doc-note">AnyModel auto-loads <code>.env</code> from the current directory. <code>OLLAMA_*</code> vars only apply to the Ollama provider.</p>
         </div>
 
         <!-- Health Endpoint -->
@@ -645,7 +670,7 @@
                 <span>&rarr; Returns proxy status JSON</span>
               </div>
             </div>
-            <p class="doc-note">The proxy sanitizes request bodies: strips <code>betas</code>, <code>metadata</code>, <code>thinking</code>, <code>cache_control</code>, and normalizes <code>tool_choice</code> for cross-provider compatibility.</p>
+            <p class="doc-note">The proxy sanitizes request bodies per provider: strips <code>betas</code>, <code>metadata</code>, <code>thinking</code>, and normalizes <code>tool_choice</code>. OpenRouter preserves <code>cache_control</code> for prompt caching. Ollama gets additional optimizations: prompt condensing, tool trimming, and prefix-aware caching.</p>
           </div>
         </div>
       </div>
@@ -896,7 +921,7 @@ npx anymodel</code></pre>
 
         <details class="faq-item fade-in">
           <summary>What does the proxy actually do?</summary>
-          <p>AnyModel strips Anthropic-specific fields (<code>cache_control</code>, <code>betas</code>, <code>thinking</code>), normalizes <code>tool_choice</code>, handles retries with exponential backoff, and forwards the cleaned request to OpenRouter, Ollama, llama-server, or any OpenAI-compatible API. The response streams back unchanged.</p>
+          <p>AnyModel translates Anthropic Messages API requests for each provider. For <strong>OpenRouter</strong>, it preserves <code>cache_control</code> for prompt caching and strips unsupported fields (<code>betas</code>, <code>thinking</code>). For <strong>Ollama</strong>, it condenses large system prompts, trims tool descriptions, limits tool count, and stabilizes prefix ordering for KV cache reuse. All providers get retries with exponential backoff and <code>tool_choice</code> normalization.</p>
         </details>
       </div>
     </div>
