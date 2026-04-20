@@ -6,7 +6,9 @@
 import http from 'http';
 import { translateRequest, translateResponse, createStreamTranslator } from './openai.mjs';
 
-const DEFAULT_BASE_URL = 'http://localhost:8080/v1';
+// Use 127.0.0.1 — Node's http.get resolves "localhost" to ::1 (IPv6) which
+// llama-server doesn't listen on by default, producing ECONNREFUSED.
+const DEFAULT_BASE_URL = 'http://127.0.0.1:8080/v1';
 
 function getBaseUrl() {
   return process.env.LLAMACPP_BASE_URL || DEFAULT_BASE_URL;

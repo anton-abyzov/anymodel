@@ -38,7 +38,7 @@ describe('lmstudio.buildRequest', () => {
     delete process.env.LMSTUDIO_BASE_URL;
     const payload = JSON.stringify({ model: 'test', messages: [] });
     const opts = lmstudio.buildRequest('/v1/messages', payload);
-    assert.equal(opts.hostname, 'localhost');
+    assert.equal(opts.hostname, '127.0.0.1');
     assert.equal(opts.port, '1234');
     assert.equal(opts.protocol, 'http:');
     assert.equal(opts.path, '/v1/chat/completions');
@@ -108,13 +108,13 @@ describe('lmstudio.displayInfo', () => {
     delete process.env.LMSTUDIO_BASE_URL;
     const info = lmstudio.displayInfo('qwen2.5-coder-7b');
     assert.ok(info.includes('qwen2.5-coder-7b'), 'should include model');
-    assert.ok(info.includes('http://localhost:1234/v1'), 'should include base URL');
+    assert.ok(info.includes('http://127.0.0.1:1234/v1'), 'should include base URL');
   });
 
   it('formats without model', () => {
     delete process.env.LMSTUDIO_BASE_URL;
     const info = lmstudio.displayInfo();
-    assert.ok(info.includes('http://localhost:1234/v1'), 'should include base URL');
+    assert.ok(info.includes('http://127.0.0.1:1234/v1'), 'should include base URL');
   });
 });
 

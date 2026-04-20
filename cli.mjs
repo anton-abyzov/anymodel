@@ -178,8 +178,8 @@ ${C.magenta('  anymodel')} — universal AI coding tool
     OPENROUTER_MODEL     Default model override
     OPENAI_API_KEY       API key for OpenAI-compatible endpoints
     OPENAI_BASE_URL      Base URL (default: https://api.openai.com/v1)
-    LMSTUDIO_BASE_URL    LM Studio base URL (default: http://localhost:1234/v1)
-    LLAMACPP_BASE_URL    llama.cpp base URL (default: http://localhost:8080/v1)
+    LMSTUDIO_BASE_URL    LM Studio base URL (default: http://127.0.0.1:1234/v1)
+    LLAMACPP_BASE_URL    llama.cpp base URL (default: http://127.0.0.1:8080/v1)
     ANYMODEL_TOKEN       Auth token for remote mode
     PROXY_PORT           Default port override
 
@@ -457,8 +457,8 @@ async function startProxyOnly(args) {
       const models = await provider.listModels();
       if (!models.length) {
         const base = providerName === 'lmstudio'
-          ? (process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1')
-          : (process.env.LLAMACPP_BASE_URL || 'http://localhost:8080/v1');
+          ? (process.env.LMSTUDIO_BASE_URL || 'http://127.0.0.1:1234/v1')
+          : (process.env.LLAMACPP_BASE_URL || 'http://127.0.0.1:8080/v1');
         console.error(`${C.red('Error:')} No models available from ${providerName} at ${base}.`);
         console.error('');
         if (providerName === 'lmstudio') {
@@ -471,11 +471,16 @@ async function startProxyOnly(args) {
         process.exit(1);
       }
       if (!model) {
-        model = models[0];
+        // Prefer coding-optimized models if present (benchmarked best for agent loops).
+        // Priority: qwen3-coder > qwen-coder > qwen3 > qwen > deepseek-coder > first available
+        const prefs = [/qwen3.*coder/i, /qwen.*coder/i, /coder/i, /qwen3/i, /qwen/i, /deepseek.*coder/i];
+        const coding = models.filter(n => !n.includes('embed'));
+        const picked = prefs.map(rx => coding.find(n => rx.test(n))).find(Boolean);
+        model = picked || coding[0] || models[0];
         const tag = providerName.toUpperCase();
-        console.log(`${C.cyan(`[${tag}]`)} Found ${models.length} model(s). Using: ${C.bold(model)}`);
+        console.log(`${C.cyan(`[${tag}]`)} Found ${models.length} model(s). Using: ${C.bold(model)}${picked ? ' (coding-preferred)' : ''}`);
         if (models.length > 1) {
-          console.log(`${C.cyan(`[${tag}]`)} Other available: ${models.slice(1, 5).join(', ')}`);
+          console.log(`${C.cyan(`[${tag}]`)} Other available: ${models.filter(n => n !== model).slice(0, 4).join(', ')}`);
         }
       }
     } catch (e) {

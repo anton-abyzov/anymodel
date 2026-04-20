@@ -38,7 +38,7 @@ describe('llamacpp.buildRequest', () => {
     delete process.env.LLAMACPP_BASE_URL;
     const payload = JSON.stringify({ model: 'test', messages: [] });
     const opts = llamacpp.buildRequest('/v1/messages', payload);
-    assert.equal(opts.hostname, 'localhost');
+    assert.equal(opts.hostname, '127.0.0.1');
     assert.equal(opts.port, '8080');
     assert.equal(opts.protocol, 'http:');
     assert.equal(opts.path, '/v1/chat/completions');
@@ -109,13 +109,13 @@ describe('llamacpp.displayInfo', () => {
     delete process.env.LLAMACPP_BASE_URL;
     const info = llamacpp.displayInfo('llama-3.2-3b-instruct-q4_k_m');
     assert.ok(info.includes('llama-3.2-3b-instruct-q4_k_m'), 'should include model');
-    assert.ok(info.includes('http://localhost:8080/v1'), 'should include base URL');
+    assert.ok(info.includes('http://127.0.0.1:8080/v1'), 'should include base URL');
   });
 
   it('formats without model', () => {
     delete process.env.LLAMACPP_BASE_URL;
     const info = llamacpp.displayInfo();
-    assert.ok(info.includes('http://localhost:8080/v1'), 'should include base URL');
+    assert.ok(info.includes('http://127.0.0.1:8080/v1'), 'should include base URL');
   });
 });
 

@@ -91,7 +91,7 @@ describe('provider configs', () => {
   it('lmstudio buildRequest returns correct options', async () => {
     const { default: lmstudio } = await import('../providers/lmstudio.mjs');
     const opts = lmstudio.buildRequest('/v1/messages', 'test-payload');
-    assert.equal(opts.hostname, 'localhost');
+    assert.equal(opts.hostname, '127.0.0.1');
     assert.equal(opts.port, '1234');
     assert.equal(opts.path, '/v1/chat/completions');
   });
@@ -99,7 +99,7 @@ describe('provider configs', () => {
   it('llamacpp buildRequest returns correct options', async () => {
     const { default: llamacpp } = await import('../providers/llamacpp.mjs');
     const opts = llamacpp.buildRequest('/v1/messages', 'test-payload');
-    assert.equal(opts.hostname, 'localhost');
+    assert.equal(opts.hostname, '127.0.0.1');
     assert.equal(opts.port, '8080');
     assert.equal(opts.path, '/v1/chat/completions');
   });
