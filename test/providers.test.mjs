@@ -23,11 +23,19 @@ describe('detectProvider', () => {
     assert.equal(provider, 'openrouter');
   });
 
-  it('returns ollama or null when only local check available', async () => {
+  it('returns a local provider or null when only local check available', async () => {
     delete process.env.OPENROUTER_API_KEY;
     const provider = await detectProvider();
-    // Without API key, should detect ollama if running, null otherwise
-    assert.ok(provider === 'ollama' || provider === null);
+    // Without API key, should detect one of the local backends (ollama, lmstudio,
+    // llamacpp) if running, or null otherwise. The invariant: we detect SOMETHING
+    // local or nothing — never a cloud provider.
+    assert.ok(
+      provider === 'ollama' ||
+      provider === 'lmstudio' ||
+      provider === 'llamacpp' ||
+      provider === null,
+      `expected a local provider or null, got ${provider}`
+    );
   });
 });
 
@@ -62,5 +70,37 @@ describe('provider configs', () => {
     assert.equal(opts.hostname, 'localhost');
     assert.equal(opts.port, 11434);
     assert.equal(opts.path, '/api/chat');
+  });
+
+  it('lmstudio provider exports required interface', async () => {
+    const { default: lmstudio } = await import('../providers/lmstudio.mjs');
+    assert.equal(lmstudio.name, 'lmstudio');
+    assert.equal(typeof lmstudio.buildRequest, 'function');
+    assert.equal(typeof lmstudio.displayInfo, 'function');
+    assert.equal(typeof lmstudio.detect, 'function');
+  });
+
+  it('llamacpp provider exports required interface', async () => {
+    const { default: llamacpp } = await import('../providers/llamacpp.mjs');
+    assert.equal(llamacpp.name, 'llamacpp');
+    assert.equal(typeof llamacpp.buildRequest, 'function');
+    assert.equal(typeof llamacpp.displayInfo, 'function');
+    assert.equal(typeof llamacpp.detect, 'function');
+  });
+
+  it('lmstudio buildRequest returns correct options', async () => {
+    const { default: lmstudio } = await import('../providers/lmstudio.mjs');
+    const opts = lmstudio.buildRequest('/v1/messages', 'test-payload');
+    assert.equal(opts.hostname, 'localhost');
+    assert.equal(opts.port, '1234');
+    assert.equal(opts.path, '/v1/chat/completions');
+  });
+
+  it('llamacpp buildRequest returns correct options', async () => {
+    const { default: llamacpp } = await import('../providers/llamacpp.mjs');
+    const opts = llamacpp.buildRequest('/v1/messages', 'test-payload');
+    assert.equal(opts.hostname, 'localhost');
+    assert.equal(opts.port, '8080');
+    assert.equal(opts.path, '/v1/chat/completions');
   });
 });

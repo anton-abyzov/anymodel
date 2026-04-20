@@ -4,16 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AnyModel — Use Any AI Model with Claude Code, Cursor & CLI Tools</title>
-  <meta name="description" content="AnyModel is a free, open-source CLI proxy that routes Claude Code, Cursor, and any AI coding tool through GPT, Gemini, DeepSeek, Llama, or 300+ models via OpenRouter. One command, zero dependencies. npm install anymodel.">
+  <meta name="description" content="AnyModel is a free, open-source CLI proxy that routes Claude Code, Cursor, and any AI coding tool through GPT, Gemini, DeepSeek, Llama, or 300+ models via OpenRouter — plus local backends Ollama, LMStudio, and llama.cpp. One command, zero dependencies. npm install anymodel.">
   <link rel="canonical" href="https://anymodel.dev">
-  <meta name="keywords" content="anymodel, any model, AI model proxy, Claude Code proxy, use any model with Claude Code, OpenRouter proxy, Ollama proxy, LLM proxy, AI CLI tool, npx anymodel">
+  <meta name="keywords" content="anymodel, any model, AI model proxy, Claude Code proxy, use any model with Claude Code, OpenRouter proxy, Ollama proxy, LMStudio proxy, llama.cpp proxy, llama-server, local LLM, LLM proxy, AI CLI tool, npx anymodel">
   <meta name="author" content="antonoly">
   <meta name="robots" content="index, follow">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="AnyModel — Use Any AI Model with Claude Code & CLI Tools">
-  <meta property="og:description" content="AnyModel: free, open-source CLI proxy for GPT, Gemini, DeepSeek, Llama & 300+ models. One command, zero dependencies.">
+  <meta property="og:description" content="AnyModel: free, open-source CLI proxy for GPT, Gemini, DeepSeek, Llama & 300+ cloud models — plus local backends Ollama, LMStudio, and llama.cpp. One command, zero dependencies.">
   <meta property="og:url" content="https://anymodel.dev">
   <meta property="og:image" content="https://anymodel.dev/assets/og.png?v=2">
   <meta property="og:site_name" content="AnyModel">
@@ -21,7 +21,7 @@
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="AnyModel — Use Any AI Model with Claude Code & CLI Tools">
-  <meta name="twitter:description" content="AnyModel: free, open-source CLI proxy for GPT, Gemini, DeepSeek, Llama & 300+ models. One command, zero dependencies.">
+  <meta name="twitter:description" content="AnyModel: free, open-source CLI proxy for GPT, Gemini, DeepSeek, Llama & 300+ cloud models — plus local backends Ollama, LMStudio, and llama.cpp. One command, zero dependencies.">
   <meta name="twitter:image" content="https://anymodel.dev/assets/og.png?v=2">
 
   <!-- Structured Data: SoftwareApplication -->
@@ -34,7 +34,7 @@
     "operatingSystem": "Windows, macOS, Linux",
     "applicationCategory": "DeveloperApplication",
     "applicationSubCategory": "AI Development Tools",
-    "description": "AnyModel is a free, open-source CLI proxy that routes Claude Code, Cursor, and any AI coding tool through GPT, Gemini, DeepSeek, Llama, or 300+ models via OpenRouter and Ollama.",
+    "description": "AnyModel is a free, open-source CLI proxy that routes Claude Code, Cursor, and any AI coding tool through GPT, Gemini, DeepSeek, Llama, or 300+ models via OpenRouter, plus local backends Ollama, LMStudio, and llama.cpp.",
     "url": "https://anymodel.dev",
     "downloadUrl": "https://www.npmjs.com/package/anymodel",
     "installUrl": "https://www.npmjs.com/package/anymodel",
@@ -55,7 +55,7 @@
       "priceCurrency": "USD",
       "availability": "https://schema.org/InStock"
     },
-    "keywords": "anymodel, AI model proxy, Claude Code proxy, LLM proxy, OpenRouter, Ollama, CLI tool"
+    "keywords": "anymodel, AI model proxy, Claude Code proxy, LLM proxy, OpenRouter, Ollama, LMStudio, llama.cpp, llama-server, local LLM, CLI tool"
   }
   </script>
 
@@ -94,7 +94,7 @@
         "name": "Can I use AnyModel fully offline?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes. Use Ollama (easiest): ollama pull gemma3n, then npx anymodel proxy ollama --model gemma3n. Or use llama-server (llama.cpp) for maximum control: llama-server -m model.gguf --port 8080, then OPENAI_BASE_URL=http://localhost:8080/v1 npx anymodel proxy openai --model my-model. No internet, no API key — everything stays on your machine."
+          "text": "Yes. Three first-class local backends: Ollama (easiest): ollama pull gemma3n, then npx anymodel proxy ollama --model gemma3n. LMStudio (GUI model browser): load a model in LMStudio, then npx anymodel proxy lmstudio --model qwen/qwen3-coder-30b. llama.cpp / llama-server (lightest, maximum control): llama-server -m model.gguf --port 8080, then npx anymodel proxy llamacpp --model my-model. The same GGUF model file runs across all three. No internet, no API key — everything stays on your machine."
         }
       },
       {
@@ -110,7 +110,7 @@
         "name": "What does the AnyModel proxy actually do?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "AnyModel translates Anthropic Messages API requests for each provider. For OpenRouter, it preserves cache_control for prompt caching and strips unsupported fields. For Ollama, it condenses large system prompts, trims tool descriptions, and stabilizes prefix ordering for KV cache reuse. All providers get retries with exponential backoff."
+          "text": "AnyModel translates Anthropic Messages API requests for each provider. For OpenRouter, it preserves cache_control for prompt caching and strips unsupported fields. For Ollama, it uses the native API with think:false to suppress reasoning-token waste, condenses large system prompts, trims tool descriptions, and stabilizes prefix ordering for KV cache reuse. LMStudio (:1234/v1) and llama.cpp / llama-server (:8080/v1) are routed through the OpenAI-compatible path. All providers get retries with exponential backoff."
         }
       }
     ]
@@ -238,8 +238,8 @@
         </div>
         <div class="why-card">
           <div class="why-icon">&#x1F310;</div>
-          <h3>3 providers, 1 proxy</h3>
-          <p>OpenRouter (300+ cloud models), Ollama (local/offline), or any OpenAI-compatible API. Switch with a flag.</p>
+          <h3>Cloud + local, 1 proxy</h3>
+          <p>OpenRouter (300+ cloud models), plus Ollama, LMStudio, and llama.cpp for fully offline runs. Same proxy, switch with a flag.</p>
         </div>
         <div class="why-card">
           <div class="why-icon">&#x1F512;</div>
@@ -304,7 +304,7 @@
         </div>
       </div>
 
-      <p class="fade-in" style="text-align:center; color:var(--text-muted); font-size:0.82rem; margin-top:20px;">The model is set on the proxy. AnyModel just connects to it. Works offline with <a href="#guides" style="color:var(--accent-cyan);">Ollama</a> too.</p>
+      <p class="fade-in" style="text-align:center; color:var(--text-muted); font-size:0.82rem; margin-top:20px;">The model is set on the proxy. AnyModel just connects to it. Works offline with <a href="#guides" style="color:var(--accent-cyan);">Ollama</a>, <a href="#guides" style="color:var(--accent-cyan);">LMStudio</a>, or <a href="#guides" style="color:var(--accent-cyan);">llama.cpp</a> too.</p>
 
       <!-- Architecture diagram — single unified flow -->
       <div class="fade-in" style="margin-top:48px; display:flex; justify-content:center;">
@@ -322,7 +322,7 @@
             <span class="arch-arr">&#x2192;</span>
             <div class="arch-node">
               <svg width="24" height="24" viewBox="0 0 40 40"><circle cx="20" cy="14" r="8" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="14" cy="22" r="6" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="26" cy="22" r="6" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-              <span>OpenRouter / Ollama</span>
+              <span>OpenRouter / Ollama / LMStudio / llama.cpp</span>
             </div>
           </div>
         </div>
@@ -487,11 +487,11 @@
             <div class="model-icon"><img src="assets/providers/ollama.svg" width="28" height="28" alt="Ollama"></div>
             <div>
               <h3>Local Models</h3>
-              <span class="model-tag">Ollama</span>
+              <span class="model-tag">Ollama &middot; LMStudio &middot; llama.cpp</span>
             </div>
           </div>
-          <p>Run any GGUF model locally. Zero cloud dependency. Fully private. No API key required.</p>
-          <code class="model-id">ollama --model gemma3n</code>
+          <p>Run any GGUF model locally via Ollama (<code>:11434</code>), LMStudio (<code>:1234</code>, GUI model browser), or llama.cpp / llama-server (<code>:8080</code>, lightest footprint). Same file, three backends. Zero cloud dependency. No API key.</p>
+          <code class="model-id">proxy ollama | lmstudio | llamacpp</code>
         </div>
 
         <!-- 300+ more card (last row, centered) -->
@@ -547,8 +547,8 @@
         </div>
         <div class="feature-card fade-in">
           <span class="feature-icon" aria-hidden="true">&#9889;</span>
-          <h3>Ollama Optimized</h3>
-          <p>Prompt condensing, tool trimming, prefix-aware KV caching, and HTTP keep-alive. Local models run faster out of the box.</p>
+          <h3>Local-First Backends</h3>
+          <p>First-class support for <strong>Ollama</strong>, <strong>LMStudio</strong>, and <strong>llama.cpp</strong>. Prompt condensing, tool trimming, prefix-aware KV caching, and <code>think:false</code> for Ollama. Same GGUF model runs across all three.</p>
         </div>
       </div>
     </div>
@@ -572,7 +572,9 @@
   (none)                   Connect to running proxy
   proxy &lt;preset&gt;           Start proxy with a preset
   proxy --model &lt;id&gt;       Start proxy with any model
-  proxy ollama --model X   Proxy with local Ollama
+  proxy ollama --model X   Local via Ollama (:11434)
+  proxy lmstudio --model X Local via LMStudio (:1234/v1)
+  proxy llamacpp --model X Local via llama-server (:8080/v1)
   claude                   Run with native Claude (no proxy)
 
 <span class="hl-label">Presets:</span>  (use with proxy)
@@ -630,8 +632,16 @@
               <code>OLLAMA_MAX_SYSTEM_CHARS</code>
               <span>System prompt condensing threshold (default: 4000)</span>
             </div>
+            <div class="doc-row">
+              <code>LMSTUDIO_BASE_URL</code>
+              <span>LMStudio endpoint (default: http://localhost:1234/v1)</span>
+            </div>
+            <div class="doc-row">
+              <code>LLAMACPP_BASE_URL</code>
+              <span>llama-server endpoint (default: http://localhost:8080/v1)</span>
+            </div>
           </div>
-          <p class="doc-note">AnyModel auto-loads <code>.env</code> from the current directory. <code>OLLAMA_*</code> vars only apply to the Ollama provider.</p>
+          <p class="doc-note">AnyModel auto-loads <code>.env</code> from the current directory. <code>OLLAMA_*</code> vars only apply to the Ollama provider. <code>LMSTUDIO_*</code> and <code>LLAMACPP_*</code> override the default local endpoints.</p>
         </div>
 
         <!-- Health Endpoint -->
@@ -670,7 +680,7 @@
                 <span>&rarr; Returns proxy status JSON</span>
               </div>
             </div>
-            <p class="doc-note">The proxy sanitizes request bodies per provider: strips <code>betas</code>, <code>metadata</code>, <code>thinking</code>, and normalizes <code>tool_choice</code>. OpenRouter preserves <code>cache_control</code> for prompt caching. Ollama gets additional optimizations: prompt condensing, tool trimming, and prefix-aware caching.</p>
+            <p class="doc-note">The proxy sanitizes request bodies per provider: strips <code>betas</code>, <code>metadata</code>, <code>thinking</code>, and normalizes <code>tool_choice</code>. OpenRouter preserves <code>cache_control</code> for prompt caching. Ollama gets additional optimizations: prompt condensing, tool trimming, prefix-aware caching, and <code>think:false</code> to suppress reasoning-token waste. LMStudio and llama.cpp route through the OpenAI-compatible path.</p>
           </div>
         </div>
       </div>
@@ -734,23 +744,40 @@
           <button class="copy-btn" data-copy="npx anymodel proxy ollama --model gemma3n" aria-label="Copy example">Copy</button>
         </div>
 
-        <!-- Card 4: llama-server (llama.cpp) -->
+        <!-- Card 4: LMStudio -->
         <div class="example-card fade-in">
           <div class="example-header">
-            <span class="example-tag" style="background: rgba(251, 146, 60, 0.15); color: #fb923c;">Advanced</span>
-            <h3>Raw llama.cpp with llama-server</h3>
+            <span class="example-tag" style="background: rgba(59, 130, 246, 0.15); color: #3b82f6;">Local</span>
+            <h3>LMStudio (GUI model browser)</h3>
+          </div>
+          <pre><code><span class="hl-comment"># Load a model in LMStudio &amp; start its local server</span>
+<span class="hl-comment"># (runs on :1234/v1 by default)</span>
+
+<span class="hl-comment"># Terminal 1 — proxy:</span>
+<span class="hl-cmd">npx</span> anymodel proxy lmstudio \
+  --model qwen/qwen3-coder-30b
+
+<span class="hl-comment"># Terminal 2 — connect:</span>
+<span class="hl-cmd">npx</span> anymodel</code></pre>
+          <button class="copy-btn" data-copy="npx anymodel proxy lmstudio --model qwen/qwen3-coder-30b" aria-label="Copy example">Copy</button>
+        </div>
+
+        <!-- Card 5: llama.cpp / llama-server -->
+        <div class="example-card fade-in">
+          <div class="example-header">
+            <span class="example-tag" style="background: rgba(251, 146, 60, 0.15); color: #fb923c;">Local</span>
+            <h3>llama.cpp / llama-server</h3>
           </div>
           <pre><code><span class="hl-comment"># Start llama-server with a GGUF model:</span>
 <span class="hl-cmd">llama-server</span> -m model.gguf --port 8080
 
 <span class="hl-comment"># Terminal 1 — proxy:</span>
-<span class="hl-cmd">OPENAI_BASE_URL</span>=http://localhost:8080/v1 \
-  npx anymodel proxy openai \
+<span class="hl-cmd">npx</span> anymodel proxy llamacpp \
   --model my-model
 
 <span class="hl-comment"># Terminal 2 — connect:</span>
 <span class="hl-cmd">npx</span> anymodel</code></pre>
-          <button class="copy-btn" data-copy="OPENAI_BASE_URL=http://localhost:8080/v1 npx anymodel proxy openai --model my-model" aria-label="Copy example">Copy</button>
+          <button class="copy-btn" data-copy="npx anymodel proxy llamacpp --model my-model" aria-label="Copy example">Copy</button>
         </div>
       </div>
     </div>
@@ -829,9 +856,35 @@ npx anymodel qwen</code></pre>
           <p class="guide-note">Fully offline. Nothing leaves your machine. Requires 16GB+ RAM for 30B models, 8GB for smaller ones.</p>
         </div>
 
+        <!-- LMStudio Guide -->
+        <div class="guide-card fade-in">
+          <h3 style="color: var(--accent-blue);">Set Up LMStudio (GUI Model Browser)</h3>
+          <div class="guide-steps">
+            <div class="guide-step">
+              <span class="guide-num">1</span>
+              <div>Download <a href="https://lmstudio.ai" target="_blank" rel="noopener">LMStudio</a> for macOS, Windows, or Linux (free, GUI).</div>
+            </div>
+            <div class="guide-step">
+              <span class="guide-num">2</span>
+              <div>Inside LMStudio, browse and download a coding model (e.g., <code>qwen/qwen3-coder-30b</code>, <code>deepseek-coder-v2</code>). Click <strong>Start Server</strong> to expose it on <code>:1234/v1</code>.</div>
+            </div>
+            <div class="guide-step">
+              <span class="guide-num">3</span>
+              <div>Start the proxy, then connect:
+                <pre style="margin-top:6px;"><code># Terminal 1 — start proxy:
+npx anymodel proxy lmstudio --model qwen/qwen3-coder-30b
+
+# Terminal 2 — use it:
+npx anymodel</code></pre>
+              </div>
+            </div>
+          </div>
+          <p class="guide-note">LMStudio's GUI makes browsing, downloading, and quantizing GGUF models effortless. OpenAI-compatible API under the hood &mdash; same GGUF file runs on Ollama or llama.cpp too.</p>
+        </div>
+
         <!-- llama-server Guide -->
         <div class="guide-card fade-in">
-          <h3 style="color: var(--accent-orange, #fb923c);">llama-server (llama.cpp)</h3>
+          <h3 style="color: var(--accent-orange, #fb923c);">llama.cpp / llama-server</h3>
           <div class="guide-steps">
             <div class="guide-step">
               <span class="guide-num">1</span>
@@ -860,15 +913,14 @@ cd llama.cpp && cmake -B build && cmake --build build --config Release</code></p
               <span class="guide-num">4</span>
               <div>Start the proxy, then connect:
                 <pre style="margin-top:6px;"><code># Terminal 1 — start proxy:
-OPENAI_BASE_URL=http://localhost:8080/v1 \
-  npx anymodel proxy openai --model my-model
+npx anymodel proxy llamacpp --model my-model
 
 # Terminal 2 — use it:
 npx anymodel</code></pre>
               </div>
             </div>
           </div>
-          <p class="guide-note">Maximum control over inference. llama.cpp is the engine behind Ollama and LM Studio. Use it directly to tune context size, GPU layers, batch size, and quantization. No API key needed.</p>
+          <p class="guide-note">Lightest footprint &mdash; llama.cpp is the inference engine under Ollama and LMStudio. Use it directly to tune context size, GPU layers, batch size, and quantization. No API key needed.</p>
         </div>
       </div>
     </div>
@@ -911,7 +963,11 @@ npx anymodel</code></pre>
 
         <details class="faq-item fade-in">
           <summary>Can I use it fully offline?</summary>
-          <p>Yes. Two options: <strong>Ollama</strong> (easiest) &mdash; <code>ollama pull gemma3n</code>, then <code>npx anymodel proxy ollama --model gemma3n</code>. Or <strong>llama-server</strong> (maximum control) &mdash; <code>llama-server -m model.gguf --port 8080</code>, then <code>OPENAI_BASE_URL=http://localhost:8080/v1 npx anymodel proxy openai --model my-model</code>. No internet, no API key &mdash; everything stays on your machine.</p>
+          <p>Yes. Three first-class local backends:<br>
+          <strong>Ollama</strong> (easiest) &mdash; <code>ollama pull gemma3n</code>, then <code>npx anymodel proxy ollama --model gemma3n</code>.<br>
+          <strong>LMStudio</strong> (GUI model browser) &mdash; load a model in the LMStudio app, then <code>npx anymodel proxy lmstudio --model qwen/qwen3-coder-30b</code>.<br>
+          <strong>llama.cpp / llama-server</strong> (lightest, maximum control) &mdash; <code>llama-server -m model.gguf --port 8080</code>, then <code>npx anymodel proxy llamacpp --model my-model</code>.<br>
+          The same GGUF file runs across all three. No internet, no API key &mdash; everything stays on your machine.</p>
         </details>
 
         <details class="faq-item fade-in">
@@ -921,7 +977,7 @@ npx anymodel</code></pre>
 
         <details class="faq-item fade-in">
           <summary>What does the proxy actually do?</summary>
-          <p>AnyModel translates Anthropic Messages API requests for each provider. For <strong>OpenRouter</strong>, it preserves <code>cache_control</code> for prompt caching and strips unsupported fields (<code>betas</code>, <code>thinking</code>). For <strong>Ollama</strong>, it condenses large system prompts, trims tool descriptions, limits tool count, and stabilizes prefix ordering for KV cache reuse. All providers get retries with exponential backoff and <code>tool_choice</code> normalization.</p>
+          <p>AnyModel translates Anthropic Messages API requests for each provider. For <strong>OpenRouter</strong>, it preserves <code>cache_control</code> for prompt caching and strips unsupported fields (<code>betas</code>, <code>thinking</code>). For <strong>Ollama</strong>, it uses the native API with <code>think:false</code> to suppress reasoning-token waste, condenses large system prompts, trims tool descriptions, limits tool count, and stabilizes prefix ordering for KV cache reuse. <strong>LMStudio</strong> (<code>:1234/v1</code>) and <strong>llama.cpp / llama-server</strong> (<code>:8080/v1</code>) route through the OpenAI-compatible path. All providers get retries with exponential backoff and <code>tool_choice</code> normalization.</p>
         </details>
       </div>
     </div>

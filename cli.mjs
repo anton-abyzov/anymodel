@@ -16,7 +16,7 @@ import { fileURLToPath } from 'url';
 import { join, dirname } from 'path';
 import { createProxy, loadEnv } from './proxy.mjs';
 
-const PROVIDERS = ['openrouter', 'ollama', 'openai'];
+const PROVIDERS = ['openrouter', 'ollama', 'openai', 'lmstudio', 'llamacpp'];
 
 // Model presets — short aliases for popular models
 const MODEL_PRESETS = {
@@ -80,6 +80,10 @@ export function parseArgs(argv) {
       opts.provider = 'openrouter';
       opts.freeOnly = true;
       if (!opts.token) opts.token = process.env.ANYMODEL_TOKEN || null;
+    } else if (arg === '--lmstudio') {
+      opts.provider = 'lmstudio';
+    } else if (arg === '--llamacpp') {
+      opts.provider = 'llamacpp';
     } else if (!arg.startsWith('-') && MODEL_PRESETS[arg] && !opts.model) {
       opts.model = MODEL_PRESETS[arg];
     }
@@ -96,6 +100,10 @@ export async function detectProvider(model) {
   if (process.env.OPENAI_API_KEY) return 'openai';
   const { default: ollama } = await import('./providers/ollama.mjs');
   if (await ollama.detect()) return 'ollama';
+  const { default: lmstudio } = await import('./providers/lmstudio.mjs');
+  if (await lmstudio.detect()) return 'lmstudio';
+  const { default: llamacpp } = await import('./providers/llamacpp.mjs');
+  if (await llamacpp.detect()) return 'llamacpp';
   return null;
 }
 
@@ -128,6 +136,8 @@ ${C.magenta('  anymodel')} — universal AI coding tool
     anymodel proxy deepseek                       ${C.cyan('# start proxy with DeepSeek R1')}
     anymodel proxy --model <id>                   ${C.cyan('# start proxy with any model')}
     anymodel proxy ollama --model llama3          ${C.cyan('# start proxy with local Ollama')}
+    anymodel proxy lmstudio --model qwen2.5-coder ${C.cyan('# start proxy with local LM Studio')}
+    anymodel proxy llamacpp --model qwen2.5-coder ${C.cyan('# start proxy with local llama.cpp')}
     anymodel proxy openai --model gpt-4o          ${C.cyan('# start proxy with OpenAI-compatible')}
     anymodel claude                               ${C.cyan('# run Claude Code directly (no proxy)')}
 
@@ -168,6 +178,8 @@ ${C.magenta('  anymodel')} — universal AI coding tool
     OPENROUTER_MODEL     Default model override
     OPENAI_API_KEY       API key for OpenAI-compatible endpoints
     OPENAI_BASE_URL      Base URL (default: https://api.openai.com/v1)
+    LMSTUDIO_BASE_URL    LM Studio base URL (default: http://localhost:1234/v1)
+    LLAMACPP_BASE_URL    llama.cpp base URL (default: http://localhost:8080/v1)
     ANYMODEL_TOKEN       Auth token for remote mode
     PROXY_PORT           Default port override
 
@@ -435,6 +447,39 @@ async function startProxyOnly(args) {
       console.error(`${C.red('Error:')} Cannot connect to Ollama at localhost:11434.`);
       console.error('');
       console.error(`  Start Ollama first: ${C.bold('ollama serve')}`);
+      process.exit(1);
+    }
+  }
+
+  // For lmstudio/llamacpp: probe /v1/models and pick first if --model not set
+  if (providerName === 'lmstudio' || providerName === 'llamacpp') {
+    try {
+      const models = await provider.listModels();
+      if (!models.length) {
+        const base = providerName === 'lmstudio'
+          ? (process.env.LMSTUDIO_BASE_URL || 'http://localhost:1234/v1')
+          : (process.env.LLAMACPP_BASE_URL || 'http://localhost:8080/v1');
+        console.error(`${C.red('Error:')} No models available from ${providerName} at ${base}.`);
+        console.error('');
+        if (providerName === 'lmstudio') {
+          console.error(`  Load a model in LM Studio first, or check ${C.bold('LMSTUDIO_BASE_URL')}.`);
+        } else {
+          console.error(`  Start llama-server with a model: ${C.bold('llama-server -m model.gguf --port 8080')}`);
+          console.error(`  Or check ${C.bold('LLAMACPP_BASE_URL')}.`);
+        }
+        console.error('');
+        process.exit(1);
+      }
+      if (!model) {
+        model = models[0];
+        const tag = providerName.toUpperCase();
+        console.log(`${C.cyan(`[${tag}]`)} Found ${models.length} model(s). Using: ${C.bold(model)}`);
+        if (models.length > 1) {
+          console.log(`${C.cyan(`[${tag}]`)} Other available: ${models.slice(1, 5).join(', ')}`);
+        }
+      }
+    } catch (e) {
+      console.error(`${C.red('Error:')} Cannot connect to ${providerName}: ${e.message}`);
       process.exit(1);
     }
   }

@@ -6,7 +6,7 @@
 [![license](https://img.shields.io/npm/l/anymodel)](https://github.com/anton-abyzov/anymodel/blob/main/LICENSE)
 [![node](https://img.shields.io/node/v/anymodel)](https://nodejs.org)
 
-AnyModel is an AI coding assistant that works with any model. It includes a proxy that routes requests to OpenRouter (300+ cloud models), Ollama (local/offline), or any OpenAI-compatible API — with smart retries, format translation, and zero dependencies.
+AnyModel is an AI coding assistant that works with any model. It includes a proxy that routes requests to OpenRouter (300+ cloud models), local backends (Ollama, LMStudio, llama.cpp), or any OpenAI-compatible API — with smart retries, format translation, and zero dependencies.
 
 **[anymodel.dev](https://anymodel.dev)** — full docs, presets, and FAQ.
 
@@ -54,7 +54,7 @@ Or any of 300+ models: `npx anymodel proxy --model mistralai/codestral-2508`
 ## How It Works
 
 ```
-AnyModel client → anymodel proxy (:9090) → OpenRouter / Ollama
+AnyModel client → anymodel proxy (:9090) → OpenRouter / Ollama / LMStudio / llama.cpp
 ```
 
 The proxy intercepts requests, strips provider-specific fields, handles retries with exponential backoff, and streams responses back.
@@ -69,38 +69,36 @@ npx anymodel proxy --port 9091 --model deepseek/deepseek-r1-0528
 npx anymodel proxy --port 9092 --model google/gemini-3.1-flash-lite-preview
 ```
 
-### Fully Local with Ollama
+### Local Backends
 
-No internet, no API key — everything on your machine:
-
-```bash
-ollama pull gemma3n
-npx anymodel proxy ollama --model gemma3n
-
-# Terminal 2:
-npx anymodel
-```
-
-### Local with llama-server (llama.cpp)
-
-Run any GGUF model directly — no Ollama needed:
+No internet, no API key — run everything on your machine. AnyModel treats Ollama, LMStudio, and llama.cpp as first-class backends, each with its own preset:
 
 ```bash
-# Start llama-server with your GGUF model:
-llama-server -m model.gguf --port 8080
-
-# Terminal 1 — proxy:
-OPENAI_BASE_URL=http://localhost:8080/v1 npx anymodel proxy openai --model my-model
-
-# Terminal 2:
-npx anymodel
+npx anymodel proxy ollama --model gemma3n            # Ollama    (:11434)
+npx anymodel proxy lmstudio --model qwen3-coder      # LMStudio  (:1234/v1)
+npx anymodel proxy llamacpp --model my-model         # llama.cpp (:8080/v1)
 ```
 
-llama.cpp is the engine behind Ollama and LM Studio. Use `llama-server` directly for maximum control over context size, GPU layers, batch size, and quantization.
+| Backend | Port | API | Best for |
+|---------|------|-----|----------|
+| **Ollama** | `11434` | Native (`think:false` suppresses reasoning-token waste on qwen3/deepseek) | One-line model pulls, managed model library |
+| **LMStudio** | `1234/v1` | OpenAI-compatible | GUI model browser, easy swapping between loaded models |
+| **llama.cpp** | `8080/v1` | OpenAI-compatible | Rawest/smallest footprint, max control (context, GPU layers, batch, quantization) |
+
+**GGUF portability**: The same GGUF model file runs across all three — only the wrapper UX differs. Download once, use anywhere. llama.cpp is the inference engine under Ollama and LMStudio.
+
+Override endpoints via env:
+
+```bash
+LMSTUDIO_BASE_URL=http://192.168.1.50:1234/v1 npx anymodel proxy lmstudio
+LLAMACPP_BASE_URL=http://localhost:9000/v1    npx anymodel proxy llamacpp
+```
+
+Auto-detection priority when no preset is given: OpenRouter key → OpenAI key → Ollama → LMStudio → llama.cpp.
 
 ### OpenAI-Compatible APIs
 
-Works with OpenAI, Azure, Together, Groq, vLLM, LMStudio, llama-server:
+Works with OpenAI, Azure, Together, Groq, vLLM, and any OpenAI-compatible endpoint:
 
 ```bash
 OPENAI_API_KEY=sk-your-key npx anymodel proxy openai --model gpt-4o
@@ -117,7 +115,9 @@ Bidirectional translation: Anthropic Messages API ↔ OpenAI Chat Completions.
 anymodel                              # launch AnyModel (connect to proxy)
 anymodel proxy <preset>               # start proxy with preset
 anymodel proxy --model <id>           # start proxy with any model
-anymodel proxy ollama --model <name>  # proxy with local Ollama
+anymodel proxy ollama --model <name>  # proxy with local Ollama    (:11434)
+anymodel proxy lmstudio --model <id>  # proxy with LMStudio        (:1234/v1)
+anymodel proxy llamacpp --model <id>  # proxy with llama.cpp       (:8080/v1)
 anymodel claude                       # run with native Claude (no proxy)
 
 Options:
@@ -147,7 +147,9 @@ When proxying to Ollama, AnyModel automatically applies several optimizations to
 | `OPENROUTER_API_KEY` | — | Your OpenRouter key ([get one free](https://openrouter.ai/keys)) |
 | `OPENROUTER_MODEL` | — | Default model override |
 | `OPENAI_API_KEY` | — | Key for OpenAI-compatible APIs |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Custom endpoint. Set to `http://localhost:8080/v1` for llama-server |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Custom endpoint for the `openai` provider |
+| `LMSTUDIO_BASE_URL` | `http://localhost:1234/v1` | LMStudio endpoint override |
+| `LLAMACPP_BASE_URL` | `http://localhost:8080/v1` | llama.cpp (`llama-server`) endpoint override |
 | `PROXY_PORT` | `9090` | Proxy port |
 | `ANYMODEL_CLIENT` | — | Path to custom client cli.js |
 | `ANYMODEL_TOKEN` | — | Auth token for remote mode |

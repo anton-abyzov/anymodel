@@ -49,4 +49,31 @@ describe('parseArgs', () => {
     const opts = parseArgs(['--unknown', 'value']);
     assert.equal(opts.provider, 'auto');
   });
+
+  it('detects lmstudio as provider from positional arg', () => {
+    const opts = parseArgs(['lmstudio']);
+    assert.equal(opts.provider, 'lmstudio');
+  });
+
+  it('detects llamacpp as provider from positional arg', () => {
+    const opts = parseArgs(['llamacpp']);
+    assert.equal(opts.provider, 'llamacpp');
+  });
+
+  it('sets provider to lmstudio with --lmstudio flag', () => {
+    const opts = parseArgs(['--lmstudio']);
+    assert.equal(opts.provider, 'lmstudio');
+  });
+
+  it('sets provider to llamacpp with --llamacpp flag', () => {
+    const opts = parseArgs(['--llamacpp']);
+    assert.equal(opts.provider, 'llamacpp');
+  });
+
+  it('parses lmstudio with --model and --port', () => {
+    const opts = parseArgs(['lmstudio', '--model', 'qwen2.5-coder-7b', '--port', '9100']);
+    assert.equal(opts.provider, 'lmstudio');
+    assert.equal(opts.model, 'qwen2.5-coder-7b');
+    assert.equal(opts.port, 9100);
+  });
 });
