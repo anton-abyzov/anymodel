@@ -254,26 +254,10 @@ export default {
 
     // Pass tools through — Ollama uses the same format as OpenAI
     // tool_choice is intentionally NOT passed (Ollama doesn't support it)
+    // Note: description trimming + schema compression now handled upstream
+    // by tool-compressor.mjs in proxy.mjs (before OpenAI format conversion).
     if (openaiBody.tools) {
       ollamaBody.tools = openaiBody.tools;
-
-      // Trim tool descriptions to save context on local models.
-      // Claude Code sends 86+ tools with 500-2000 char descriptions each.
-      // At ~4 chars/token, that's 10-40K tokens of descriptions alone —
-      // often exceeding the entire context window. Trim to first N chars.
-      const maxDescLen = parseInt(process.env.OLLAMA_MAX_TOOL_DESC, 10) || 100;
-      for (const t of ollamaBody.tools) {
-        const desc = t.function?.description;
-        if (desc && desc.length > maxDescLen) {
-          // Keep first sentence if it fits, otherwise hard truncate
-          const firstSentence = desc.match(/^[^.!?\n]+[.!?]/);
-          if (firstSentence && firstSentence[0].length <= maxDescLen) {
-            t.function.description = firstSentence[0];
-          } else {
-            t.function.description = desc.slice(0, maxDescLen) + '…';
-          }
-        }
-      }
     }
 
     // Map max_tokens → num_predict (Ollama's equivalent)

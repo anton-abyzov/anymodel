@@ -82,74 +82,23 @@ describe('count_tokens mock', () => {
 
 // ── Tool description trimming ──
 
-describe('Ollama tool description trimming', () => {
-  const origEnv = process.env.OLLAMA_MAX_TOOL_DESC;
+// Description trimming tests moved to test/tool-compressor.test.mjs
+// (trimming now happens in tool-compressor.mjs, upstream of transformRequest)
 
-  afterEach(() => {
-    if (origEnv === undefined) delete process.env.OLLAMA_MAX_TOOL_DESC;
-    else process.env.OLLAMA_MAX_TOOL_DESC = origEnv;
-  });
-
-  it('trims long descriptions to default 100 chars', () => {
+describe('Ollama tool passthrough (post-compressor)', () => {
+  it('passes tools through without modification', () => {
     const body = {
       model: 'test',
       max_tokens: 100,
       messages: [{ role: 'user', content: 'hi' }],
       tools: [{
         name: 'Bash',
-        description: 'Executes a given bash command and returns its output. The working directory persists between commands, but shell state does not.',
+        description: 'Already trimmed by compressor.',
         input_schema: { type: 'object', properties: { command: { type: 'string' } } },
       }],
     };
     const result = ollamaProvider.transformRequest(body);
-    assert.ok(result.tools[0].function.description.length <= 105, // 100 + '…'
-      `description should be trimmed, got ${result.tools[0].function.description.length} chars`);
-  });
-
-  it('preserves short descriptions', () => {
-    const body = {
-      model: 'test',
-      max_tokens: 100,
-      messages: [{ role: 'user', content: 'hi' }],
-      tools: [{
-        name: 'Read',
-        description: 'Read a file',
-        input_schema: { type: 'object', properties: { path: { type: 'string' } } },
-      }],
-    };
-    const result = ollamaProvider.transformRequest(body);
-    assert.equal(result.tools[0].function.description, 'Read a file');
-  });
-
-  it('uses first sentence if it fits', () => {
-    const body = {
-      model: 'test',
-      max_tokens: 100,
-      messages: [{ role: 'user', content: 'hi' }],
-      tools: [{
-        name: 'Bash',
-        description: 'Executes a bash command. The working directory persists between commands, but shell state does not. More details here about how it works in practice.',
-        input_schema: { type: 'object', properties: { command: { type: 'string' } } },
-      }],
-    };
-    const result = ollamaProvider.transformRequest(body);
-    assert.equal(result.tools[0].function.description, 'Executes a bash command.');
-  });
-
-  it('respects OLLAMA_MAX_TOOL_DESC env var', () => {
-    process.env.OLLAMA_MAX_TOOL_DESC = '50';
-    const body = {
-      model: 'test',
-      max_tokens: 100,
-      messages: [{ role: 'user', content: 'hi' }],
-      tools: [{
-        name: 'Test',
-        description: 'A'.repeat(200),
-        input_schema: { type: 'object', properties: { x: { type: 'string' } } },
-      }],
-    };
-    const result = ollamaProvider.transformRequest(body);
-    assert.ok(result.tools[0].function.description.length <= 55); // 50 + '…'
+    assert.equal(result.tools[0].function.description, 'Already trimmed by compressor.');
   });
 
   it('handles tools with no description', () => {

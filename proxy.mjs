@@ -278,30 +278,27 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     // Always strip tool_choice — Ollama doesn't support it
     delete parsed.tool_choice;
 
-    // Limit tool count — local models struggle with 80+ tool definitions.
-    // Each tool is ~1-3KB of JSON. With 86 tools that's 40-100KB+ of tool schemas
-    // which can overflow the entire context window on small models.
-    // OLLAMA_MAX_TOOLS=N keeps core tools (Bash/Read/Write/Edit/Grep/Glob) and
-    // fills remaining slots by priority. Default: 0 (no limit).
-    const maxTools = parseInt(process.env.OLLAMA_MAX_TOOLS, 10) || 0;
-    if (maxTools > 0 && parsed.tools && parsed.tools.length > maxTools) {
-      const CORE = new Set(['Bash', 'Read', 'Write', 'Edit', 'Grep', 'Glob']);
-      const IMPORTANT = new Set(['Agent', 'TodoWrite', 'WebFetch', 'WebSearch', 'Skill', 'ToolSearch', 'NotebookEdit']);
-      const core = parsed.tools.filter(t => CORE.has(t.name));
-      const important = parsed.tools.filter(t => !CORE.has(t.name) && IMPORTANT.has(t.name));
-      const rest = parsed.tools.filter(t => !CORE.has(t.name) && !IMPORTANT.has(t.name));
-      const budget = maxTools - core.length;
-      parsed.tools = [...core, ...important.slice(0, budget), ...rest.slice(0, Math.max(0, budget - important.length))].slice(0, maxTools);
-      console.log(`${C.yellow('[OLLAMA]')} Trimmed tools: ${toolCount} → ${parsed.tools.length} (max=${maxTools}, core=${core.length})`);
-    }
-
-    // Warn if tool payload likely exceeds context budget
+    // Smart tool optimization: compress schemas + trim descriptions + budget-limit.
+    // Instead of blindly stripping by count, this compresses JSON Schema param
+    // definitions (removes $schema, additionalProperties, param descriptions,
+    // defaults, examples → 50-70% smaller), then budget-allocates by priority
+    // tier (core > important > rest) to fit within context window.
     if (parsed.tools && parsed.tools.length > 0) {
+      const { optimizeTools } = await import('./providers/tool-compressor.mjs');
       const numCtx = parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192;
-      const toolJsonSize = JSON.stringify(parsed.tools).length;
-      const estToolTokens = Math.ceil(toolJsonSize / 4);
-      if (estToolTokens > numCtx * 0.5) {
-        console.log(`${C.red('[OLLAMA]')} ⚠ ${parsed.tools.length} tools ≈ ${estToolTokens} tokens, context=${numCtx}. Tools use ${Math.round(estToolTokens / numCtx * 100)}% of context. Set OLLAMA_MAX_TOOLS=15 or increase OLLAMA_NUM_CTX.`);
+      const { tools: optimized, stats } = optimizeTools(parsed.tools, {
+        numCtx,
+        maxTools: parseInt(process.env.OLLAMA_MAX_TOOLS, 10) || 0,
+        maxDescLen: parseInt(process.env.OLLAMA_MAX_TOOL_DESC, 10) || 100,
+        budgetPct: parseFloat(process.env.OLLAMA_TOOL_BUDGET_PCT) || 0.30,
+      });
+      parsed.tools = optimized;
+      if (stats) {
+        if (stats.trimmed) {
+          console.log(`${C.yellow('[OLLAMA]')} Tool optimization: ${stats.original.count} tools (${stats.original.tokens} tok) → compressed (${stats.compressed.tokens} tok) → budgeted to ${stats.final.count} tools (${stats.final.tokens} tok). Budget: ${Math.round(stats.budget.pct * 100)}% of ctx=${stats.budget.numCtx}`);
+        } else {
+          console.log(`${C.yellow('[OLLAMA]')} Tool optimization: ${stats.original.count} tools (${stats.original.tokens} tok) → compressed to ${stats.compressed.tokens} tok (${Math.round((1 - stats.compressed.tokens / stats.original.tokens) * 100)}% reduction)`);
+        }
       }
     }
   }
