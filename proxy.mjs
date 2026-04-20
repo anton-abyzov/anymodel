@@ -262,21 +262,27 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
   // Inject Windows path hint — LLMs default to Unix-style paths
   injectPlatformHints(parsed, process.platform);
 
-  // Tool handling for Ollama — capability-aware instead of blanket strip.
-  // Many Ollama models (Qwen 3, Llama 3.1+, Mistral, etc.) support tool calling.
+  // Treat ollama, lmstudio, and llamacpp identically as "local" — all three suffer
+  // from Claude Code's 200KB+ system prompts + 90-tool schemas that blow past
+  // practical context windows on 30B-class local models.
+  const isLocal = provider.name === 'ollama' || provider.name === 'lmstudio' || provider.name === 'llamacpp';
+  const localTag = `[${provider.name.toUpperCase()}]`;
+
+  // Tool handling for local providers — capability-aware instead of blanket strip.
+  // Many modern local models (Qwen 3, Llama 3.1+, Mistral, Gemma 4) support tool calling.
   // OLLAMA_TOOLS env: 'auto' (default) tries with tools and caches result per model,
   // 'on' always passes tools, 'off' always strips (legacy behavior).
-  if (provider.name === 'ollama' && parsed.tools && parsed.tools.length > 0) {
+  if (isLocal && parsed.tools && parsed.tools.length > 0) {
     const { shouldSendTools, ollamaToolMode } = await import('./providers/ollama-tools.mjs');
     const mode = ollamaToolMode();
     if (!shouldSendTools(parsed.model)) {
-      console.log(`${C.yellow('[OLLAMA]')} Stripping ${parsed.tools.length} tools (mode=${mode}, model=${parsed.model} cached as no-tool-support)`);
+      console.log(`${C.yellow(localTag)} Stripping ${parsed.tools.length} tools (mode=${mode}, model=${parsed.model} cached as no-tool-support)`);
       delete parsed.tools;
     } else {
-      console.log(`${C.yellow('[OLLAMA]')} Passing ${parsed.tools.length} tools to ${parsed.model} (mode=${mode})`);
+      console.log(`${C.yellow(localTag)} Passing ${parsed.tools.length} tools to ${parsed.model} (mode=${mode})`);
     }
-    // Always strip tool_choice — Ollama doesn't support it
-    delete parsed.tool_choice;
+    // Always strip tool_choice — local providers don't need it (some reject it)
+    if (provider.name === 'ollama') delete parsed.tool_choice;
 
     // Smart tool optimization: compress schemas + trim descriptions + budget-limit.
     // Instead of blindly stripping by count, this compresses JSON Schema param
@@ -285,39 +291,44 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     // tier (core > important > rest) to fit within context window.
     if (parsed.tools && parsed.tools.length > 0) {
       const { optimizeTools } = await import('./providers/tool-compressor.mjs');
-      const numCtx = parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192;
+      // Default context budget. lmstudio + llamacpp typically have larger loaded
+      // context (128k common), so we allow 30% for tools by default. Ollama's
+      // default is 8k ctx so it stays conservative.
+      const numCtx = provider.name === 'ollama'
+        ? (parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192)
+        : parseInt(process.env.LOCAL_NUM_CTX, 10) || 32768;
       const { tools: optimized, stats } = optimizeTools(parsed.tools, {
         numCtx,
-        maxTools: parseInt(process.env.OLLAMA_MAX_TOOLS, 10) || 0,
-        maxDescLen: parseInt(process.env.OLLAMA_MAX_TOOL_DESC, 10) || 100,
-        budgetPct: parseFloat(process.env.OLLAMA_TOOL_BUDGET_PCT) || 0.30,
+        maxTools: parseInt(process.env.LOCAL_MAX_TOOLS || process.env.OLLAMA_MAX_TOOLS, 10) || 0,
+        maxDescLen: parseInt(process.env.LOCAL_MAX_TOOL_DESC || process.env.OLLAMA_MAX_TOOL_DESC, 10) || 100,
+        budgetPct: parseFloat(process.env.LOCAL_TOOL_BUDGET_PCT || process.env.OLLAMA_TOOL_BUDGET_PCT) || 0.30,
       });
       parsed.tools = optimized;
       if (stats) {
         if (stats.trimmed) {
-          console.log(`${C.yellow('[OLLAMA]')} Tool optimization: ${stats.original.count} tools (${stats.original.tokens} tok) → compressed (${stats.compressed.tokens} tok) → budgeted to ${stats.final.count} tools (${stats.final.tokens} tok). Budget: ${Math.round(stats.budget.pct * 100)}% of ctx=${stats.budget.numCtx}`);
+          console.log(`${C.yellow(localTag)} Tool optimization: ${stats.original.count} tools (${stats.original.tokens} tok) → compressed (${stats.compressed.tokens} tok) → budgeted to ${stats.final.count} tools (${stats.final.tokens} tok). Budget: ${Math.round(stats.budget.pct * 100)}% of ctx=${stats.budget.numCtx}`);
         } else {
-          console.log(`${C.yellow('[OLLAMA]')} Tool optimization: ${stats.original.count} tools (${stats.original.tokens} tok) → compressed to ${stats.compressed.tokens} tok (${Math.round((1 - stats.compressed.tokens / stats.original.tokens) * 100)}% reduction)`);
+          console.log(`${C.yellow(localTag)} Tool optimization: ${stats.original.count} tools (${stats.original.tokens} tok) → compressed to ${stats.compressed.tokens} tok (${Math.round((1 - stats.compressed.tokens / stats.original.tokens) * 100)}% reduction)`);
         }
       }
     }
   }
 
-  // Strip thinking/extended-thinking for Ollama
+  // Strip thinking/extended-thinking for all local providers.
   // Claude Code sends thinking: {type: "enabled", budget_tokens: N} which causes
-  // reasoning models (qwen3, deepseek) to waste output tokens on hidden chain-of-thought
-  // instead of producing actual text. Disable it for local models.
-  if (provider.name === 'ollama') {
+  // reasoning models (qwen3, deepseek, gemma4) to waste output tokens on hidden
+  // chain-of-thought instead of producing actual text.
+  if (isLocal) {
     delete parsed.thinking;
   }
 
-  // Condense system prompt for local models (Ollama)
+  // Condense system prompt for all local providers.
   // Claude Code sends 50-100KB system prompts with every request. On local models,
   // processing 15K+ tokens of system instructions takes 2-3 minutes BEFORE any output.
   // Condense to essential context only — keeps CLAUDE.md project instructions,
   // strips Claude Code behavioral rules that local models can't follow anyway.
-  if (provider.name === 'ollama' && parsed.system) {
-    const MAX_SYSTEM_CHARS = parseInt(process.env.OLLAMA_MAX_SYSTEM_CHARS, 10) || 4000;
+  if (isLocal && parsed.system) {
+    const MAX_SYSTEM_CHARS = parseInt(process.env.LOCAL_MAX_SYSTEM_CHARS || process.env.OLLAMA_MAX_SYSTEM_CHARS, 10) || 4000;
     // Flatten system prompt to text
     let fullSystem = '';
     if (Array.isArray(parsed.system)) {
@@ -350,7 +361,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
       ].filter(Boolean).join('\n').slice(0, MAX_SYSTEM_CHARS);
 
       parsed.system = condensed;
-      console.log(`${C.yellow('[OLLAMA]')} Condensed system prompt: ${originalLen} → ${condensed.length} chars (${Math.round((1 - condensed.length / originalLen) * 100)}% reduction)`);
+      console.log(`${C.yellow(localTag)} Condensed system prompt: ${originalLen} → ${condensed.length} chars (${Math.round((1 - condensed.length / originalLen) * 100)}% reduction)`);
     }
   }
 
@@ -358,7 +369,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
   // Claude Code injects <system-reminder> blocks, skill lists, MCP instructions,
   // and other XML-tagged content into user messages. These can add 20-30KB per message
   // that local models can't use — causing 50s+ processing on first request.
-  if (provider.name === 'ollama' && parsed.messages) {
+  if (isLocal && parsed.messages) {
     const xmlTagPattern = /<(?:system-reminder|local-command-caveat|command-name|command-message|command-args|local-command-stdout|functions|function)>[\s\S]*?<\/(?:system-reminder|local-command-caveat|command-name|command-message|command-args|local-command-stdout|functions|function)>/gi;
 
     let strippedChars = 0;
@@ -378,13 +389,15 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
       }
     }
     if (strippedChars > 0) {
-      console.log(`${C.yellow('[OLLAMA]')} Stripped ${(strippedChars / 1024).toFixed(1)}KB of XML boilerplate from messages`);
+      console.log(`${C.yellow(localTag)} Stripped ${(strippedChars / 1024).toFixed(1)}KB of XML boilerplate from messages`);
     }
 
     // Condense message history — drop middle turns to stay under token budget.
     // Scale limit to context window: num_ctx tokens × ~4 chars/token × 75% (leave room for output)
-    const numCtx = parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192;
-    const MAX_MSG_CHARS = parseInt(process.env.OLLAMA_MAX_MSG_CHARS, 10) || Math.max(4000, numCtx * 3);
+    const numCtx = provider.name === 'ollama'
+      ? (parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192)
+      : (parseInt(process.env.LOCAL_NUM_CTX, 10) || 32768);
+    const MAX_MSG_CHARS = parseInt(process.env.LOCAL_MAX_MSG_CHARS || process.env.OLLAMA_MAX_MSG_CHARS, 10) || Math.max(4000, numCtx * 3);
     const totalChars = parsed.messages.reduce((sum, m) => {
       const content = typeof m.content === 'string' ? m.content
         : Array.isArray(m.content) ? m.content.reduce((s, b) => s + (b.text || JSON.stringify(b.input || '')).length, 0)
@@ -427,7 +440,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
           : 0;
         return sum + content;
       }, 0);
-      console.log(`${C.yellow('[OLLAMA]')} Condensed messages: ${originalCount} → ${parsed.messages.length} msgs, ${(totalChars / 1024).toFixed(1)}KB → ${(newChars / 1024).toFixed(1)}KB`);
+      console.log(`${C.yellow(localTag)} Condensed messages: ${originalCount} → ${parsed.messages.length} msgs, ${(totalChars / 1024).toFixed(1)}KB → ${(newChars / 1024).toFixed(1)}KB`);
     }
   }
 
