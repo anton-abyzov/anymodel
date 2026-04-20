@@ -59,13 +59,40 @@ export default {
     });
   },
 
-  // GET /v1/models → { data: [{id, ...}] } — return array of ids, [] on error
+  // Try LMStudio-native /api/v0/models (includes `state: "loaded"`), fall back
+  // to OpenAI-compatible /v1/models. Returns array of { id, loaded, capabilities }.
   listModels() {
-    return new Promise(resolve => {
-      const parsedUrl = new URL(getBaseUrl());
+    const parsedUrl = new URL(getBaseUrl());
+    const hostname = parsedUrl.hostname;
+    const port = parsedUrl.port || 80;
+
+    const tryV0 = new Promise(resolve => {
+      const req = http.get({ hostname, port, path: '/api/v0/models' }, res => {
+        let body = '';
+        res.on('data', chunk => { body += chunk; });
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(body);
+            const entries = (parsed.data || [])
+              .filter(m => m.type !== 'embeddings' && !/embed/i.test(m.id || ''))
+              .map(m => ({
+                id: m.id,
+                loaded: m.state === 'loaded',
+                capabilities: m.capabilities || [],
+              }));
+            resolve(entries);
+          } catch {
+            resolve(null);
+          }
+        });
+      });
+      req.on('error', () => resolve(null));
+      req.setTimeout(1000, () => { req.destroy(); resolve(null); });
+    });
+
+    const tryV1 = new Promise(resolve => {
       const req = http.get({
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port || 80,
+        hostname, port,
         path: `${parsedUrl.pathname.replace(/\/$/, '')}/models`,
       }, res => {
         let body = '';
@@ -73,15 +100,17 @@ export default {
         res.on('end', () => {
           try {
             const parsed = JSON.parse(body);
-            const ids = (parsed.data || []).map(m => m.id).filter(Boolean);
-            resolve(ids);
-          } catch {
-            resolve([]);
-          }
+            const entries = (parsed.data || [])
+              .filter(m => !/embed/i.test(m.id || ''))
+              .map(m => ({ id: m.id, loaded: undefined, capabilities: [] }));
+            resolve(entries);
+          } catch { resolve([]); }
         });
       });
       req.on('error', () => resolve([]));
       req.setTimeout(1000, () => { req.destroy(); resolve([]); });
     });
+
+    return tryV0.then(v0 => v0 && v0.length ? v0 : tryV1);
   },
 };

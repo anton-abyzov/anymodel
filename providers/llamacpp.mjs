@@ -59,7 +59,7 @@ export default {
     });
   },
 
-  // GET /v1/models → { data: [{id, ...}] } — return array of ids, [] on error
+  // GET /v1/models → returns [{ id, loaded: undefined (unknown for llama-server) }]
   listModels() {
     return new Promise(resolve => {
       const parsedUrl = new URL(getBaseUrl());
@@ -73,8 +73,10 @@ export default {
         res.on('end', () => {
           try {
             const parsed = JSON.parse(body);
-            const ids = (parsed.data || []).map(m => m.id).filter(Boolean);
-            resolve(ids);
+            const entries = (parsed.data || [])
+              .filter(m => !/embed/i.test(m.id || ''))
+              .map(m => ({ id: m.id, loaded: undefined, capabilities: [] }));
+            resolve(entries);
           } catch {
             resolve([]);
           }

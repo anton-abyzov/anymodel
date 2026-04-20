@@ -182,8 +182,10 @@ describe('llamacpp.detect and listModels — mock server', () => {
     assert.equal(detected, true);
   });
 
-  it('listModels() returns parsed ids', async () => {
-    const models = await llamacpp.listModels();
-    assert.deepEqual(models, ['llama-3.2-3b-instruct-q4_k_m']);
+  it('listModels() returns entries (no loaded state for llama-server)', async () => {
+    const entries = await llamacpp.listModels();
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].id, 'llama-3.2-3b-instruct-q4_k_m');
+    assert.equal(entries[0].loaded, undefined);
   });
 });

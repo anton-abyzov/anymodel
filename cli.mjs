@@ -451,11 +451,13 @@ async function startProxyOnly(args) {
     }
   }
 
-  // For lmstudio/llamacpp: probe /v1/models and pick first if --model not set
+  // For lmstudio/llamacpp: probe /v1/models and pick the best default if --model not set.
+  // Providers return [{ id, loaded, capabilities }] — prefer already-loaded coding models
+  // so the first real request doesn't trigger a 30-60s cold load.
   if (providerName === 'lmstudio' || providerName === 'llamacpp') {
     try {
-      const models = await provider.listModels();
-      if (!models.length) {
+      const entries = await provider.listModels();
+      if (!entries.length) {
         const base = providerName === 'lmstudio'
           ? (process.env.LMSTUDIO_BASE_URL || 'http://127.0.0.1:1234/v1')
           : (process.env.LLAMACPP_BASE_URL || 'http://127.0.0.1:8080/v1');
@@ -471,16 +473,24 @@ async function startProxyOnly(args) {
         process.exit(1);
       }
       if (!model) {
-        // Prefer coding-optimized models if present (benchmarked best for agent loops).
-        // Priority: qwen3-coder > qwen-coder > qwen3 > qwen > deepseek-coder > first available
-        const prefs = [/qwen3.*coder/i, /qwen.*coder/i, /coder/i, /qwen3/i, /qwen/i, /deepseek.*coder/i];
-        const coding = models.filter(n => !n.includes('embed'));
-        const picked = prefs.map(rx => coding.find(n => rx.test(n))).find(Boolean);
-        model = picked || coding[0] || models[0];
+        // Priority: loaded+coding > loaded+any > unloaded+coding > first
+        const codingRx = [/qwen3.*coder/i, /qwen.*coder/i, /deepseek.*coder/i, /coder/i, /qwen3/i, /qwen/i];
+        const firstMatch = (pool, rx) => rx.map(r => pool.find(e => r.test(e.id))).find(Boolean);
+        const loaded = entries.filter(e => e.loaded === true);
+        const pickedLoadedCoder = firstMatch(loaded, codingRx);
+        const pickedAnyCoder = firstMatch(entries, codingRx);
+        const picked = pickedLoadedCoder || loaded[0] || pickedAnyCoder || entries[0];
+        model = picked.id;
+        const reason = pickedLoadedCoder ? 'loaded + coding-preferred'
+          : picked.loaded ? 'loaded'
+          : pickedAnyCoder ? 'coding-preferred (will cold-load)'
+          : 'first-available (will cold-load)';
         const tag = providerName.toUpperCase();
-        console.log(`${C.cyan(`[${tag}]`)} Found ${models.length} model(s). Using: ${C.bold(model)}${picked ? ' (coding-preferred)' : ''}`);
-        if (models.length > 1) {
-          console.log(`${C.cyan(`[${tag}]`)} Other available: ${models.filter(n => n !== model).slice(0, 4).join(', ')}`);
+        console.log(`${C.cyan(`[${tag}]`)} Found ${entries.length} model(s). Using: ${C.bold(model)} ${C.cyan(`(${reason})`)}`);
+        if (entries.length > 1) {
+          const others = entries.filter(e => e.id !== model).slice(0, 4)
+            .map(e => e.id + (e.loaded ? ' (loaded)' : ''));
+          console.log(`${C.cyan(`[${tag}]`)} Other available: ${others.join(', ')}`);
         }
       }
     } catch (e) {

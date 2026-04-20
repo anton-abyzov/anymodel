@@ -146,7 +146,7 @@ describe('lmstudio.detect and listModels — no server', () => {
   });
 });
 
-describe('lmstudio.detect and listModels — mock server', () => {
+describe('lmstudio.detect and listModels — mock server (v0 native API)', () => {
   let savedBase;
   let server;
   let port;
@@ -154,9 +154,16 @@ describe('lmstudio.detect and listModels — mock server', () => {
   beforeEach(async () => {
     savedBase = process.env.LMSTUDIO_BASE_URL;
     server = http.createServer((req, res) => {
-      if (req.url === '/v1/models') {
+      if (req.url === '/api/v0/models') {
         res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ data: [{ id: 'qwen2.5-coder-7b' }] }));
+        res.end(JSON.stringify({ data: [
+          { id: 'gemma-warm', state: 'loaded', type: 'llm', capabilities: ['tool_use'] },
+          { id: 'qwen2.5-coder-7b', state: 'not-loaded', type: 'llm', capabilities: ['tool_use'] },
+          { id: 'nomic-embed', state: 'loaded', type: 'embeddings', capabilities: [] },
+        ] }));
+      } else if (req.url === '/v1/models') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ data: [{ id: 'gemma-warm' }, { id: 'qwen2.5-coder-7b' }] }));
       } else {
         res.writeHead(404);
         res.end();
@@ -181,8 +188,47 @@ describe('lmstudio.detect and listModels — mock server', () => {
     assert.equal(detected, true);
   });
 
-  it('listModels() returns parsed ids', async () => {
-    const models = await lmstudio.listModels();
-    assert.deepEqual(models, ['qwen2.5-coder-7b']);
+  it('listModels() returns entries with loaded state from /api/v0/models', async () => {
+    const entries = await lmstudio.listModels();
+    assert.equal(entries.length, 2, 'should filter out embedding models');
+    const warm = entries.find(e => e.id === 'gemma-warm');
+    const cold = entries.find(e => e.id === 'qwen2.5-coder-7b');
+    assert.equal(warm.loaded, true);
+    assert.equal(cold.loaded, false);
+  });
+});
+
+describe('lmstudio.listModels — fallback to /v1/models (no v0 endpoint)', () => {
+  let savedBase;
+  let server;
+  let port;
+
+  beforeEach(async () => {
+    savedBase = process.env.LMSTUDIO_BASE_URL;
+    server = http.createServer((req, res) => {
+      if (req.url === '/v1/models') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ data: [{ id: 'some-model' }] }));
+      } else {
+        // /api/v0/models 404 → should fallback to /v1/models
+        res.writeHead(404); res.end();
+      }
+    });
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    port = server.address().port;
+    process.env.LMSTUDIO_BASE_URL = `http://127.0.0.1:${port}/v1`;
+  });
+
+  afterEach(async () => {
+    await new Promise(resolve => server.close(resolve));
+    if (savedBase !== undefined) process.env.LMSTUDIO_BASE_URL = savedBase;
+    else delete process.env.LMSTUDIO_BASE_URL;
+  });
+
+  it('falls back to /v1/models when /api/v0/models 404s', async () => {
+    const entries = await lmstudio.listModels();
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].id, 'some-model');
+    assert.equal(entries[0].loaded, undefined);
   });
 });
