@@ -57,10 +57,15 @@ const C = {
 };
 
 export function parseArgs(argv) {
-  const opts = { provider: 'auto', port: 9090, model: null, help: false, freeOnly: false, token: null, rpm: 60 };
+  const opts = { provider: 'auto', port: 9090, model: null, help: false, freeOnly: false, token: null, rpm: 60, passthrough: [] };
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
+    // `--` separator: everything after is forwarded verbatim to the Claude Code client
+    if (arg === '--') {
+      opts.passthrough = argv.slice(i + 1);
+      break;
+    }
     if (arg === '--help' || arg === '-h') {
       opts.help = true;
     } else if (arg === '--model' || arg === '-m') {
@@ -334,10 +339,15 @@ async function connectToProxy(args) {
 
   console.log(`${C.green('[anymodel]')} Connected to proxy on :${port}`);
   if (modelName) console.log(`${C.green('[anymodel]')} Model: ${C.cyan(modelName)}`);
+  if (opts.passthrough.length) {
+    console.log(`${C.green('[anymodel]')} Passthrough args: ${opts.passthrough.join(' ')}`);
+  }
   console.log(`${C.green('[anymodel]')} Starting...`);
   console.log('');
 
-  const clientChild = spawn(client.cmd, client.args, {
+  // Forward `--` passthrough args to the Claude Code client (e.g., --bare, --mcp-config)
+  const clientArgs = [...client.args, ...opts.passthrough];
+  const clientChild = spawn(client.cmd, clientArgs, {
     stdio: 'inherit',
     env: {
       ...process.env,

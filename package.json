@@ -1,6 +1,6 @@
 {
   "name": "anymodel",
-  "version": "1.10.3",
+  "version": "1.10.4",
   "description": "Universal AI model proxy — route any coding tool through OpenRouter, Ollama, LMStudio, llama.cpp, or any LLM provider",
   "type": "module",
   "bin": {
@@ -13,6 +13,7 @@
     "proxy.mjs",
     "providers/",
     "README.md",
+    "LOCAL_SETUP.md",
     "LICENSE"
   ],
   "scripts": {

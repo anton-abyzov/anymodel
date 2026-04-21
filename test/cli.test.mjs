@@ -76,4 +76,21 @@ describe('parseArgs', () => {
     assert.equal(opts.model, 'qwen2.5-coder-7b');
     assert.equal(opts.port, 9100);
   });
+
+  it('captures everything after `--` as passthrough args', () => {
+    const opts = parseArgs(['lmstudio', '--', '--bare', '--mcp-config', './empty.json']);
+    assert.equal(opts.provider, 'lmstudio');
+    assert.deepEqual(opts.passthrough, ['--bare', '--mcp-config', './empty.json']);
+  });
+
+  it('passthrough is empty when no `--` separator', () => {
+    const opts = parseArgs(['lmstudio']);
+    assert.deepEqual(opts.passthrough, []);
+  });
+
+  it('stops parsing AnyModel flags after `--`', () => {
+    const opts = parseArgs(['--port', '8080', '--', '--port', '9999']);
+    assert.equal(opts.port, 8080);
+    assert.deepEqual(opts.passthrough, ['--port', '9999']);
+  });
 });

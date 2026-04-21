@@ -96,6 +96,8 @@ LLAMACPP_BASE_URL=http://localhost:9000/v1    npx anymodel proxy llamacpp
 
 Auto-detection priority when no preset is given: OpenRouter key → OpenAI key → Ollama → LMStudio → llama.cpp.
 
+**Running Claude Code locally?** See [LOCAL_SETUP.md](./LOCAL_SETUP.md) for the full fast-path setup (bare mode, empty MCP, 128k context). Drops payload from ~100KB to ~3KB for sub-3s first-response.
+
 ### OpenAI-Compatible APIs
 
 Works with OpenAI, Azure, Together, Groq, vLLM, and any OpenAI-compatible endpoint:
