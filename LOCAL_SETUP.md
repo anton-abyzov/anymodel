@@ -26,14 +26,33 @@ ln -sf ~/.lmstudio/bin/lms /opt/homebrew/bin/lms   # Apple Silicon
 sudo ln -sf ~/.lmstudio/bin/lms /usr/local/bin/lms # Intel Mac
 ```
 
-## Step 1 — Load Qwen3-Coder with 128 K context
+## Step 1 — Load Qwen3-Coder with 32 K context (sweet spot for `--bare`)
 
+**The easy way** (one-time): open LMStudio GUI → load the model → set Context Length to `32768` → tick **"Remember settings for qwen3-coder-30b"** → Load. From then on `lms load qwen/qwen3-coder-30b` uses 32K automatically.
+
+**CLI alternative**:
 ```bash
 lms unload --all
-lms load qwen/qwen3-coder-30b --context-length 131072 --gpu max
+lms load qwen/qwen3-coder-30b --context-length 32768 --gpu max
 ```
 
-**Why 131072?** Claude Code's payload can reach 15–20 K tokens even with aggressive trimming. 32 K is too tight; 128 K gives ~100 K of headroom for the conversation. On a 128 GB M4 Max, context this size fits comfortably in RAM.
+**Why 32 K (not 128 K)?** KV cache allocation is proportional to context size:
+
+| Context | KV cache | Prefill speed | When to use |
+|---|---:|---:|---|
+| 4 K | ~200 MB | fastest | pure chat, no tools |
+| **32 K** | **~1.6 GB** | **fast** | **`--bare` Claude Code (this guide)** |
+| 131 K | ~6.5 GB | slow even on small msgs | full Claude Code with all MCP tools |
+
+Bigger isn't better — `--bare` Claude Code sends ~3 KB per turn, so 32 K leaves plenty of headroom for a long conversation and avoids the overhead of allocating a 6.5 GB KV cache.
+
+**Verify what's loaded** any time with:
+```bash
+lms ps
+# IDENTIFIER              STATUS    SIZE        CONTEXT    DEVICE
+# qwen/qwen3-coder-30b    LOADED    17.19 GB    32768      Local
+```
+`LOADED` = warm in RAM. `IDLE` = cold (30-60s load on next request).
 
 **Don't have Qwen3-Coder yet?**
 ```bash
@@ -174,24 +193,27 @@ npx anymodel@latest -- \
   --append-system-prompt "$(cat CLAUDE.md)"
 ```
 
-## Full command reference
+## Full command reference — the 3-command daily workflow
+
+Assumes you've saved `context-length 32768` as the LMStudio default for Qwen (Step 1 GUI method).
 
 ```bash
-# === Terminal 1 (once per reboot / model swap) ===
-lms unload --all
-lms load qwen/qwen3-coder-30b --context-length 131072 --gpu max
+# === Terminal 1 (once per reboot) ===
+lms load qwen/qwen3-coder-30b   # uses saved 32K default
 
 # === Terminal 2 (keep running) ===
 unset OPENROUTER_API_KEY OPENAI_API_KEY
 npx anymodel@latest proxy lmstudio
 
 # === Terminal 3 (per coding session) ===
-cd ~/Projects/focus-timer
+cd ~/Projects/your-project
 npx anymodel@latest -- \
   --bare \
   --strict-mcp-config --mcp-config ./.claude/empty-mcp.json \
-  --append-system-prompt "$(cat CLAUDE.md)"
+  --append-system-prompt "$(cat CLAUDE.md 2>/dev/null)"
 ```
+
+That's it — three commands, three terminals, one window.
 
 ## Further reading
 
