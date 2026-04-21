@@ -809,7 +809,7 @@ function proxyToAnthropic(req, res) {
   });
 }
 
-export function createProxy(provider, { port = 9090, model, maxPortRetries = 10, freeOnly = false, freeModels = [], token = null, rpm = 60 } = {}) {
+export function createProxy(provider, { port = 9090, model, maxPortRetries = 10, freeOnly = false, token = null, rpm = 60 } = {}) {
   // Rate limiting state
   const rateWindow = {};
 
@@ -831,10 +831,14 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10,
     return authHeader === `Bearer ${token}` || authHeader === token;
   }
 
+  // Trusts the `:free` suffix convention (OpenRouter canonical marker) plus
+  // the `openrouter/free` auto-router. Authoritative function lives in cli.mjs;
+  // duplicated locally to avoid a cross-module import in this hot path.
   function isFreeTierModel(modelId) {
     if (!freeOnly) return true;
     if (!modelId) return !!model; // using default model which was already validated
-    return modelId.endsWith(':free') || freeModels.includes(modelId);
+    if (modelId === 'openrouter/free') return true;
+    return modelId.endsWith(':free');
   }
 
   const server = http.createServer((req, res) => {

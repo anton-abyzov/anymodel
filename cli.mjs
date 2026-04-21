@@ -33,20 +33,17 @@ const MODEL_PRESETS = {
   llama:    'meta-llama/llama-3.3-70b-instruct:free',
 };
 
-// Verified free models on OpenRouter (zero cost) — from live /v1/models API
-export const FREE_MODELS = [
-  'openrouter/free',                                 // Auto-selects best free model
-  'qwen/qwen3-coder:free',
-  'qwen/qwen3.6-plus:free',
-  'openai/gpt-oss-120b:free',
-  'nvidia/nemotron-3-super-120b-a12b:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'google/gemma-3-27b-it:free',
-  'qwen/qwen3-next-80b-a3b-instruct:free',
-  'nousresearch/hermes-3-llama-3.1-405b:free',
-  'stepfun/step-3.5-flash:free',
-  'minimax/minimax-m2.5:free',
-];
+// Free-tier detection — trust OpenRouter's `:free` suffix convention (documented,
+// stable) instead of a hardcoded allowlist that goes stale every quarter as the
+// free tier churns. `openrouter/free` is the single auto-router special case.
+//
+// This is the authoritative function. `createProxy()` in proxy.mjs uses the same
+// check internally when `freeOnly` mode is active.
+export function isFreeTierModel(modelId) {
+  if (!modelId || typeof modelId !== 'string') return false;
+  if (modelId === 'openrouter/free') return true;
+  return modelId.endsWith(':free');
+}
 
 // ANSI colors (lightweight, no dependency)
 const C = {
@@ -624,9 +621,9 @@ async function startProxyOnly(args) {
     console.log(`${C.cyan('[MODEL]')} Defaulting to ${C.bold(model)}`);
   }
 
-  if (opts.freeOnly && !model.endsWith(':free') && !FREE_MODELS.includes(model)) {
+  if (opts.freeOnly && !isFreeTierModel(model)) {
     console.error(`${C.red('Error:')} --free-only is active but model "${model}" is not free.`);
-    console.error('  Use a :free model or disable --free-only');
+    console.error('  Use a :free-suffixed model (e.g. qwen/qwen3-coder:free) or disable --free-only');
     process.exit(1);
   }
 
@@ -634,7 +631,7 @@ async function startProxyOnly(args) {
     console.log(`${C.cyan('[AUTH]')} Token authentication enabled`);
   }
 
-  createProxy(provider, { port, model, freeOnly: opts.freeOnly, freeModels: FREE_MODELS, token: opts.token, rpm: opts.rpm });
+  createProxy(provider, { port, model, freeOnly: opts.freeOnly, token: opts.token, rpm: opts.rpm });
 }
 
 // ── Entry point ──────────────────────────────────────
