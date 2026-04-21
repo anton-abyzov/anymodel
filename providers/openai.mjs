@@ -172,10 +172,39 @@ export function createStreamTranslator() {
   let buffer = '';
   let blockIndex = 0;
   let started = false;
-  let finished = false;
+  // `stopEmitted` — have we already emitted message_delta + message_stop? Used to
+  // prevent double-emission when both finish_reason and [DONE] arrive.
+  let stopEmitted = false;
   let thinkingBlockIndex = -1;
   let textBlockIndex = -1;
   const stoppedBlocks = new Set();
+
+  // US-006: accumulate usage across all chunks. OpenAI-compat streams commonly
+  // emit `completion_tokens` in a dedicated usage-only chunk AFTER the
+  // finish_reason chunk, so we can't read usage on finish_reason alone.
+  let accumulatedStopReason = null;
+  let accumulatedOutputTokens = 0;
+
+  function closeOpenBlocks(output) {
+    for (let i = 0; i < blockIndex; i++) {
+      if (!stoppedBlocks.has(i)) {
+        output.push(formatSSE('content_block_stop', { type: 'content_block_stop', index: i }));
+        stoppedBlocks.add(i);
+      }
+    }
+  }
+
+  function emitStop(output) {
+    if (stopEmitted) return;
+    stopEmitted = true;
+    closeOpenBlocks(output);
+    output.push(formatSSE('message_delta', {
+      type: 'message_delta',
+      delta: { stop_reason: accumulatedStopReason || 'end_turn' },
+      usage: { output_tokens: accumulatedOutputTokens },
+    }));
+    output.push(formatSSE('message_stop', { type: 'message_stop' }));
+  }
 
   return {
     transform(chunk) {
@@ -188,22 +217,30 @@ export function createStreamTranslator() {
         if (!line.startsWith('data: ')) continue;
         const data = line.slice(6).trim();
         if (data === '[DONE]') {
-          if (!finished) {
-            finished = true;
-            output.push(formatSSE('message_delta', {
-              type: 'message_delta',
-              delta: { stop_reason: 'end_turn' },
-              usage: { output_tokens: 0 },
-            }));
-            output.push(formatSSE('message_stop', { type: 'message_stop' }));
-          }
+          emitStop(output);
           continue;
         }
 
         try {
           const parsed = JSON.parse(data);
+
+          // US-006: accumulate usage from any chunk that carries it — OpenAI-compat
+          // streams may emit a dedicated usage-only chunk after finish_reason.
+          if (parsed.usage && typeof parsed.usage.completion_tokens === 'number') {
+            accumulatedOutputTokens = parsed.usage.completion_tokens;
+          }
+
           const delta = parsed.choices?.[0]?.delta;
-          if (!delta) continue;
+          if (!delta) {
+            // A chunk with only `usage` and no delta is valid — we've already
+            // captured its usage above. Nothing else to do.
+            // Also check if this chunk has finish_reason (unlikely without delta, but handle it).
+            if (parsed.choices?.[0]?.finish_reason && !accumulatedStopReason) {
+              const fr = parsed.choices[0].finish_reason;
+              accumulatedStopReason = { tool_calls: 'tool_use', length: 'max_tokens', stop: 'end_turn' }[fr] || 'end_turn';
+            }
+            continue;
+          }
 
           if (!started) {
             output.push(formatSSE('message_start', {
@@ -290,28 +327,27 @@ export function createStreamTranslator() {
             }
           }
 
-          if (parsed.choices?.[0]?.finish_reason && !finished) {
-            finished = true;
+          if (parsed.choices?.[0]?.finish_reason && !accumulatedStopReason) {
+            // Record stop reason — we may receive more chunks (dedicated usage chunk)
+            // before the stream terminates, so don't emit message_delta yet. The
+            // [DONE] sentinel (or a final flush) is what commits the stop event.
             const fr = parsed.choices[0].finish_reason;
-            const reason = { tool_calls: 'tool_use', length: 'max_tokens', stop: 'end_turn' }[fr] || 'end_turn';
-            // Emit content_block_stop for all blocks not already stopped
-            for (let i = 0; i < blockIndex; i++) {
-              if (!stoppedBlocks.has(i)) {
-                output.push(formatSSE('content_block_stop', { type: 'content_block_stop', index: i }));
-              }
-            }
-            output.push(formatSSE('message_delta', {
-              type: 'message_delta',
-              delta: { stop_reason: reason },
-              usage: { output_tokens: parsed.usage?.completion_tokens || 0 },
-            }));
-            output.push(formatSSE('message_stop', { type: 'message_stop' }));
+            accumulatedStopReason = { tool_calls: 'tool_use', length: 'max_tokens', stop: 'end_turn' }[fr] || 'end_turn';
           }
         } catch (e) {
           console.warn(`[SSE PARSE] Dropped chunk: ${e.message}`);
         }
       }
 
+      return output.join('');
+    },
+
+    // Flush any pending stop event if the stream ends without an explicit
+    // [DONE] sentinel. Callers that know the stream closed cleanly should
+    // invoke this to ensure the proxy emits message_delta + message_stop.
+    flush() {
+      const output = [];
+      emitStop(output);
       return output.join('');
     },
   };

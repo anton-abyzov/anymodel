@@ -430,27 +430,31 @@ describe('createStreamTranslator', () => {
     assert.ok(output.includes('event: message_stop'));
   });
 
-  it('handles finish_reason in chunk', () => {
+  it('handles finish_reason in chunk (1.12.0+: commits on [DONE])', () => {
     const translator = createStreamTranslator();
     // Start message with content
     translator.transform('data: {"id":"chatcmpl-1","model":"gpt-4o","choices":[{"delta":{"content":"hi"}}]}\n\n');
 
     const finishChunk = 'data: {"id":"chatcmpl-1","model":"gpt-4o","choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"completion_tokens":10}}\n\n';
-    const output = translator.transform(finishChunk);
+    let output = translator.transform(finishChunk);
+    // US-006: message_delta is NOT emitted here — we wait for [DONE] in case a
+    // dedicated usage-only chunk arrives between finish_reason and stream close.
+    assert.ok(!output.includes('event: message_delta'), 'message_delta must be deferred until [DONE]');
 
+    output += translator.transform('data: [DONE]\n\n');
     assert.ok(output.includes('event: content_block_stop'));
     assert.ok(output.includes('event: message_delta'));
     assert.ok(output.includes('"stop_reason":"end_turn"'));
+    assert.ok(output.includes('"output_tokens":10'), 'usage forwarded from finish_reason chunk');
     assert.ok(output.includes('event: message_stop'));
   });
 
-  it('maps finish_reason tool_calls to stop_reason tool_use', () => {
+  it('maps finish_reason tool_calls to stop_reason tool_use (1.12.0+: committed on [DONE])', () => {
     const translator = createStreamTranslator();
-    // Start message
     translator.transform('data: {"id":"chatcmpl-1","model":"gpt-4o","choices":[{"delta":{"content":"x"}}]}\n\n');
 
-    const finishChunk = 'data: {"id":"chatcmpl-1","model":"gpt-4o","choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n';
-    const output = translator.transform(finishChunk);
+    translator.transform('data: {"id":"chatcmpl-1","model":"gpt-4o","choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n');
+    const output = translator.transform('data: [DONE]\n\n');
 
     assert.ok(output.includes('"stop_reason":"tool_use"'));
   });
