@@ -1,89 +1,12 @@
-// llama.cpp provider for anymodel
-// Thin delegator to the OpenAI provider — llama-server (llama.cpp) exposes an
-// OpenAI-compatible endpoint at /v1 by default. The Bearer token is ignored by
-// the server but must be non-empty, so we send a placeholder.
+// llama.cpp / llama-server provider — configured instance of openai-local factory (1.12.0+).
+// llama-server exposes an OpenAI-compatible endpoint at :8080/v1. No native /api/v0/models,
+// so v0Probe stays false — we use only /v1/models which doesn't surface loaded state.
+import { makeOpenAILocalProvider } from './openai-local.mjs';
 
-import http from 'http';
-import { translateRequest, translateResponse, createStreamTranslator } from './openai.mjs';
-
-// Use 127.0.0.1 — Node's http.get resolves "localhost" to ::1 (IPv6) which
-// llama-server doesn't listen on by default, producing ECONNREFUSED.
-const DEFAULT_BASE_URL = 'http://127.0.0.1:8080/v1';
-
-function getBaseUrl() {
-  return process.env.LLAMACPP_BASE_URL || DEFAULT_BASE_URL;
-}
-
-export default {
+export default makeOpenAILocalProvider({
   name: 'llamacpp',
-
-  buildRequest(url, payload) {
-    const parsedUrl = new URL(getBaseUrl());
-    return {
-      hostname: parsedUrl.hostname,
-      port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
-      protocol: parsedUrl.protocol,
-      path: `${parsedUrl.pathname.replace(/\/$/, '')}/chat/completions`,
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'authorization': 'Bearer no-key',
-        'content-length': Buffer.byteLength(payload),
-      },
-    };
-  },
-
-  transformRequest: translateRequest,
-  transformResponse: translateResponse,
-  createStreamTranslator,
-
-  displayInfo(model) {
-    const base = getBaseUrl();
-    return model ? `(${model} @ ${base})` : `(${base})`;
-  },
-
-  // Probe GET /v1/models — any HTTP response (2xx/4xx) means the server is up.
-  detect() {
-    return new Promise(resolve => {
-      const parsedUrl = new URL(getBaseUrl());
-      const req = http.get({
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port || 80,
-        path: `${parsedUrl.pathname.replace(/\/$/, '')}/models`,
-      }, res => {
-        res.resume();
-        resolve(true);
-      });
-      req.on('error', () => resolve(false));
-      req.setTimeout(1000, () => { req.destroy(); resolve(false); });
-    });
-  },
-
-  // GET /v1/models → returns [{ id, loaded: undefined (unknown for llama-server) }]
-  listModels() {
-    return new Promise(resolve => {
-      const parsedUrl = new URL(getBaseUrl());
-      const req = http.get({
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port || 80,
-        path: `${parsedUrl.pathname.replace(/\/$/, '')}/models`,
-      }, res => {
-        let body = '';
-        res.on('data', chunk => { body += chunk; });
-        res.on('end', () => {
-          try {
-            const parsed = JSON.parse(body);
-            const entries = (parsed.data || [])
-              .filter(m => !/embed/i.test(m.id || ''))
-              .map(m => ({ id: m.id, loaded: undefined, capabilities: [] }));
-            resolve(entries);
-          } catch {
-            resolve([]);
-          }
-        });
-      });
-      req.on('error', () => resolve([]));
-      req.setTimeout(1000, () => { req.destroy(); resolve([]); });
-    });
-  },
-};
+  defaultPort: 8080,
+  envVar: 'LLAMACPP_BASE_URL',
+  bearerStub: 'no-key', // llama-server ignores the Bearer token entirely
+  v0Probe: false,
+});
