@@ -83,7 +83,8 @@ describe('sanitizeBody', () => {
       ],
     };
     const result = sanitizeBody(body);
-    // Tool fields stripped, empty properties gets _unused placeholder
+    // Tool fields stripped, empty schema normalized (1.12.0 uses additionalProperties:false
+    // instead of _unused placeholder injection — see US-004)
     assert.equal(result.tools[0].cache_control, undefined);
     assert.equal(result.tools[0].defer_loading, undefined);
     assert.equal(result.tools[0].name, 'get_weather');
@@ -133,7 +134,10 @@ describe('sanitizeBody', () => {
     assert.deepEqual(sanitizeBody({}), {});
   });
 
-  it('adds _unused placeholder for empty tool properties', () => {
+  // US-004 (1.12.0+): empty-schema handling uses additionalProperties:false
+  // instead of injecting a _unused placeholder property. Real tool params named
+  // `_unused` now survive end-to-end unchanged.
+  it('normalizes empty tool properties to additionalProperties:false', () => {
     const body = {
       tools: [{
         name: 'no_params',
@@ -141,21 +145,22 @@ describe('sanitizeBody', () => {
       }],
     };
     const result = sanitizeBody(body);
-    assert.deepEqual(result.tools[0].input_schema.properties, { _unused: { type: 'string' } });
-    assert.deepEqual(result.tools[0].input_schema.required, []);
+    const schema = result.tools[0].input_schema;
+    assert.equal(schema.type, 'object');
+    assert.deepEqual(schema.properties, {}, 'properties stays empty — no _unused injection');
+    assert.equal(schema.additionalProperties, false, 'marks schema as closed via additionalProperties:false');
+    assert.deepEqual(schema.required, []);
   });
 
-  it('adds _unused placeholder for missing input_schema', () => {
+  it('normalizes missing input_schema to valid empty object form', () => {
     const body = { tools: [{ name: 'bare' }] };
     const result = sanitizeBody(body);
-    assert.deepEqual(result.tools[0].input_schema, {
-      type: 'object',
-      properties: { _unused: { type: 'string' } },
-      required: [],
-    });
+    assert.equal(result.tools[0].input_schema.type, 'object');
+    assert.deepEqual(result.tools[0].input_schema.properties, {});
+    assert.equal(result.tools[0].input_schema.additionalProperties, false);
   });
 
-  it('fixes nested empty object properties recursively', () => {
+  it('fixes nested empty object properties recursively without injecting _unused', () => {
     const body = {
       tools: [{
         name: 'nested',
@@ -168,43 +173,45 @@ describe('sanitizeBody', () => {
       }],
     };
     const result = sanitizeBody(body);
-    assert.deepEqual(result.tools[0].input_schema.properties.config.properties, {
-      _unused: { type: 'string' },
-    });
+    const configSchema = result.tools[0].input_schema.properties.config;
+    assert.deepEqual(configSchema.properties, {}, 'nested empty properties stays empty');
+    assert.equal(configSchema.additionalProperties, false, 'nested empty schema gets additionalProperties:false');
   });
 });
 
 describe('sanitizeToolUseResponse', () => {
-  it('strips _unused and _placeholder from tool_use inputs', () => {
+  // US-004 (1.12.0+): we no longer inject _unused/_placeholder, so we no longer
+  // strip them. Real params named `_unused` survive unchanged.
+  it('PRESERVES _unused and _placeholder fields in tool_use inputs (US-004)', () => {
     const resp = {
       content: [
-        { type: 'tool_use', id: 'toolu_1', name: 'Read', input: { file_path: '/a.ts', _unused: '', _placeholder: '' } },
+        { type: 'tool_use', id: 'toolu_1', name: 'Read', input: { file_path: '/a.ts', _unused: 'real value', _placeholder: 'also real' } },
       ],
     };
     sanitizeToolUseResponse(resp);
-    assert.equal(resp.content[0].input._unused, undefined);
-    assert.equal(resp.content[0].input._placeholder, undefined);
+    assert.equal(resp.content[0].input._unused, 'real value',
+      '_unused is now preserved as legitimate user data');
+    assert.equal(resp.content[0].input._placeholder, 'also real');
     assert.equal(resp.content[0].input.file_path, '/a.ts');
   });
 
-  it('strips _unused recursively from nested objects', () => {
+  it('PRESERVES _unused fields in nested objects (US-004)', () => {
     const resp = {
       content: [
         {
           type: 'tool_use', id: 'toolu_1', name: 'TeamCreate',
           input: {
             name: 'test-team',
-            config: { _unused: '' },
-            _unused: '',
+            config: { _unused: 'nested real value' },
+            _unused: 'top-level real value',
           },
         },
       ],
     };
     sanitizeToolUseResponse(resp);
-    assert.equal(resp.content[0].input._unused, undefined);
-    assert.equal(resp.content[0].input.config._unused, undefined);
+    assert.equal(resp.content[0].input._unused, 'top-level real value');
+    assert.equal(resp.content[0].input.config._unused, 'nested real value');
     assert.equal(resp.content[0].input.name, 'test-team');
-    assert.deepEqual(resp.content[0].input.config, {});
   });
 
   it('drops tool_use blocks with no name', () => {

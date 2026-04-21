@@ -32,8 +32,7 @@ function ollamaToAnthropic(ollamaResp, model, cacheMetrics) {
       } else {
         input = tc.function.arguments || {};
       }
-      delete input._unused;
-      delete input._placeholder;
+      // US-004: no longer strip _unused/_placeholder — preserved as real user params
       content.push({
         type: 'tool_use',
         id: tc.id || `toolu_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -160,12 +159,10 @@ function createOllamaStreamTranslator(cacheMetrics) {
               }
 
               if (tc.function?.arguments) {
-                let args = tc.function.arguments;
-                // Strip placeholder fields and fix trailing commas
-                args = args.replace(/"_unused"\s*:\s*"[^"]*"\s*,?\s*/g, '');
-                args = args.replace(/"_placeholder"\s*:\s*"[^"]*"\s*,?\s*/g, '');
-                // Fix trailing commas left after stripping (e.g. {"city":"NYC",} → {"city":"NYC"})
-                args = args.replace(/,\s*([}\]])/g, '$1');
+                // US-004: no longer strip _unused/_placeholder or fix trailing
+                // commas left behind by stripping — since 1.12.0 we stopped
+                // injecting placeholder fields.
+                const args = tc.function.arguments;
                 if (args && args.trim()) {
                   const bi = toolCallStarted.get(tcIdx) ?? (blockIndex - 1);
                   output.push(formatSSE('content_block_delta', {

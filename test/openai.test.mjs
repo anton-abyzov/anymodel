@@ -161,7 +161,10 @@ describe('translateRequest', () => {
     });
   });
 
-  it('uses _unused (not _placeholder) for empty properties', () => {
+  it('uses additionalProperties:false for empty properties (1.12.0+)', () => {
+    // Pre-1.12 we injected _unused placeholder into empty schemas. Now we use
+    // standard JSON Schema `additionalProperties:false` — accepted by every
+    // OpenAI-compat endpoint and preserves real params named `_unused`.
     const result = translateRequest({
       model: 'x',
       tools: [{
@@ -170,8 +173,8 @@ describe('translateRequest', () => {
       }],
     });
     const params = result.tools[0].function.parameters;
-    assert.ok(params.properties._unused, 'should use _unused placeholder');
-    assert.equal(params.properties._placeholder, undefined, 'should not use _placeholder');
+    assert.deepEqual(params.properties, {}, 'properties stays empty — no _unused injection');
+    assert.equal(params.additionalProperties, false);
   });
 
   it('translates tool_choice string passthrough', () => {
@@ -339,7 +342,8 @@ describe('translateResponse', () => {
     assert.deepEqual(result.content[0].input, {});
   });
 
-  it('strips _unused and _placeholder from tool_use inputs', () => {
+  it('PRESERVES _unused and _placeholder fields in tool_use inputs (US-004, 1.12.0+)', () => {
+    // Since we no longer inject placeholder fields, anything here is real user data.
     const result = translateResponse({
       id: 'x',
       model: 'gpt-4o',
@@ -348,14 +352,14 @@ describe('translateResponse', () => {
           tool_calls: [{
             id: 'call_1',
             type: 'function',
-            function: { name: 'Read', arguments: '{"file_path":"/a.ts","_unused":"","_placeholder":"x"}' },
+            function: { name: 'Read', arguments: '{"file_path":"/a.ts","_unused":"real","_placeholder":"also real"}' },
           }],
         },
         finish_reason: 'tool_calls',
       }],
     });
-    assert.equal(result.content[0].input._unused, undefined);
-    assert.equal(result.content[0].input._placeholder, undefined);
+    assert.equal(result.content[0].input._unused, 'real');
+    assert.equal(result.content[0].input._placeholder, 'also real');
     assert.equal(result.content[0].input.file_path, '/a.ts');
   });
 });

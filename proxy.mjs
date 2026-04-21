@@ -24,28 +24,19 @@ const C = {
   bold: s => `\x1b[1m${s}\x1b[0m`,
 };
 
-// Recursively strip _unused/_placeholder from all nested objects
-function stripPlaceholders(obj) {
-  if (!obj || typeof obj !== 'object') return;
-  delete obj._unused;
-  delete obj._placeholder;
-  for (const val of Object.values(obj)) {
-    if (val && typeof val === 'object' && !Array.isArray(val)) {
-      stripPlaceholders(val);
-    }
-  }
-}
-
-// Sanitize tool_use blocks in responses from non-Anthropic models
-// Fixes structural issues that cause "Invalid tool parameters" in Claude Code
+// Sanitize tool_use blocks in responses from non-Anthropic models.
+// Fixes structural issues that cause "Invalid tool parameters" in Claude Code.
+//
+// NOTE: Since 1.12.0 we no longer inject `_unused`/`_placeholder` placeholder
+// properties in requests (see `sanitizeBody` — empty schemas use the canonical
+// `{type:"object", properties:{}, additionalProperties:false}` form instead).
+// Consequently this function no longer strips those fields — real tools with
+// params named `_unused` now round-trip cleanly.
 export function sanitizeToolUseResponse(respObj) {
   if (!respObj?.content || !Array.isArray(respObj.content)) return respObj;
 
   respObj.content = respObj.content.filter(block => {
     if (block.type !== 'tool_use') return true;
-
-    // Recursively strip placeholder fields from input and all nested objects
-    if (block.input) stripPlaceholders(block.input);
 
     // Ensure required fields exist
     if (!block.id) block.id = `toolu_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -113,12 +104,15 @@ export function sanitizeBody(body, { keepCache = false } = {}) {
       const rest = { ...tool };
       for (const key of Object.keys(stripFields)) delete rest[key];
 
-      // Fix schemas that OpenAI rejects:
+      // Fix schemas that OpenAI/strict-mode parsers reject:
       // 1. Missing input_schema entirely
       // 2. Missing or empty properties
-      // Use a minimal valid property instead of _placeholder to avoid model confusion
+      // Use the standard JSON-Schema "empty object" form — {type:"object", properties:{}, additionalProperties:false}
+      // This is accepted by OpenAI, Groq, Together, vLLM, LMStudio, Ollama, and real
+      // tool params named `_unused` are preserved end-to-end (US-004 fix, 1.12.0).
+      const emptyObjectSchema = () => ({ type: 'object', properties: {}, additionalProperties: false });
       if (!rest.input_schema || typeof rest.input_schema !== 'object') {
-        rest.input_schema = { type: 'object', properties: { _unused: { type: 'string' } }, required: [] };
+        rest.input_schema = emptyObjectSchema();
       } else {
         if (!rest.input_schema.type) {
           rest.input_schema.type = 'object';
@@ -126,8 +120,9 @@ export function sanitizeBody(body, { keepCache = false } = {}) {
         if (rest.input_schema.type === 'object') {
           const props = rest.input_schema.properties;
           if (!props || (typeof props === 'object' && Object.keys(props).length === 0)) {
-            rest.input_schema.properties = { _unused: { type: 'string' } };
-            rest.input_schema.required = [];
+            rest.input_schema.properties = {};
+            rest.input_schema.additionalProperties = false;
+            if (!Array.isArray(rest.input_schema.required)) rest.input_schema.required = [];
           }
         }
       }
@@ -143,8 +138,8 @@ export function sanitizeBody(body, { keepCache = false } = {}) {
         if (schema.items) fixNested(schema.items);
         if (schema.type === 'object' && schema.properties) {
           if (Object.keys(schema.properties).length === 0) {
-            schema.properties = { _unused: { type: 'string' } };
-            schema.required = [];
+            schema.additionalProperties = false;
+            if (!Array.isArray(schema.required)) schema.required = [];
           }
           for (const v of Object.values(schema.properties)) fixNested(v);
         }
@@ -736,14 +731,12 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         return;
       }
 
-      // For streaming: pipe through, strip _unused from JSON deltas
+      // For streaming: pipe through verbatim. Since 1.12.0 we no longer inject
+      // _unused/_placeholder into schemas, so there is nothing to strip here —
+      // preserving any real tool arguments named `_unused` (US-004 fix).
       res.writeHead(200, upstream.headers);
       upstream.on('data', chunk => {
-        let str = chunk.toString();
-        // Quick string replace for _unused in streaming tool input deltas
-        str = str.replace(/"_unused"\s*:\s*"[^"]*"\s*,?\s*/g, '');
-        str = str.replace(/"_placeholder"\s*:\s*"[^"]*"\s*,?\s*/g, '');
-        const ok = res.write(str);
+        const ok = res.write(chunk);
         if (!ok) upstream.pause();
       });
       res.on('drain', () => upstream.resume());

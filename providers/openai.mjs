@@ -72,17 +72,18 @@ export function translateRequest(anthropicBody) {
       const params = t.input_schema ? { ...t.input_schema } : { type: 'object', properties: {} };
       // Ensure type is set
       if (!params.type) params.type = 'object';
-      // Fix empty properties: OpenAI rejects { properties: {} }
+      // Fix empty properties: use the canonical "no-params object" JSON Schema.
+      // Since 1.12.0 we use `additionalProperties: false` instead of injecting a
+      // `_unused` placeholder — accepted by OpenAI, Groq, Together, vLLM, LMStudio,
+      // Ollama, and preserves real tool params named `_unused` end-to-end (US-004).
       if (
         params.type === 'object' &&
         params.properties &&
         typeof params.properties === 'object' &&
         Object.keys(params.properties).length === 0
       ) {
-        params.properties = {
-          _unused: { type: 'string', description: 'No parameters needed' },
-        };
-        if (!params.required) params.required = [];
+        params.additionalProperties = false;
+        if (!Array.isArray(params.required)) params.required = [];
       }
       return {
         type: 'function',
@@ -136,8 +137,9 @@ export function translateResponse(openaiResponse) {
   if (choice.message?.tool_calls) {
     for (const tc of choice.message.tool_calls) {
       const input = (() => { try { return JSON.parse(tc.function.arguments || '{}'); } catch { return {}; } })();
-      delete input._unused;
-      delete input._placeholder;
+      // US-004: no longer strip _unused/_placeholder — since we stopped injecting
+      // them, any such fields in the response are real user params that must be
+      // preserved.
       content.push({
         type: 'tool_use',
         id: tc.id,
@@ -312,17 +314,13 @@ export function createStreamTranslator() {
                 blockIndex++;
               }
               if (tc.function?.arguments) {
-                let args = tc.function.arguments;
-                // Strip placeholder fields injected during request sanitization
-                args = args.replace(/"_unused"\s*:\s*"[^"]*"\s*,?\s*/g, '');
-                args = args.replace(/"_placeholder"\s*:\s*"[^"]*"\s*,?\s*/g, '');
-                if (args) {
-                  output.push(formatSSE('content_block_delta', {
-                    type: 'content_block_delta',
-                    index: blockIndex - 1,
-                    delta: { type: 'input_json_delta', partial_json: args },
-                  }));
-                }
+                // US-004: no longer strip _unused/_placeholder — since we stopped
+                // injecting them, any such fields here are real user params.
+                output.push(formatSSE('content_block_delta', {
+                  type: 'content_block_delta',
+                  index: blockIndex - 1,
+                  delta: { type: 'input_json_delta', partial_json: tc.function.arguments },
+                }));
               }
             }
           }

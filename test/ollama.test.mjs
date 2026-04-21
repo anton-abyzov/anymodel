@@ -99,20 +99,23 @@ describe('ollamaToAnthropic (via transformResponse)', () => {
     assert.equal(toolUse.id, 'call_existing_123');
   });
 
-  it('strips _unused from tool arguments', () => {
+  it('PRESERVES _unused in tool arguments (US-004, 1.12.0+)', () => {
+    // Before 1.12.0 we stripped `_unused` defensively, which corrupted real
+    // tool params named `_unused`. Now we preserve them — since we also stopped
+    // injecting the placeholder, no collision is possible.
     const result = ollamaProvider.transformResponse({
       model: 'qwen3',
       message: {
         role: 'assistant',
         content: '',
         tool_calls: [{
-          function: { name: 'test', arguments: '{"_unused":"","city":"NYC"}' },
+          function: { name: 'test', arguments: '{"_unused":"real value","city":"NYC"}' },
         }],
       },
       done: true,
     });
     const toolUse = result.content.find(b => b.type === 'tool_use');
-    assert.equal(toolUse.input._unused, undefined);
+    assert.equal(toolUse.input._unused, 'real value');
     assert.equal(toolUse.input.city, 'NYC');
   });
 
@@ -288,15 +291,15 @@ describe('createOllamaStreamTranslator — tool calls', () => {
     assert.ok(output.includes('Hello'), 'should include text content');
   });
 
-  it('strips _unused from streamed tool arguments', () => {
+  it('PRESERVES _unused in streamed tool arguments (US-004, 1.12.0+)', () => {
     const translator = ollamaProvider.createStreamTranslator();
     translator.transform('{"model":"qwen3","message":{"content":""},"done":false}\n');
     translator.transform('{"model":"qwen3","message":{"tool_calls":[{"function":{"name":"fn","arguments":""}}]},"done":false}\n');
 
-    const argChunk = '{"model":"qwen3","message":{"tool_calls":[{"function":{"arguments":"{\\"_unused\\":\\"\\",\\"city\\":\\"NYC\\"}"}}]},"done":false}\n';
+    const argChunk = '{"model":"qwen3","message":{"tool_calls":[{"function":{"arguments":"{\\"_unused\\":\\"real\\",\\"city\\":\\"NYC\\"}"}}]},"done":false}\n';
     const output = translator.transform(argChunk);
 
-    assert.ok(!output.includes('_unused'), 'should strip _unused from arguments');
+    assert.ok(output.includes('_unused'), 'must preserve _unused as legitimate user param');
     assert.ok(output.includes('city'), 'should keep real arguments');
   });
 
@@ -329,17 +332,20 @@ describe('createOllamaStreamTranslator — tool calls', () => {
     assert.ok(output.includes('Bash'), 'should include second tool name');
   });
 
-  it('fixes trailing comma after _unused stripping', () => {
+  it('forwards tool arguments verbatim — no trailing comma issues (1.12.0+)', () => {
+    // Previously we'd strip `_unused` from args, which could leave `{"city":"NYC",}`
+    // — an extra regex tried to fix those trailing commas. Since 1.12.0 we stop
+    // stripping, so this edge case is gone entirely.
     const translator = ollamaProvider.createStreamTranslator();
     translator.transform('{"model":"qwen3","message":{"content":""},"done":false}\n');
     translator.transform('{"model":"qwen3","message":{"tool_calls":[{"function":{"name":"fn","arguments":""}}]},"done":false}\n');
 
-    // _unused is last key — stripping should not leave trailing comma
-    const argChunk = '{"model":"qwen3","message":{"tool_calls":[{"function":{"arguments":"{\\"city\\":\\"NYC\\",\\"_unused\\":\\"\\"}"}}]},"done":false}\n';
+    const argChunk = '{"model":"qwen3","message":{"tool_calls":[{"function":{"arguments":"{\\"city\\":\\"NYC\\",\\"_unused\\":\\"real\\"}"}}]},"done":false}\n';
     const output = translator.transform(argChunk);
 
-    assert.ok(!output.includes(',}'), 'should not leave trailing comma');
-    assert.ok(output.includes('city'), 'should keep real arguments');
+    assert.ok(!output.includes(',}'), 'no trailing comma artifacts');
+    assert.ok(output.includes('city'), 'real arguments preserved');
+    assert.ok(output.includes('_unused'), '_unused also preserved as legit user data');
   });
 });
 
