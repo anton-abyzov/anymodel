@@ -354,6 +354,9 @@ async function connectToProxy(args) {
       ANTHROPIC_BASE_URL: `http://localhost:${port}`,
       // Suppress "Not logged in" — proxy handles auth, Claude Code doesn't need its own key
       ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || 'anymodel-proxy',
+      // Override Claude Code's displayed model so /context shows the actual backend model
+      // instead of the default claude-opus-*. Respects user's ANTHROPIC_MODEL if already set.
+      ...(modelName && !process.env.ANTHROPIC_MODEL ? { ANTHROPIC_MODEL: modelName } : {}),
       ...(modelName ? { ANYMODEL_MODEL: modelName } : {}),
     },
   });
