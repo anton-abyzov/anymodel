@@ -127,6 +127,61 @@ export function resolveProjectMcpPath() {
   return emptyPath;
 }
 
+// Pure formatter for the local-provider onboarding banner. Takes fs facts as
+// arguments so it's unit-testable without mocking the filesystem.
+// Returns an array of pre-colored lines ready for console.log.
+export function formatLocalProviderBanner({ providerName, mcpPath, hasProjectMcp, hasProjectClaudeDir, hasProjectSkills, hasProjectAgents }) {
+  const tag = C.green('[anymodel]');
+  const lines = [];
+
+  if (hasProjectMcp) {
+    const rel = mcpPath.replace(process.cwd(), '.');
+    lines.push(`${tag} Local provider (${providerName}) — global MCP suppressed, using project MCP: ${C.cyan(rel)}`);
+    const extras = [];
+    if (hasProjectSkills) extras.push('skills');
+    if (hasProjectAgents) extras.push('agents');
+    if (extras.length) lines.push(`${tag} Project ${extras.join(' + ')} from ${C.cyan('./.claude/')} will also load`);
+    lines.push(`${tag} Pass ${C.bold('--full-mcp')} to keep global MCP servers`);
+  } else if (hasProjectClaudeDir) {
+    lines.push(`${tag} Local provider (${providerName}) — global MCP suppressed (no MCP servers this session)`);
+    const extras = [];
+    if (hasProjectSkills) extras.push('skills');
+    if (hasProjectAgents) extras.push('agents');
+    if (extras.length) lines.push(`${tag} Project ${extras.join(' + ')} from ${C.cyan('./.claude/')} will load`);
+    lines.push('');
+    lines.push(`  ${C.bold('Tip:')} to add MCP tools, create ${C.cyan('./.claude/.mcp.json')}:`);
+    lines.push(`    ${C.cyan('{"mcpServers":{"fs":{"command":"npx","args":["-y","@modelcontextprotocol/server-filesystem","."]}}}')}`);
+    lines.push('');
+  } else {
+    lines.push(`${tag} Local provider (${providerName}) — global MCP, skills, and plugins suppressed for speed`);
+    lines.push('');
+    lines.push(`  ${C.bold('No project config detected. To add tools to this session, create:')}`);
+    lines.push(`    ${C.cyan('./.claude/.mcp.json')}              — MCP servers`);
+    lines.push(`    ${C.cyan('./.claude/skills/<name>/SKILL.md')}  — custom skills`);
+    lines.push(`    ${C.cyan('./.claude/agents/<name>.md')}        — custom subagents`);
+    lines.push(`    ${C.cyan('./CLAUDE.md')}                       — project instructions`);
+    lines.push('');
+    lines.push(`  Or pass ${C.bold('--full-mcp')} to keep global MCP (slow on local).`);
+    lines.push(`  Docs: ${C.cyan('https://github.com/anton-abyzov/anymodel/blob/main/LOCAL_SETUP.md')}`);
+    lines.push('');
+  }
+  return lines;
+}
+
+// Helper that the connectToProxy function calls — does the fs I/O and prints.
+export function printLocalProviderBanner(providerName, mcpPath) {
+  const cwd = process.cwd();
+  const lines = formatLocalProviderBanner({
+    providerName,
+    mcpPath,
+    hasProjectMcp: existsSync(join(cwd, '.claude', '.mcp.json')),
+    hasProjectClaudeDir: existsSync(join(cwd, '.claude')),
+    hasProjectSkills: existsSync(join(cwd, '.claude', 'skills')),
+    hasProjectAgents: existsSync(join(cwd, '.claude', 'agents')),
+  });
+  lines.forEach(l => console.log(l));
+}
+
 export async function detectProvider(model) {
   if (model && model.includes('/')) {
     return 'openrouter';
@@ -388,8 +443,7 @@ async function connectToProxy(args) {
   if (shouldAutoSuppressMcp(providerName, opts)) {
     const mcpPath = resolveProjectMcpPath();
     autoArgs.push('--strict-mcp-config', '--mcp-config', mcpPath);
-    const label = mcpPath.includes('empty-mcp') ? 'no MCP servers' : `project MCP (${mcpPath.replace(process.cwd(), '.')})`;
-    console.log(`${C.green('[anymodel]')} Local provider — global MCP suppressed, using ${C.cyan(label)}. Pass ${C.bold('--full-mcp')} to keep global MCP.`);
+    printLocalProviderBanner(providerName, mcpPath);
   } else if (providerName && LOCAL_PROVIDERS.includes(providerName) && opts.fullMcp) {
     console.log(`${C.yellow('[anymodel]')} --full-mcp: keeping global MCP servers (may be slow on local models)`);
   }

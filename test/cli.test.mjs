@@ -1,7 +1,10 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { parseArgs, shouldAutoSuppressMcp, resolveProjectMcpPath } from '../cli.mjs';
+import { parseArgs, shouldAutoSuppressMcp, resolveProjectMcpPath, formatLocalProviderBanner } from '../cli.mjs';
+
+// Helper to strip ANSI color codes for plain-text assertions
+const stripAnsi = s => s.replace(/\x1b\[[0-9;]*m/g, '');
 
 describe('parseArgs', () => {
   it('detects openrouter as provider from positional arg', () => {
@@ -162,5 +165,102 @@ describe('resolveProjectMcpPath', () => {
     if (p.includes('empty-mcp')) {
       assert.deepEqual(content, { mcpServers: {} });
     }
+  });
+});
+
+describe('formatLocalProviderBanner', () => {
+  const base = { providerName: 'lmstudio', mcpPath: '/tmp/anymodel/empty-mcp.json' };
+
+  it('fresh project (no .claude dir) prints the full onboarding guide', () => {
+    const lines = formatLocalProviderBanner({
+      ...base,
+      hasProjectMcp: false,
+      hasProjectClaudeDir: false,
+      hasProjectSkills: false,
+      hasProjectAgents: false,
+    });
+    const plain = lines.map(stripAnsi).join('\n');
+    assert.ok(plain.includes('No project config detected'), 'must tell user to create project config');
+    assert.ok(plain.includes('./.claude/.mcp.json'), 'must mention MCP path');
+    assert.ok(plain.includes('./.claude/skills/'), 'must mention skills path');
+    assert.ok(plain.includes('./.claude/agents/'), 'must mention agents path');
+    assert.ok(plain.includes('./CLAUDE.md'), 'must mention CLAUDE.md');
+    assert.ok(plain.includes('--full-mcp'), 'must mention opt-out flag');
+    assert.ok(plain.includes('LOCAL_SETUP.md'), 'must link to docs');
+  });
+
+  it('project with MCP + skills + agents prints compact banner', () => {
+    const lines = formatLocalProviderBanner({
+      providerName: 'lmstudio',
+      mcpPath: '/Users/foo/myproject/.claude/.mcp.json',
+      hasProjectMcp: true,
+      hasProjectClaudeDir: true,
+      hasProjectSkills: true,
+      hasProjectAgents: true,
+    });
+    const plain = lines.map(stripAnsi).join('\n');
+    assert.ok(plain.includes('global MCP suppressed'), 'must say global MCP is off');
+    assert.ok(plain.includes('using project MCP'), 'must say project MCP is on');
+    assert.ok(plain.includes('skills + agents'), 'must mention both skills and agents load');
+    assert.ok(plain.includes('--full-mcp'), 'must mention opt-out');
+    // No verbose guidance since user already has config
+    assert.ok(!plain.includes('No project config detected'), 'should not show fresh-project guidance');
+  });
+
+  it('project with .claude/ but no .mcp.json shows a tip', () => {
+    const lines = formatLocalProviderBanner({
+      ...base,
+      hasProjectMcp: false,
+      hasProjectClaudeDir: true,
+      hasProjectSkills: true,
+      hasProjectAgents: false,
+    });
+    const plain = lines.map(stripAnsi).join('\n');
+    assert.ok(plain.includes('no MCP servers this session'), 'must say no MCP');
+    assert.ok(plain.includes('Project skills from'), 'must mention skills load');
+    assert.ok(plain.includes('Tip:'), 'must show MCP tip');
+    assert.ok(plain.includes('.mcp.json'), 'tip must suggest creating MCP file');
+    assert.ok(plain.includes('server-filesystem'), 'tip must give a copy-paste example');
+  });
+
+  it('project with .claude/ and only agents (no skills, no .mcp.json)', () => {
+    const lines = formatLocalProviderBanner({
+      ...base,
+      hasProjectMcp: false,
+      hasProjectClaudeDir: true,
+      hasProjectSkills: false,
+      hasProjectAgents: true,
+    });
+    const plain = lines.map(stripAnsi).join('\n');
+    assert.ok(plain.includes('Project agents from'), 'should mention agents, not skills');
+    assert.ok(!plain.includes('Project skills from'), 'should not mention skills');
+  });
+
+  it('banner lines are all strings (no undefined/null leaking)', () => {
+    const lines = formatLocalProviderBanner({
+      ...base,
+      hasProjectMcp: false,
+      hasProjectClaudeDir: false,
+      hasProjectSkills: false,
+      hasProjectAgents: false,
+    });
+    for (const line of lines) {
+      assert.equal(typeof line, 'string', 'each banner line must be a string');
+    }
+    assert.ok(lines.length > 0, 'banner must have at least one line');
+  });
+
+  it('integration: fresh project with ollama provider still shows guidance', () => {
+    const lines = formatLocalProviderBanner({
+      providerName: 'ollama',
+      mcpPath: '/tmp/anymodel/empty-mcp.json',
+      hasProjectMcp: false,
+      hasProjectClaudeDir: false,
+      hasProjectSkills: false,
+      hasProjectAgents: false,
+    });
+    const plain = lines.map(stripAnsi).join('\n');
+    assert.ok(plain.includes('ollama'), 'must include the provider name');
+    assert.ok(plain.includes('No project config detected'), 'same guidance regardless of local provider');
   });
 });

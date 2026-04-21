@@ -10,6 +10,18 @@ Starting with `anymodel@1.11.0`, **local providers automatically suppress global
 - Remote provider (`openrouter` / `openai`) → unchanged, keeps all global MCP
 - Opt out with `--full-mcp` or `ANYMODEL_FULL_MCP=1`
 
+## Install anymodel once, use everywhere
+
+Recommended: **install globally so `anymodel` is a real command** — no `npx`, no `@latest`, no cache clearing:
+
+```bash
+npm i -g anymodel
+# Upgrade later with:
+npm update -g anymodel
+```
+
+From here on this guide uses plain `anymodel` instead of `anymodel`. If you prefer `npx`, substitute `anymodel` anywhere you see `anymodel`.
+
 ## Prerequisites
 
 | Requirement | Check |
@@ -19,7 +31,7 @@ Starting with `anymodel@1.11.0`, **local providers automatically suppress global
 | `lms` CLI on PATH | `which lms` (see [setup](#step-0) below) |
 | Claude Code installed | `which claude` |
 | Node ≥ 20 | `node --version` |
-| `anymodel@1.11.0+` | `npx anymodel@latest --help` should list `--full-mcp` |
+| `anymodel@1.11.1+` | `anymodel --help` should list `--full-mcp` |
 
 ## Step 0 — Make `lms` globally available (one-time)
 
@@ -64,7 +76,7 @@ lms get https://huggingface.co/lmstudio-community/Qwen3-Coder-30B-A3B-Instruct-M
 
 ```bash
 unset OPENROUTER_API_KEY OPENAI_API_KEY   # avoid auto-detect picking openrouter
-npx anymodel@latest proxy lmstudio
+anymodel proxy lmstudio
 ```
 
 You should see:
@@ -83,7 +95,7 @@ The simplest possible command — **no MCP flags needed**:
 
 ```bash
 cd ~/Projects/your-project
-npx anymodel@latest
+anymodel
 ```
 
 On a local provider, AnyModel automatically injects:
@@ -133,10 +145,10 @@ If you know your machine can handle it (128 GB RAM, 131 K Qwen context, fewer MC
 
 ```bash
 # per-invocation
-npx anymodel@latest --full-mcp
+anymodel --full-mcp
 
 # or via env
-ANYMODEL_FULL_MCP=1 npx anymodel@latest
+ANYMODEL_FULL_MCP=1 anymodel
 ```
 
 You'll see a warning:
@@ -150,7 +162,7 @@ If even global `~/.claude/CLAUDE.md` and global skills are too much, go nuclear 
 
 ```bash
 ISO=$(mktemp -d); echo '{}' > "$ISO/settings.json"
-CLAUDE_CONFIG_DIR="$ISO" npx anymodel@latest
+CLAUDE_CONFIG_DIR="$ISO" anymodel
 ```
 
 This skips ALL global config. Project `./.claude/*` still loads because it's cwd-relative. Cleanup: `rm -rf "$ISO"`.
@@ -187,7 +199,7 @@ your-project/
 
 | Symptom | Fix |
 |---|---|
-| Banner shows `anymodel v1.10.x` or earlier | npx cached. `rm -rf ~/.npm/_npx && npx anymodel@latest --help` |
+| Banner shows `anymodel v1.10.x` or earlier | npx cached. `rm -rf ~/.npm/_npx && anymodel --help` |
 | `400 tokens > context length` | Qwen loaded with too-small context. Reload with 32 K minimum |
 | `Invalid MCP configuration: not valid JSON` | Shouldn't happen with 1.11.0 auto-flow. Check `./.claude/.mcp.json` is valid JSON if present |
 | Auto-injection not happening | Proxy `/health` didn't return provider name. Check `curl http://127.0.0.1:9090/health` returns `"provider":"lmstudio"` |
@@ -215,11 +227,11 @@ lms load qwen/qwen3-coder-30b
 
 # === Terminal 2 (keep running) ===
 unset OPENROUTER_API_KEY OPENAI_API_KEY
-npx anymodel@latest proxy lmstudio
+anymodel proxy lmstudio
 
 # === Terminal 3 (per coding session) ===
 cd ~/Projects/your-project
-npx anymodel@latest
+anymodel
 ```
 
 That's it. Three commands. Global MCP suppression handled automatically.
