@@ -1,6 +1,7 @@
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseArgs } from '../cli.mjs';
+import { existsSync, readFileSync } from 'node:fs';
+import { parseArgs, shouldAutoSuppressMcp, resolveProjectMcpPath } from '../cli.mjs';
 
 describe('parseArgs', () => {
   it('detects openrouter as provider from positional arg', () => {
@@ -92,5 +93,74 @@ describe('parseArgs', () => {
     const opts = parseArgs(['--port', '8080', '--', '--port', '9999']);
     assert.equal(opts.port, 8080);
     assert.deepEqual(opts.passthrough, ['--port', '9999']);
+  });
+
+  it('parses --full-mcp opt-out flag', () => {
+    const opts = parseArgs(['--full-mcp']);
+    assert.equal(opts.fullMcp, true);
+  });
+
+  it('fullMcp defaults to false', () => {
+    const opts = parseArgs([]);
+    assert.equal(opts.fullMcp, false);
+  });
+});
+
+describe('shouldAutoSuppressMcp', () => {
+  const baseOpts = () => ({ fullMcp: false, passthrough: [] });
+  let savedEnv;
+  beforeEach(() => { savedEnv = process.env.ANYMODEL_FULL_MCP; delete process.env.ANYMODEL_FULL_MCP; });
+  afterEach(() => { if (savedEnv !== undefined) process.env.ANYMODEL_FULL_MCP = savedEnv; });
+
+  it('returns true for local providers without opt-out', () => {
+    assert.equal(shouldAutoSuppressMcp('lmstudio', baseOpts()), true);
+    assert.equal(shouldAutoSuppressMcp('llamacpp', baseOpts()), true);
+    assert.equal(shouldAutoSuppressMcp('ollama', baseOpts()), true);
+  });
+
+  it('returns false for remote providers (openrouter, openai)', () => {
+    assert.equal(shouldAutoSuppressMcp('openrouter', baseOpts()), false);
+    assert.equal(shouldAutoSuppressMcp('openai', baseOpts()), false);
+  });
+
+  it('returns false when --full-mcp passed', () => {
+    assert.equal(shouldAutoSuppressMcp('lmstudio', { ...baseOpts(), fullMcp: true }), false);
+  });
+
+  it('returns false when ANYMODEL_FULL_MCP=1 env set', () => {
+    process.env.ANYMODEL_FULL_MCP = '1';
+    assert.equal(shouldAutoSuppressMcp('lmstudio', baseOpts()), false);
+  });
+
+  it('returns false when user explicitly passed --mcp-config', () => {
+    const opts = { ...baseOpts(), passthrough: ['--mcp-config', './my.json'] };
+    assert.equal(shouldAutoSuppressMcp('lmstudio', opts), false);
+  });
+
+  it('returns false when user explicitly passed --strict-mcp-config', () => {
+    const opts = { ...baseOpts(), passthrough: ['--strict-mcp-config'] };
+    assert.equal(shouldAutoSuppressMcp('lmstudio', opts), false);
+  });
+
+  it('returns false for unknown / missing provider', () => {
+    assert.equal(shouldAutoSuppressMcp('', baseOpts()), false);
+    assert.equal(shouldAutoSuppressMcp(undefined, baseOpts()), false);
+  });
+});
+
+describe('resolveProjectMcpPath', () => {
+  it('returns a valid file path that exists', () => {
+    const p = resolveProjectMcpPath();
+    assert.ok(p && typeof p === 'string');
+    assert.ok(existsSync(p), `path should exist: ${p}`);
+  });
+
+  it('returned file contains valid JSON with mcpServers key', () => {
+    const p = resolveProjectMcpPath();
+    const content = JSON.parse(readFileSync(p, 'utf8'));
+    assert.ok(content.mcpServers !== undefined, 'must have mcpServers key');
+    if (p.includes('empty-mcp')) {
+      assert.deepEqual(content, { mcpServers: {} });
+    }
   });
 });

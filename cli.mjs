@@ -11,12 +11,14 @@
 //   npx anymodel proxy ollama                 # start proxy with Ollama
 
 import { spawn, execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync, writeFileSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { join, dirname } from 'path';
+import { tmpdir } from 'os';
 import { createProxy, loadEnv } from './proxy.mjs';
 
 const PROVIDERS = ['openrouter', 'ollama', 'openai', 'lmstudio', 'llamacpp'];
+const LOCAL_PROVIDERS = ['ollama', 'lmstudio', 'llamacpp'];
 
 // Model presets — short aliases for popular models
 const MODEL_PRESETS = {
@@ -57,7 +59,7 @@ const C = {
 };
 
 export function parseArgs(argv) {
-  const opts = { provider: 'auto', port: 9090, model: null, help: false, freeOnly: false, token: null, rpm: 60, passthrough: [] };
+  const opts = { provider: 'auto', port: 9090, model: null, help: false, freeOnly: false, token: null, rpm: 60, passthrough: [], fullMcp: false };
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -89,12 +91,40 @@ export function parseArgs(argv) {
       opts.provider = 'lmstudio';
     } else if (arg === '--llamacpp') {
       opts.provider = 'llamacpp';
+    } else if (arg === '--full-mcp') {
+      // Opt out of auto-MCP-suppression on local providers (keep global MCP servers)
+      opts.fullMcp = true;
     } else if (!arg.startsWith('-') && MODEL_PRESETS[arg] && !opts.model) {
       opts.model = MODEL_PRESETS[arg];
     }
   }
 
   return opts;
+}
+
+// Decide whether to auto-strip global MCP servers for the current session.
+// Local providers always get suppressed unless the user opts out or already passed an MCP flag.
+export function shouldAutoSuppressMcp(providerName, opts) {
+  if (!LOCAL_PROVIDERS.includes(providerName)) return false;
+  if (opts.fullMcp) return false;
+  if (process.env.ANYMODEL_FULL_MCP === '1') return false;
+  // If user explicitly passed --mcp-config or --strict-mcp-config, respect their choice
+  const userMcpFlag = opts.passthrough.some(a => a === '--mcp-config' || a === '--strict-mcp-config');
+  if (userMcpFlag) return false;
+  return true;
+}
+
+// Find the right MCP config path. Prefer project-local ./.claude/.mcp.json, otherwise
+// create a one-shot empty config in a stable cache dir so repeated launches reuse it.
+export function resolveProjectMcpPath() {
+  const projectMcp = join(process.cwd(), '.claude', '.mcp.json');
+  if (existsSync(projectMcp)) return projectMcp;
+  // Cached empty MCP so we don't spam the tempdir on every launch
+  const cacheDir = join(tmpdir(), 'anymodel');
+  if (!existsSync(cacheDir)) mkdirSync(cacheDir, { recursive: true });
+  const emptyPath = join(cacheDir, 'empty-mcp.json');
+  if (!existsSync(emptyPath)) writeFileSync(emptyPath, '{"mcpServers":{}}\n');
+  return emptyPath;
 }
 
 export async function detectProvider(model) {
@@ -166,7 +196,12 @@ ${C.magenta('  anymodel')} — universal AI coding tool
 
   ${C.bold('General Options:')}
     --port, -p      Port to check/connect (for presets, default: 9090)
+    --full-mcp      Keep all globally-configured MCP servers (default on local: suppress global MCP)
     --help, -h      Show this help
+
+  ${C.bold('Client passthrough:')} everything after ${C.bold('--')} is forwarded to Claude Code
+    ${C.cyan('npx anymodel -- --bare                                  # skip global config')}
+    ${C.cyan('npx anymodel -- --append-system-prompt "$(cat CLAUDE.md)"  # inject project context')}
 
   ${C.bold('Workflow:')}
     ${C.cyan('Terminal 1:')} OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy deepseek
@@ -323,8 +358,9 @@ async function connectToProxy(args) {
     process.exit(1);
   }
 
-  // Query proxy for model name
+  // Query proxy for model + provider name
   let modelName = '';
+  let providerName = '';
   try {
     const http = await import('http');
     const healthData = await new Promise((resolve) => {
@@ -335,6 +371,7 @@ async function connectToProxy(args) {
       }).on('error', () => resolve({}));
     });
     modelName = healthData.model || '';
+    providerName = healthData.provider || '';
   } catch {}
 
   console.log(`${C.green('[anymodel]')} Connected to proxy on :${port}`);
@@ -342,11 +379,26 @@ async function connectToProxy(args) {
   if (opts.passthrough.length) {
     console.log(`${C.green('[anymodel]')} Passthrough args: ${opts.passthrough.join(' ')}`);
   }
+
+  // Auto-suppress global MCP servers when driving a local model. Claude Code's
+  // default behavior is to forward ALL globally-configured MCP servers (often 15+
+  // = 50K+ tokens of tool schemas), which local models can't handle. We scope it
+  // to the project's own MCP config if present, else an empty one.
+  const autoArgs = [];
+  if (shouldAutoSuppressMcp(providerName, opts)) {
+    const mcpPath = resolveProjectMcpPath();
+    autoArgs.push('--strict-mcp-config', '--mcp-config', mcpPath);
+    const label = mcpPath.includes('empty-mcp') ? 'no MCP servers' : `project MCP (${mcpPath.replace(process.cwd(), '.')})`;
+    console.log(`${C.green('[anymodel]')} Local provider — global MCP suppressed, using ${C.cyan(label)}. Pass ${C.bold('--full-mcp')} to keep global MCP.`);
+  } else if (providerName && LOCAL_PROVIDERS.includes(providerName) && opts.fullMcp) {
+    console.log(`${C.yellow('[anymodel]')} --full-mcp: keeping global MCP servers (may be slow on local models)`);
+  }
+
   console.log(`${C.green('[anymodel]')} Starting...`);
   console.log('');
 
-  // Forward `--` passthrough args to the Claude Code client (e.g., --bare, --mcp-config)
-  const clientArgs = [...client.args, ...opts.passthrough];
+  // clientArgs: auto-injected strict-mcp-config (if local provider) + user passthrough
+  const clientArgs = [...client.args, ...autoArgs, ...opts.passthrough];
   const clientChild = spawn(client.cmd, clientArgs, {
     stdio: 'inherit',
     env: {

@@ -96,7 +96,16 @@ LLAMACPP_BASE_URL=http://localhost:9000/v1    npx anymodel proxy llamacpp
 
 Auto-detection priority when no preset is given: OpenRouter key → OpenAI key → Ollama → LMStudio → llama.cpp.
 
-**Running Claude Code locally?** See [LOCAL_SETUP.md](./LOCAL_SETUP.md) for the full fast-path setup (bare mode, empty MCP, 128k context). Drops payload from ~100KB to ~3KB for sub-3s first-response.
+### Local-provider smart defaults (1.11.0+)
+
+When you connect to a local provider, AnyModel automatically suppresses your globally-configured MCP servers — which are usually the single biggest cause of slow first-response times (50–60 K tokens of tool schemas that local models can't handle).
+
+- `npx anymodel` on a local provider → loads project `./.claude/.mcp.json` if present, else no MCP
+- Keeps project skills, agents, CLAUDE.md
+- Remote providers (openrouter, openai) unchanged
+- Opt out: `--full-mcp` flag or `ANYMODEL_FULL_MCP=1`
+
+See [LOCAL_SETUP.md](./LOCAL_SETUP.md) for the full guide, including 32 K context setup and full isolation.
 
 ### OpenAI-Compatible APIs
 

@@ -1,12 +1,14 @@
 # Running Claude Code locally through AnyModel → LMStudio
 
-A fully local, zero-cloud setup: **Claude Code → AnyModel proxy → LMStudio → Qwen3-Coder-30B**. Designed for speed: ≤3s first response, sub-second subsequent turns.
+A zero-cloud setup: **Claude Code → AnyModel proxy → LMStudio → Qwen3-Coder-30B**. Designed for speed — ≤3 s first response, sub-second subsequent turns.
 
-## Why you're here
+## What 1.11.0 changed
 
-The default `npx anymodel` setup works, but Claude Code sends ~100 KB of payload per turn (global CLAUDE.md + 90 MCP tools + all your skills). Local models choke on this — 30–60s prefill just to answer "hi".
+Starting with `anymodel@1.11.0`, **local providers automatically suppress globally-configured MCP servers**. This is the single biggest perf win for local models (dropping 50–60 K tokens of MCP tool schemas that local models can't handle). No flags required.
 
-This guide isolates Claude Code to **project-only context**, drops the payload to ~5 KB, and makes the agent loop feel native.
+- Local provider (`lmstudio` / `llamacpp` / `ollama`) → auto-suppresses global MCP, loads project `./.claude/.mcp.json` if present
+- Remote provider (`openrouter` / `openai`) → unchanged, keeps all global MCP
+- Opt out with `--full-mcp` or `ANYMODEL_FULL_MCP=1`
 
 ## Prerequisites
 
@@ -14,9 +16,10 @@ This guide isolates Claude Code to **project-only context**, drops the payload t
 |---|---|
 | Apple Silicon Mac, ≥32 GB RAM | `sysctl -n hw.memsize` → at least `34359738368` |
 | LMStudio installed | `open /Applications/LM\ Studio.app` |
-| `lms` CLI on PATH | `which lms` (see [setup](#making-lms-globally-available) below) |
+| `lms` CLI on PATH | `which lms` (see [setup](#step-0) below) |
 | Claude Code installed | `which claude` |
 | Node ≥ 20 | `node --version` |
+| `anymodel@1.11.0+` | `npx anymodel@latest --help` should list `--full-mcp` |
 
 ## Step 0 — Make `lms` globally available (one-time)
 
@@ -26,9 +29,9 @@ ln -sf ~/.lmstudio/bin/lms /opt/homebrew/bin/lms   # Apple Silicon
 sudo ln -sf ~/.lmstudio/bin/lms /usr/local/bin/lms # Intel Mac
 ```
 
-## Step 1 — Load Qwen3-Coder with 32 K context (sweet spot for `--bare`)
+## Step 1 — Load Qwen3-Coder with 32 K context
 
-**The easy way** (one-time): open LMStudio GUI → load the model → set Context Length to `32768` → tick **"Remember settings for qwen3-coder-30b"** → Load. From then on `lms load qwen/qwen3-coder-30b` uses 32K automatically.
+**The easy way** (one-time): open LMStudio GUI → select Qwen3-Coder-30B → set Context Length to `32768` → tick **"Remember settings for qwen3-coder-30b"** → Load. From then on `lms load qwen/qwen3-coder-30b` uses 32 K automatically.
 
 **CLI alternative**:
 ```bash
@@ -41,165 +44,174 @@ lms load qwen/qwen3-coder-30b --context-length 32768 --gpu max
 | Context | KV cache | Prefill speed | When to use |
 |---|---:|---:|---|
 | 4 K | ~200 MB | fastest | pure chat, no tools |
-| **32 K** | **~1.6 GB** | **fast** | **`--bare` Claude Code (this guide)** |
-| 131 K | ~6.5 GB | slow even on small msgs | full Claude Code with all MCP tools |
+| **32 K** | **~1.6 GB** | **fast** | **default — projects with `.claude/.mcp.json`** |
+| 131 K | ~6.5 GB | slow even on small msgs | only if you pass `--full-mcp` with many MCP servers |
 
-Bigger isn't better — `--bare` Claude Code sends ~3 KB per turn, so 32 K leaves plenty of headroom for a long conversation and avoids the overhead of allocating a 6.5 GB KV cache.
-
-**Verify what's loaded** any time with:
+**Verify what's loaded**:
 ```bash
 lms ps
 # IDENTIFIER              STATUS    SIZE        CONTEXT    DEVICE
 # qwen/qwen3-coder-30b    LOADED    17.19 GB    32768      Local
 ```
-`LOADED` = warm in RAM. `IDLE` = cold (30-60s load on next request).
+`LOADED` = warm, instant. `IDLE` = cold (30–60 s load on next request). Nothing = not loaded.
 
 **Don't have Qwen3-Coder yet?**
 ```bash
 lms get https://huggingface.co/lmstudio-community/Qwen3-Coder-30B-A3B-Instruct-MLX-4bit -y
 ```
 
-## Step 2 — Start the AnyModel proxy (pin `@latest`)
+## Step 2 — Start the AnyModel proxy
 
 ```bash
-unset OPENROUTER_API_KEY OPENAI_API_KEY   # avoid auto-detect stealing the wheel
+unset OPENROUTER_API_KEY OPENAI_API_KEY   # avoid auto-detect picking openrouter
 npx anymodel@latest proxy lmstudio
 ```
 
 You should see:
 ```
 [LMSTUDIO] Found N model(s). Using: qwen/qwen3-coder-30b (loaded + coding-preferred)
-anymodel v1.10.4
+anymodel v1.11.0
 Proxy on :9090
 /v1/messages → lmstudio (qwen/qwen3-coder-30b @ http://127.0.0.1:1234/v1)
 ```
 
 Leave this terminal running.
 
-## Step 3 — Scaffold your project (one-time)
+## Step 3 — Launch Claude Code through AnyModel
+
+The simplest possible command — **no MCP flags needed**:
 
 ```bash
-mkdir -p ~/Projects/focus-timer/.claude && cd ~/Projects/focus-timer
+cd ~/Projects/your-project
+npx anymodel@latest
 ```
 
-Create **`./.claude/empty-mcp.json`** — a valid empty MCP config (Claude Code requires a real file, not `/dev/null`):
-```bash
-cat > .claude/empty-mcp.json <<'JSON'
-{ "mcpServers": {} }
-JSON
+On a local provider, AnyModel automatically injects:
+```
+--strict-mcp-config --mcp-config <project .mcp.json or empty>
 ```
 
-Create **`./CLAUDE.md`** — your project-local context (kept small):
-```bash
-cat > CLAUDE.md <<'MD'
-# Focus Timer
-Node 20 + Express + better-sqlite3 + vanilla JS frontend.
-Port 8090. Dark mode. Keyboard shortcuts. `node --test` for tests.
-Be terse. No preamble.
-MD
+You'll see this banner line from the proxy:
+```
+[anymodel] Local provider — global MCP suppressed, using no MCP servers.
+  Pass --full-mcp to keep global MCP.
 ```
 
-## Step 4 — Launch Claude Code in `--bare` mode through AnyModel
-
-`--bare` is Claude Code's official flag that skips auto-discovery of hooks, skills, plugins, MCP servers, auto-memory, and global `~/.claude/CLAUDE.md`. You load **only** what you pass explicitly.
-
-Starting in AnyModel **1.10.4**, you can forward args to Claude Code via the `--` separator:
-
-```bash
-cd ~/Projects/focus-timer
-npx anymodel@latest -- \
-  --bare \
-  --strict-mcp-config --mcp-config ./.claude/empty-mcp.json \
-  --append-system-prompt "$(cat CLAUDE.md)"
+Or, if your project has `./.claude/.mcp.json`:
+```
+[anymodel] Local provider — global MCP suppressed, using project MCP (./.claude/.mcp.json).
 ```
 
-What each flag does:
+### What this means for `/context`
 
-| Flag | Effect |
+| Source | Status |
 |---|---|
-| `--` | Everything after is forwarded to Claude Code verbatim (AnyModel 1.10.4+) |
-| `--bare` | Skip global config, plugins, skills, MCP, CLAUDE.md auto-load |
-| `--strict-mcp-config` | Only use MCP servers from `--mcp-config`, ignore all others |
-| `--mcp-config ./.claude/empty-mcp.json` | Point at our empty config (zero MCP tools) |
-| `--append-system-prompt "$(cat CLAUDE.md)"` | Inject *project-only* CLAUDE.md content |
+| Built-in tools (Bash, Read, Edit, etc.) | ✅ loaded (~11 K tokens) |
+| Project `./.claude/.mcp.json` MCP servers | ✅ loaded |
+| Global MCP servers (15+ from `~/.claude/settings.json`) | ❌ suppressed |
+| Project `./.claude/skills/*/SKILL.md` | ✅ loaded |
+| Project `./.claude/agents/*.md` | ✅ loaded |
+| Project `CLAUDE.md` | ✅ loaded |
+| Global `~/.claude/CLAUDE.md` | ⚠️ still loads (small, ~1 K tokens — acceptable) |
+| Global skills / plugin agents | ⚠️ still loads (~7 K tokens — see [full isolation](#full-isolation)) |
 
-## Payload comparison
+For most workflows, this default is exactly right. You keep project skills/agents/CLAUDE.md, drop the massive global MCP payload, keep the small global `~/.claude/CLAUDE.md` for personal conventions.
 
-| Setup | Tools | System | Total payload | First response |
-|---|---:|---:|---:|---:|
-| Default `npx anymodel` | 90 (~55 KB) | ~15 KB | **~100 KB** | 60 s+ (hangs/400s) |
-| `npx anymodel@1.10.3` (auto-compression) | 90 → compressed 25 KB | ~4 KB | ~35 KB | 15–30 s |
-| **`--bare` + empty MCP** (this guide) | **0** | ~1 KB (project CLAUDE.md only) | **~3 KB** | **≤ 3 s** |
-
-## What you lose with `--bare`
-
-- No `/sw:increment` or any SpecWeave slash commands
-- No Obsidian/Slack/GitHub MCP tools
-- No global `~/.claude/CLAUDE.md` (Obsidian rules, git conventions, etc.)
-
-## What you keep
-
-- Bash, Read, Edit, Write, Glob, Grep — all the built-in tools that matter for coding
-- Project-local `CLAUDE.md` content (via `--append-system-prompt`)
-- The full agent loop: Claude Code can still read/edit files, run `npm install`, run tests, start dev servers
-
-## Your first prompt
-
-After `--bare` Claude Code launches, try:
+## Step 4 — Verify
 
 ```
-Build the focus timer per CLAUDE.md. Create server.mjs, index.html, db.mjs, api.test.mjs.
-Run npm install, then run the tests, then start the server.
+/context
+```
+
+You should see:
+- `MCP tools: ~100-2000 tokens` (just project MCP or none — NOT the 55 K+ from global)
+- Model header shows the actual local model (`qwen/qwen3-coder-30b`), not `claude-opus-*`
+
+## Opt-out — keep global MCP
+
+If you know your machine can handle it (128 GB RAM, 131 K Qwen context, fewer MCP servers), or you just want full fidelity:
+
+```bash
+# per-invocation
+npx anymodel@latest --full-mcp
+
+# or via env
+ANYMODEL_FULL_MCP=1 npx anymodel@latest
+```
+
+You'll see a warning:
+```
+[anymodel] --full-mcp: keeping global MCP servers (may be slow on local models)
+```
+
+## Full isolation
+
+If even global `~/.claude/CLAUDE.md` and global skills are too much, go nuclear with a fake `CLAUDE_CONFIG_DIR`:
+
+```bash
+ISO=$(mktemp -d); echo '{}' > "$ISO/settings.json"
+CLAUDE_CONFIG_DIR="$ISO" npx anymodel@latest
+```
+
+This skips ALL global config. Project `./.claude/*` still loads because it's cwd-relative. Cleanup: `rm -rf "$ISO"`.
+
+## Custom project structure
+
+Your project's `.claude/` directory is auto-discovered. A typical demo setup:
+
+```
+your-project/
+├── CLAUDE.md                          # project context
+└── .claude/
+    ├── .mcp.json                      # project MCP servers (optional)
+    ├── skills/
+    │   └── <name>/SKILL.md            # custom skills
+    └── agents/
+        └── <name>.md                  # custom subagents (FLAT file, not subdir)
+```
+
+### Minimal `.mcp.json` (project filesystem server)
+
+```json
+{
+  "mcpServers": {
+    "project-fs": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    }
+  }
+}
 ```
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| `Invalid MCP configuration: not valid JSON` | Your `--mcp-config` target doesn't exist or is empty. Create `.claude/empty-mcp.json` with `{"mcpServers":{}}` |
-| `Error: Proxy not running on :9090` | Terminal 2 isn't running, or `OPENROUTER_API_KEY` is set and stole auto-detect. `unset OPENROUTER_API_KEY` before launching |
-| `400 The number of tokens … is greater than the context length` | Qwen loaded with too-small context. `lms load qwen/qwen3-coder-30b --context-length 131072 --gpu max` |
-| Banner shows `anymodel v1.9.x` or earlier | npx cached an old version. `rm -rf ~/.npm/_npx` then `npx anymodel@latest` |
-| Banner picked Gemma instead of Qwen | Qwen not loaded. `lms ps` should show `qwen/qwen3-coder-30b` as `LOADED` |
-| Still slow (>10s per turn) after `--bare` | Qwen KV cache not reusing across turns. Reduce `LOCAL_MAX_SYSTEM_CHARS=1500` when starting the proxy |
+| Banner shows `anymodel v1.10.x` or earlier | npx cached. `rm -rf ~/.npm/_npx && npx anymodel@latest --help` |
+| `400 tokens > context length` | Qwen loaded with too-small context. Reload with 32 K minimum |
+| `Invalid MCP configuration: not valid JSON` | Shouldn't happen with 1.11.0 auto-flow. Check `./.claude/.mcp.json` is valid JSON if present |
+| Auto-injection not happening | Proxy `/health` didn't return provider name. Check `curl http://127.0.0.1:9090/health` returns `"provider":"lmstudio"` |
+| Want to force-inject for openai/openrouter | Local-providers-only by design. Pass MCP flags manually via `-- --strict-mcp-config --mcp-config ./.claude/.mcp.json` |
+| First response still slow (>10 s) | Normal — first turn prefills 5–10 K tokens. Subsequent turns <2 s |
 
-## Advanced: tighten further via env vars on the proxy
+## Advanced proxy tuning
 
-Any of these can be set on the `npx anymodel proxy lmstudio` command (Terminal 2):
+Set any of these env vars on the `npx anymodel proxy lmstudio` command (Terminal 2):
 
-| Env var | Default | What it does |
+| Env var | Default | Effect |
 |---|---|---|
-| `LOCAL_MAX_TOOLS` | unlimited | Max tools forwarded (even after compression). Set to `20` for smaller payload |
-| `LOCAL_MAX_SYSTEM_CHARS` | `4000` | Max characters of system prompt. Set lower (e.g. `1500`) for speed |
+| `LOCAL_MAX_TOOLS` | unlimited | Max tools forwarded after compression |
+| `LOCAL_MAX_SYSTEM_CHARS` | `4000` | Max chars of system prompt (defense in depth) |
 | `LOCAL_MAX_TOOL_DESC` | `100` | Max chars per tool description |
-| `LOCAL_NUM_CTX` | `32768` | Assumed context for budgeting calculations |
-| `LOCAL_TOOL_BUDGET_PCT` | `0.30` | % of context reserved for tool schemas (0.0–1.0) |
+| `LOCAL_NUM_CTX` | `32768` | Assumed context for tool budgeting |
+| `LOCAL_TOOL_BUDGET_PCT` | `0.30` | % of context reserved for tool schemas |
+| `ANYMODEL_FULL_MCP` | `0` | Set to `1` to keep global MCP servers on local |
 
-Example aggressive config:
-```bash
-LOCAL_MAX_TOOLS=15 LOCAL_MAX_SYSTEM_CHARS=1500 \
-  npx anymodel@latest proxy lmstudio
-```
-
-## Re-enabling specific skills (optional)
-
-If you want `/sw:increment` back for a specific session without reloading the whole global environment:
-
-```bash
-npx anymodel@latest -- \
-  --bare \
-  --plugin-dir ~/.claude/plugins/cache/specweave/sw/1.0.0 \
-  --strict-mcp-config --mcp-config ./.claude/empty-mcp.json \
-  --append-system-prompt "$(cat CLAUDE.md)"
-```
-
-## Full command reference — the 3-command daily workflow
-
-Assumes you've saved `context-length 32768` as the LMStudio default for Qwen (Step 1 GUI method).
+## The full three-command reference
 
 ```bash
 # === Terminal 1 (once per reboot) ===
-lms load qwen/qwen3-coder-30b   # uses saved 32K default
+lms load qwen/qwen3-coder-30b
 
 # === Terminal 2 (keep running) ===
 unset OPENROUTER_API_KEY OPENAI_API_KEY
@@ -207,16 +219,13 @@ npx anymodel@latest proxy lmstudio
 
 # === Terminal 3 (per coding session) ===
 cd ~/Projects/your-project
-npx anymodel@latest -- \
-  --bare \
-  --strict-mcp-config --mcp-config ./.claude/empty-mcp.json \
-  --append-system-prompt "$(cat CLAUDE.md 2>/dev/null)"
+npx anymodel@latest
 ```
 
-That's it — three commands, three terminals, one window.
+That's it. Three commands. Global MCP suppression handled automatically.
 
 ## Further reading
 
-- [Claude Code `--bare` docs](https://code.claude.com/docs/en/headless.md)
 - [AnyModel README](./README.md)
-- [AnyModel model bench report](../../.specweave/increments/0006-local-backend-providers/model-bench/REPORT.md)
+- [Model bench report](../../.specweave/increments/0006-local-backend-providers/model-bench/REPORT.md)
+- [Claude Code docs](https://code.claude.com/docs/en/)
