@@ -407,9 +407,12 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     } else {
       console.log(`${C.yellow(localTag)} Passing ${parsed.tools.length} tools to ${parsed.model} (mode=${mode})`);
     }
-    // Always strip tool_choice — local providers don't need it (some reject it).
-    // P1.10 (0009): generalized from Ollama-only to all local providers.
-    if (isLocal) delete parsed.tool_choice;
+    // Strip tool_choice for Ollama only — its native /api/chat lacks reliable
+    // tool_choice support. LM Studio / llama.cpp ARE OpenAI-Chat-Completions
+    // compatible and DO honor tool_choice (incl. forced selection / 'required'),
+    // so translateRequest maps it for them — do NOT strip there. (0009 review: the
+    // capability-CACHE generalization below is the valuable part of P1.10, not this.)
+    if (provider.name === 'ollama') delete parsed.tool_choice;
 
     // Smart tool optimization: compress schemas + trim descriptions + budget-limit.
     // Instead of blindly stripping by count, this compresses JSON Schema param

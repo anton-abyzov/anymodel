@@ -235,10 +235,22 @@ export function textChannelParsingEnabled(localProvider = false) {
   return !!localProvider; // 'auto'
 }
 
+// The fenced ```json pattern is ambiguous for coding agents (they print JSON
+// examples), so it only recovers under explicit 'on' — never under 'auto'.
+export function fencedRecoveryEnabled() {
+  return (process.env.ANYMODEL_PARSE_TEXT_TOOLCALLS || 'auto').toLowerCase() === 'on';
+}
+
 // Parse a text blob for tool-call syntax. Returns { calls: [{name,input}], cleanedText }.
 // Conservative: requires a strict whole-pattern match + valid structure so prose
 // that merely *mentions* `<tool_call>` is not converted.
-export function extractTextToolCalls(text) {
+//
+// `allowFenced` (default true) controls the fenced ```json pattern, which is the
+// only AMBIGUOUS one for a coding agent — models legitimately print ```json blocks
+// with {name, arguments}-shaped data. Recovery callers pass allowFenced:false under
+// the default 'auto' mode (only the unambiguous Hermes/Qwen-XML spans recover),
+// and true only under explicit ANYMODEL_PARSE_TEXT_TOOLCALLS=on.
+export function extractTextToolCalls(text, { allowFenced = true } = {}) {
   const calls = [];
   let cleaned = text;
   if (typeof text !== 'string' || !text) return { calls, cleanedText: cleaned };
@@ -277,20 +289,23 @@ export function extractTextToolCalls(text) {
   });
 
   // 3) Fenced ```json { "name": "...", "arguments": {...} } ``` — only when the
-  // fenced object is itself a tool-call shape (has a string `name`).
-  const fenced = /```(?:json)?\s*([\s\S]*?)\s*```/g;
-  cleaned = cleaned.replace(fenced, (match, inner) => {
-    try {
-      const obj = JSON.parse(inner);
-      if (obj && typeof obj.name === 'string' && ('arguments' in obj || 'parameters' in obj)) {
-        let args = obj.arguments ?? obj.parameters ?? {};
-        if (typeof args === 'string') { try { args = JSON.parse(args); } catch { args = {}; } }
-        calls.push({ name: obj.name, input: (args && typeof args === 'object') ? args : {} });
-        return '';
-      }
-    } catch { /* not a tool-call fenced block */ }
-    return match;
-  });
+  // fenced object is itself a tool-call shape (has a string `name`). Ambiguous for
+  // coding agents, so callers disable it under 'auto' (allowFenced:false).
+  if (allowFenced) {
+    const fenced = /```(?:json)?\s*([\s\S]*?)\s*```/g;
+    cleaned = cleaned.replace(fenced, (match, inner) => {
+      try {
+        const obj = JSON.parse(inner);
+        if (obj && typeof obj.name === 'string' && ('arguments' in obj || 'parameters' in obj)) {
+          let args = obj.arguments ?? obj.parameters ?? {};
+          if (typeof args === 'string') { try { args = JSON.parse(args); } catch { args = {}; } }
+          calls.push({ name: obj.name, input: (args && typeof args === 'object') ? args : {} });
+          return '';
+        }
+      } catch { /* not a tool-call fenced block */ }
+      return match;
+    });
+  }
 
   return { calls, cleanedText: cleaned.trim() };
 }
@@ -364,7 +379,7 @@ export function translateResponse(openaiResponse, { localProvider = false } = {}
   // the text channel, recover it. Gated/local-only via ANYMODEL_PARSE_TEXT_TOOLCALLS.
   let recoveredToolCall = false;
   if (!hasStructuredToolCall && textBlock && textChannelParsingEnabled(localProvider)) {
-    const { calls, cleanedText } = extractTextToolCalls(textBlock.text);
+    const { calls, cleanedText } = extractTextToolCalls(textBlock.text, { allowFenced: fencedRecoveryEnabled() });
     if (calls.length) {
       recoveredToolCall = true;
       if (cleanedText) textBlock.text = cleanedText;
@@ -464,7 +479,7 @@ export function createStreamTranslator(opts) {
     let text = bufferedText;
     let calls = [];
     if (allowRecovery) {
-      const r = extractTextToolCalls(bufferedText);
+      const r = extractTextToolCalls(bufferedText, { allowFenced: fencedRecoveryEnabled() });
       if (r.calls.length) { calls = r.calls; text = r.cleanedText; }
     }
     if (text) {
@@ -520,6 +535,11 @@ export function createStreamTranslator(opts) {
     emitBufferedText(output, true); // US-1: recover a text-channel tool call if no structured one came
     flushPendingTools(output);
     closeOpenBlocks(output);
+    // A message that opened any structured tool_use block must report
+    // stop_reason:'tool_use' even if the server never sent a finish_reason chunk
+    // (some local servers omit it). Don't clobber a more specific reason
+    // (max_tokens / refusal) that mapFinishReason may have already set.
+    if (!accumulatedStopReason && toolBlockByIndex.size > 0) accumulatedStopReason = 'tool_use';
     output.push(formatSSE('message_delta', {
       type: 'message_delta',
       delta: { stop_reason: accumulatedStopReason || 'end_turn' },
@@ -612,9 +632,12 @@ export function createStreamTranslator(opts) {
               }));
               stoppedBlocks.add(thinkingBlockIndex);
             }
-            if (recoverText) {
+            if (recoverText && !bufferConsumed) {
               // US-1: hold the text channel for end-of-message tool-call recovery.
               // It is flushed verbatim if no tool call is found, so nothing is lost.
+              // Once the buffer has been consumed (a structured tool call already
+              // flushed it), fall through to the incremental path so trailing text
+              // AFTER a tool call is still emitted (not silently dropped).
               bufferedText += delta.content;
             } else {
               if (textBlockIndex === -1) {
