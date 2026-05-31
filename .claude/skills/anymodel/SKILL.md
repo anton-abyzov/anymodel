@@ -34,13 +34,15 @@ Three components:
 2. **CLI** (`cli.mjs`) — entry point for starting proxy, connecting, managing presets
 3. **Bundled client** (`cli.js`) — modified Claude Code client with violet diamond character and AnyModel branding
 
-### Three Providers
+### Providers
 
 | Provider | File | API Format | Key Behavior |
 |----------|------|-----------|--------------|
 | **OpenRouter** | `providers/openrouter.mjs` | Anthropic passthrough | Preserves `cache_control`, 300+ cloud models |
-| **Ollama** | `providers/ollama.mjs` | OpenAI `/v1/chat/completions` | Injects `num_ctx=8192`, strips all 86 tools |
-| **OpenAI** | `providers/openai.mjs` | OpenAI format | Full bidirectional Anthropic <-> OpenAI translation |
+| **Ollama** | `providers/ollama.mjs` | OpenAI `/v1/chat/completions` | Injects `num_ctx=8192`, capability-aware tool passthrough (v1.12.0+) |
+| **OpenAI** | `providers/openai.mjs` | OpenAI format | Full bidirectional Anthropic ↔ OpenAI translation |
+| **LMStudio** | `providers/lmstudio.mjs` | OpenAI (via local factory) | Delegates to OpenAI translator, `:1234/v1` default |
+| **llama.cpp** | `providers/llamacpp.mjs` | OpenAI (via local factory) | Delegates to OpenAI translator, `:8080/v1` default |
 
 ### Presets (update version in KNOWLEDGE-BASE.md when changing)
 
@@ -76,12 +78,15 @@ The `sanitizeBody()` function is the heart of AnyModel. It makes any model work 
    - Strips `_unused` from tool_use responses so the client never sees it
 6. **Strips Anthropic-only tool fields**: `cache_control`, `defer_loading`, `eager_input_streaming`, `strict`
 7. **Normalizes `tool_choice`**: converts string format to object format
-8. **Ollama: strips all 86 tools** — local models can't use MCP tools, and 50K tokens of schemas adds 30-60s overhead
-9. **Auto-retry without tools** — when model returns "No endpoints found that support tool use", retries with tools removed
+8. **Local providers (Ollama, LMStudio, llama.cpp): capability-aware tool passthrough** — since v1.12.0 the proxy no longer blanket-strips tools. Behavior is controlled by `OLLAMA_TOOLS` env var (`auto` default, `on`, `off`). In `auto` mode, the proxy tries tools and caches per-model capability; on "does not support tools" errors it retries without tools and remembers that model as no-tool-support. Tools are then compressed and budget-trimmed via `providers/tool-compressor.mjs` to fit local context windows (core tools Bash/Read/Write/Edit always kept). Translation: Anthropic tool definitions → OpenAI function format → Ollama `message.tool_calls[]` → translated back to Anthropic `tool_use` content blocks with `stop_reason: "tool_use"`. Streaming supported.
+9. **`tool_choice` always stripped for Ollama** — Ollama doesn't support `tool_choice`; proxy removes it unconditionally.
+10. **Auto-retry without tools** — if a provider returns "No endpoints found that support tool use" / "does not support tools", proxy retries with tools removed AND caches model as no-tool-support.
 
 ### Why this matters
 
-Without sanitization, MCP tools break on non-Anthropic models. Claude Code sends 86 tool definitions including MCP servers (Slack, Figma, Gmail, etc.) with every request. The proxy ensures these schemas are valid for the target model, so MCP works seamlessly through any provider.
+Without sanitization, MCP tools break on non-Anthropic models. Claude Code sends 80+ tool definitions including MCP servers (Slack, Figma, Gmail, etc.) with every request. The proxy ensures these schemas are valid for the target model, so MCP works seamlessly through any provider — including local Ollama/LMStudio/llama.cpp models that support function calling (Qwen 3/Coder, Llama 3.1+, Mistral, DeepSeek R1, Gemma 4).
+
+**Regression guard:** `test/ollama-tool-passthrough.test.mjs` asserts that in `auto` mode with an uncached model, tools are forwarded (not stripped). See also `test/ollama-tools.test.mjs` for the capability-cache logic.
 
 ## Client Identity
 
@@ -105,6 +110,11 @@ When modifying the client: never break the violet identity. The diamond characte
 | `ANYMODEL_TOKEN` | Auth token for remote proxy mode |
 | `PROXY_PORT` | Default port override (default: 9090) |
 | `OLLAMA_NUM_CTX` | Ollama context size (default: 8192) |
+| `LOCAL_NUM_CTX` | LMStudio / llama.cpp context size (default: 32768) |
+| `OLLAMA_TOOLS` | Tool-passthrough mode: `auto` (default, try + cache), `on` (always pass), `off` (always strip — legacy behavior) |
+| `OLLAMA_MAX_TOOLS` / `LOCAL_MAX_TOOLS` | Hard cap on tool count for local providers (0 = no cap, rely on budget) |
+| `OLLAMA_MAX_TOOL_DESC` / `LOCAL_MAX_TOOL_DESC` | Max chars per tool description (default: 100) |
+| `OLLAMA_TOOL_BUDGET_PCT` / `LOCAL_TOOL_BUDGET_PCT` | Fraction of `num_ctx` reserved for tool schemas (default: 0.30) |
 
 ## Client Discovery (`findClient()`)
 
@@ -171,8 +181,10 @@ The `prepublishOnly` script in package.json handles version syncing. After `npm 
 |---------|-------|-----|
 | `max_tokens` error | Claude Code sends `max_tokens: 1` for probes | Proxy clamps to 16 — check `sanitizeBody()` |
 | Tool use fails on GPT | Empty `properties: {}` in tool schema | Proxy adds `_unused` placeholder — check tool sanitization |
-| Ollama extremely slow | 86 tool schemas adding 50K tokens | Proxy strips tools — check Ollama provider |
-| "No endpoints found" | Model doesn't support tool use | Proxy auto-retries without tools |
+| Ollama extremely slow | Default 8K context overflowed by big system prompts | Bump `OLLAMA_NUM_CTX=32768`; tool compressor trims schemas to ~30% of ctx |
+| Local model prints JSON instead of calling tools | Model doesn't support function calling, OR `OLLAMA_TOOLS=off`, OR model cached as no-tool-support | Use a tool-capable model (Qwen 3 / Qwen-Coder, Llama 3.1+, Mistral, DeepSeek R1, Gemma 4); ensure `OLLAMA_TOOLS=auto`; restart proxy to clear per-model cache |
+| Slash commands (`/openspec`, etc.) return JSON text | Same as above — the command emits prompts expecting `tool_use` blocks; only tool-capable models will emit them | See row above |
+| "No endpoints found" / "does not support tools" | Model doesn't support tool use | Proxy auto-retries without tools and caches model as no-tool-support |
 | Streaming breaks | Response format mismatch | Check provider's `transformResponse` — Anthropic SSE vs OpenAI SSE |
 | `cache_control` errors | Non-Anthropic model rejecting cache hints | Check `keepCache` flag in `sanitizeBody()` |
 | Client shows "Claude" | Branding not applied | Check `ANYMODEL_MODEL` env var and client identity patches |
@@ -183,7 +195,9 @@ The proxy logs every request with color-coded output:
 - `[OPENROUTER]` / `[OLLAMA]` / `[OPENAI]` — provider prefix
 - `tools=N` — number of tools in request
 - `stream=true` — streaming mode
-- Yellow `[OLLAMA] Stripping N tools` — tool removal for local models
+- Yellow `[OLLAMA] Passing N tools to <model> (mode=auto)` — tools forwarded (capability-aware passthrough, v1.12.0+)
+- Yellow `[OLLAMA] Stripping N tools (mode=<x>, model=<m> cached as no-tool-support)` — tool removal (either `OLLAMA_TOOLS=off` or model is in no-tool-support cache)
+- Yellow `[OLLAMA] Tool optimization: N tools (X tok) → compressed to Y tok` — schema compression + budget trimming
 - Green `200` — successful response
 - Red status codes — errors with body excerpt
 
@@ -228,8 +242,14 @@ anymodel/
   package.json         # npm config
   providers/
     openrouter.mjs     # OpenRouter provider (passthrough)
-    ollama.mjs         # Ollama provider (OpenAI translation + num_ctx)
+    ollama.mjs         # Ollama provider (OpenAI translation + num_ctx + tool_use roundtrip)
+    ollama-tools.mjs   # Tool capability mode + per-model no-tool-support cache
+    tool-compressor.mjs # Schema compression + budget trimming for local models
     openai.mjs         # OpenAI provider (bidirectional translation)
+    openai-local.mjs   # Factory for LMStudio/llama.cpp (thin wrappers over OpenAI)
+    lmstudio.mjs       # LMStudio alias (:1234/v1)
+    llamacpp.mjs       # llama.cpp alias (:8080/v1)
+    prefix-cache.mjs   # Prefix-aware caching (increment 0004)
   site/
     index.html         # anymodel.dev homepage
     styles.css / script.js / sitemap.xml / robots.txt
