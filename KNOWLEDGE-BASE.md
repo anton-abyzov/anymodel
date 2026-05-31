@@ -120,9 +120,16 @@ failure modes. All gated/additive — cloud (OpenRouter) paths are untouched.
 - **Flush on upstream `end`** (P0.1) — LM Studio/MLX, llama.cpp, vLLM often close the
   socket without `data: [DONE]`. The translator is flushed on `end` so the client always
   gets a terminal `message_stop` (idempotent — exactly one stop even when `[DONE]` arrives).
-- **Text-channel tool-call recovery** (P0.2) — Hermes `<tool_call>`, Qwen `<function=>` XML,
-  and fenced ```json tool calls parked in the text channel are recovered into real
-  `tool_use` blocks. Gated by `ANYMODEL_PARSE_TEXT_TOOLCALLS` (`auto` = local-only, `on`, `off`).
+- **Text-channel tool-call recovery** (P0.2 non-streaming + 0009 streaming) — Hermes
+  `<tool_call>`, Qwen `<function=>` XML, and fenced ```json tool calls parked in the text
+  channel are recovered into real `tool_use` blocks. Gated by `ANYMODEL_PARSE_TEXT_TOOLCALLS`
+  (`auto` = local-only, `on`, `off`). For STREAMING (Claude Code's default), local providers
+  buffer the text channel until end-of-message, then recover — so a parked tool call no longer
+  dead-ends the agentic loop. Trade-off: local streamed *text* appears at message end (structured
+  tool calls and thinking still stream incrementally; cloud paths stream text incrementally as before).
+- **Local tool-capability cache** (0009 P1.10) — the per-model no-tool-support cache + the
+  `tool_choice` strip now apply to LM Studio / llama.cpp too (were Ollama-only), so weak local
+  models learn once instead of re-probing every request.
 - **Per-`tc.index` streamed tool-call routing** (P1.1) — parallel/batched streamed tool
   calls no longer cross-assign argument fragments (was hard-coded `blockIndex-1`).
 - **Image / document translation** (P1.2) — `{type:'image'}` → OpenAI `image_url` parts
