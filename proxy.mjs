@@ -24,6 +24,19 @@ const C = {
   bold: s => `\x1b[1m${s}\x1b[0m`,
 };
 
+// P1.6: canonical Anthropic error envelope. Claude Code keys its error handling
+// — especially retry/backoff on 429/5xx — off the Anthropic shape
+// `{type:"error", error:{type,message}}` and a recognized `error.type`. Flat
+// `{error:{...}}` shapes or non-canonical type strings (`rate_limit` vs
+// `rate_limit_error`, `proxy_error` vs `api_error`) degrade client recovery.
+// Canonical inner types: invalid_request_error, authentication_error,
+// permission_error, not_found_error, rate_limit_error, api_error, overloaded_error.
+export function sendError(res, status, type, message, extraHeaders = {}) {
+  if (res.writableEnded) return;
+  res.writeHead(status, { 'content-type': 'application/json', ...extraHeaders });
+  res.end(JSON.stringify({ type: 'error', error: { type, message } }));
+}
+
 // Sanitize tool_use blocks in responses from non-Anthropic models.
 // Fixes structural issues that cause "Invalid tool parameters" in Claude Code.
 //
@@ -255,8 +268,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
   try {
     parsed = JSON.parse(raw.toString());
   } catch {
-    res.writeHead(400, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ error: { type: 'invalid_request', message: 'Invalid JSON' } }));
+    sendError(res, 400, 'invalid_request_error', 'Invalid JSON');
     return;
   }
 
@@ -266,10 +278,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
   // Free-only enforcement: block paid models
   if (isFreeTierModel && !isFreeTierModel(parsed.model)) {
     console.log(`${C.red('[FREE-ONLY]')} Blocked paid model: ${parsed.model}`);
-    res.writeHead(403, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({
-      error: { type: 'model_blocked', message: `Model "${parsed.model}" is not free. Use --model with a :free model or disable --free-only.` }
-    }));
+    sendError(res, 403, 'permission_error', `Model "${parsed.model}" is not free. Use --model with a :free model or disable --free-only.`);
     return;
   }
 
@@ -625,14 +634,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
           }
 
           console.log(`${tag} ${isToS ? 'ToS rejection' : 'Auth error'}: ${isFreeModel ? '(free model) ' : ''}${errBody.slice(0, 200)}`);
-          res.writeHead(400, { 'content-type': 'application/json' });
-          res.end(JSON.stringify({
-            type: 'error',
-            error: {
-              type: 'invalid_request_error',
-              message: userMessage,
-            },
-          }));
+          sendError(res, 400, 'invalid_request_error', userMessage);
           return;
         }
 
@@ -674,14 +676,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
             console.log(`${C.red(`[${provider.name.toUpperCase()}]`)} :free fallback error: ${e.message}`);
           }
           // Free fallback failed — return helpful error
-          res.writeHead(400, { 'content-type': 'application/json' });
-          res.end(JSON.stringify({
-            type: 'error',
-            error: {
-              type: 'invalid_request_error',
-              message: `[anymodel] No credits on OpenRouter and no free variant available for ${parsed.model}. Add credits at https://openrouter.ai/settings/credits or use a free model: npx anymodel proxy --model qwen/qwen3-coder:free`,
-            },
-          }));
+          sendError(res, 400, 'invalid_request_error', `[anymodel] No credits on OpenRouter and no free variant available for ${parsed.model}. Add credits at https://openrouter.ai/settings/credits or use a free model: npx anymodel proxy --model qwen/qwen3-coder:free`);
           return;
         }
 
@@ -791,8 +786,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     } catch (e) {
       console.error(`${C.red(`[${provider.name.toUpperCase()}]`)} Connection error on attempt ${attempt}: ${e.message}`);
       if (attempt === MAX_RETRIES) {
-        res.writeHead(502, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ error: { type: 'proxy_error', message: e.message } }));
+        sendError(res, 502, 'api_error', e.message);
         return;
       }
       await sleep(calcDelay(attempt));
@@ -891,16 +885,14 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10,
     if (isProviderRoute(req.url)) {
       // Auth check
       if (!checkAuth(req)) {
-        res.writeHead(401, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ error: { type: 'auth_error', message: 'Invalid or missing token. Set Authorization: Bearer <token>' } }));
+        sendError(res, 401, 'authentication_error', 'Invalid or missing token. Set Authorization: Bearer <token>');
         return;
       }
       // Rate limit check
       const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
       if (!checkRateLimit(clientIp)) {
         console.log(`${C.red('[RATE]')} Limit exceeded for ${clientIp}`);
-        res.writeHead(429, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ error: { type: 'rate_limit', message: `Rate limit: ${rpm} requests/minute exceeded` } }));
+        sendError(res, 429, 'rate_limit_error', `Rate limit: ${rpm} requests/minute exceeded`);
         return;
       }
 
@@ -924,10 +916,7 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10,
 
       handleMessages(req, res, provider, model, isFreeTierModel).catch(e => {
         console.error(`${C.red('[PROXY]')} Unhandled error: ${e.message}`);
-        if (!res.writableEnded) {
-          res.writeHead(502, { 'content-type': 'application/json' });
-          res.end(JSON.stringify({ error: { type: 'proxy_error', message: 'Internal proxy error' } }));
-        }
+        sendError(res, 502, 'api_error', 'Internal proxy error');
       });
     } else {
       console.log(`${C.yellow('[PASSTHROUGH]')} ${req.method} ${req.url}`);

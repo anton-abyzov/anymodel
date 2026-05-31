@@ -289,6 +289,13 @@ export function createStreamTranslator() {
   let thinkingBlockIndex = -1;
   let textBlockIndex = -1;
   const stoppedBlocks = new Set();
+  // P1.1: route streamed tool-call argument fragments by `tc.index`, not by the
+  // most-recently-opened block (`blockIndex-1`). Claude Code batches independent
+  // tool calls; OpenAI-compatible servers identify each by `tc.index` and may
+  // interleave argument fragments across indices within a single chunk. Without
+  // this map, fragments cross-assign → one tool_use accumulates two calls' JSON
+  // (parses to {}), the other gets none. Maps tc.index → Anthropic block index.
+  const toolBlockByIndex = new Map();
 
   // US-006: accumulate usage across all chunks. OpenAI-compat streams commonly
   // emit `completion_tokens` in a dedicated usage-only chunk AFTER the
@@ -413,21 +420,32 @@ export function createStreamTranslator() {
 
           if (delta.tool_calls) {
             for (const tc of delta.tool_calls) {
-              if (tc.function?.name) {
-                // New tool call start
+              // P1.1: a compliant server sends the id+name in the first fragment
+              // for each index, then arguments-only fragments. Allocate the block
+              // on first sighting of ANY index (capturing id/name when present) so
+              // a leading arguments fragment never misroutes.
+              const tcIdx = tc.index ?? 0;
+              if (!toolBlockByIndex.has(tcIdx)) {
+                const bi = blockIndex++;
+                toolBlockByIndex.set(tcIdx, bi);
                 output.push(formatSSE('content_block_start', {
                   type: 'content_block_start',
-                  index: blockIndex,
-                  content_block: { type: 'tool_use', id: tc.id, name: tc.function.name, input: {} },
+                  index: bi,
+                  content_block: {
+                    type: 'tool_use',
+                    id: tc.id || genToolId(),
+                    name: tc.function?.name || '',
+                    input: {},
+                  },
                 }));
-                blockIndex++;
               }
               if (tc.function?.arguments) {
                 // US-004: no longer strip _unused/_placeholder — since we stopped
                 // injecting them, any such fields here are real user params.
+                const bi = toolBlockByIndex.get(tcIdx);
                 output.push(formatSSE('content_block_delta', {
                   type: 'content_block_delta',
-                  index: blockIndex - 1,
+                  index: bi,
                   delta: { type: 'input_json_delta', partial_json: tc.function.arguments },
                 }));
               }
