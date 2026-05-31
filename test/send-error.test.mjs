@@ -53,4 +53,12 @@ describe('P1.6 sendError canonical envelope', () => {
     assert.doesNotThrow(() => sendError(res, 500, 'api_error', 'late'));
     assert.equal(res.statusCode, null, 'did not write to an ended response');
   });
+
+  it('closes cleanly without writeHead when headers were already sent (streaming throw)', () => {
+    const res = mockRes();
+    res.headersSent = true; // streaming already flushed 200 headers
+    res.writeHead = () => { throw new Error('ERR_HTTP_HEADERS_SENT'); };
+    assert.doesNotThrow(() => sendError(res, 502, 'api_error', 'post-header throw'));
+    assert.equal(res.writableEnded, true, 'response was ended');
+  });
 });

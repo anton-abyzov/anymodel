@@ -34,6 +34,10 @@ const C = {
 // permission_error, not_found_error, rate_limit_error, api_error, overloaded_error.
 export function sendError(res, status, type, message, extraHeaders = {}) {
   if (res.writableEnded) return;
+  // If the response already streamed headers (e.g. a streaming turn threw after
+  // writeHead 200), we cannot change the status — just close cleanly rather than
+  // crash with ERR_HTTP_HEADERS_SENT.
+  if (res.headersSent) { res.end(); return; }
   res.writeHead(status, { 'content-type': 'application/json', ...extraHeaders });
   res.end(JSON.stringify({ type: 'error', error: { type, message } }));
 }
