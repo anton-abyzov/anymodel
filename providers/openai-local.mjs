@@ -50,7 +50,9 @@ export function makeOpenAILocalProvider({
     },
 
     transformRequest: translateRequest,
-    transformResponse: translateResponse,
+    // P0.2: mark responses as coming from a LOCAL provider so text-channel
+    // tool-call recovery engages under ANYMODEL_PARSE_TEXT_TOOLCALLS=auto.
+    transformResponse: (body) => translateResponse(body, { localProvider: true }),
     createStreamTranslator,
 
     displayInfo(model) {

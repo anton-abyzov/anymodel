@@ -206,15 +206,39 @@ export function loadEnv(dir) {
   }
 }
 
+// P0.3: a stalled local model (or a silent TCP connection) would otherwise hang
+// the proxy forever — the existing retry loop never fires because a hang is
+// neither a status code nor a thrown error. An idle timeout turns that into a
+// recoverable, visible failure that the retry/catch loop can handle.
+// Read at call time (not frozen at import) so ANYMODEL_UPSTREAM_TIMEOUT_MS can be
+// set by the launcher/env after this module loads.
+export function upstreamTimeoutMs() {
+  return Number(process.env.ANYMODEL_UPSTREAM_TIMEOUT_MS) || 300000;
+}
+
 function sendRequest(provider, url, payload) {
   const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
   const opts = provider.buildRequest(url, payload, apiKey);
+  const timeoutMs = upstreamTimeoutMs();
 
   return new Promise((resolve, reject) => {
     const isSecure = opts.port === 443 || opts.protocol === 'https:';
     const transport = isSecure ? https : http;
     const agent = isSecure ? httpsAgent : httpAgent;
-    const req = transport.request({ ...opts, agent }, upstream => resolve(upstream));
+    const req = transport.request(
+      { ...opts, agent, timeout: timeoutMs },
+      upstream => {
+        // The request-level timeout only covers the header phase. Re-arm it on
+        // the response socket so a stream that goes idle mid-body is aborted;
+        // Node resets this timer on every received chunk, so a long-but-active
+        // stream survives.
+        upstream.setTimeout(timeoutMs, () => {
+          upstream.destroy(new Error(`upstream idle timeout after ${timeoutMs}ms`));
+        });
+        resolve(upstream);
+      }
+    );
+    req.on('timeout', () => req.destroy(new Error(`upstream connect/header timeout after ${timeoutMs}ms`)));
     req.on('error', reject);
     req.write(payload);
     req.end();
@@ -704,7 +728,23 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
           }
         });
         res.on('drain', () => upstream.resume());
-        upstream.on('end', () => res.end());
+        upstream.on('end', () => {
+          // P0.1: many OpenAI-compatible servers (LM Studio/MLX, llama.cpp, vLLM)
+          // close the stream WITHOUT a `data: [DONE]` sentinel. Without flushing
+          // the translator the client never receives message_delta + message_stop,
+          // so the turn never finalizes and the agentic loop hangs. flush() is
+          // idempotent (emitStop is guarded by stopEmitted) so this is safe even
+          // when [DONE] already arrived.
+          if (typeof translator.flush === 'function') {
+            try {
+              const tail = translator.flush();
+              if (tail && !res.writableEnded) res.write(tail);
+            } catch (e) {
+              console.error(`${C.red('[STREAM]')} flush error: ${e.message}`);
+            }
+          }
+          if (!res.writableEnded) res.end();
+        });
         upstream.on('error', (e) => {
           console.error(`${C.red('[STREAM]')} Upstream error: ${e.message}`);
           if (!res.writableEnded) res.end();

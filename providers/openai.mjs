@@ -114,9 +114,98 @@ export function translateRequest(anthropicBody) {
   return openaiBody;
 }
 
+// ── Text-channel tool-call recovery (P0.2) ─────────────────────
+// Local Qwen3-Coder under LM Studio (and other servers with a misconfigured or
+// missing tool-call parser) frequently emit a tool call into the TEXT channel
+// instead of the structured `tool_calls` array — as Hermes `<tool_call>{...}`,
+// Qwen XML `<function=name><parameter=k>v</parameter></function>`, or a fenced
+// ```json {name, arguments} block. Untreated, the proxy forwards it as plain
+// text + `end_turn`, Claude Code executes nothing, and the agentic loop silently
+// dead-ends. This recovers those into real `tool_use` blocks.
+//
+// Gated by ANYMODEL_PARSE_TEXT_TOOLCALLS:
+//   'auto' (default) → on for local providers only (caller passes localProvider)
+//   'on'             → always
+//   'off'            → never
+// Cloud providers (OpenRouter/OpenAI) are left untouched under 'auto'.
+
+let __toolIdSeq = 0;
+function genToolId() {
+  // Deterministic-ish, collision-resistant within a process; avoids Date.now()
+  // collisions for parallel calls in the same ms.
+  return `toolu_txt_${Date.now().toString(36)}_${(__toolIdSeq++).toString(36)}`;
+}
+
+export function textChannelParsingEnabled(localProvider = false) {
+  const mode = (process.env.ANYMODEL_PARSE_TEXT_TOOLCALLS || 'auto').toLowerCase();
+  if (mode === 'on') return true;
+  if (mode === 'off') return false;
+  return !!localProvider; // 'auto'
+}
+
+// Parse a text blob for tool-call syntax. Returns { calls: [{name,input}], cleanedText }.
+// Conservative: requires a strict whole-pattern match + valid structure so prose
+// that merely *mentions* `<tool_call>` is not converted.
+export function extractTextToolCalls(text) {
+  const calls = [];
+  let cleaned = text;
+  if (typeof text !== 'string' || !text) return { calls, cleanedText: cleaned };
+
+  // 1) Hermes: <tool_call>{ "name": "...", "arguments": {...} }</tool_call>
+  const hermes = /<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g;
+  cleaned = cleaned.replace(hermes, (match, inner) => {
+    try {
+      const obj = JSON.parse(inner);
+      if (obj && typeof obj.name === 'string') {
+        let args = obj.arguments ?? obj.parameters ?? {};
+        if (typeof args === 'string') { try { args = JSON.parse(args); } catch { args = {}; } }
+        calls.push({ name: obj.name, input: (args && typeof args === 'object') ? args : {} });
+        return ''; // strip matched span
+      }
+    } catch { /* not valid JSON — leave the text in place */ }
+    return match;
+  });
+
+  // 2) Qwen XML: <function=name><parameter=key>value</parameter>...</function>
+  const qwenFn = /<function=([^>\s]+)\s*>([\s\S]*?)<\/function>/g;
+  cleaned = cleaned.replace(qwenFn, (match, name, inner) => {
+    const input = {};
+    const paramRe = /<parameter=([^>\s]+)\s*>([\s\S]*?)<\/parameter>/g;
+    let m, found = false;
+    while ((m = paramRe.exec(inner)) !== null) {
+      found = true;
+      let val = m[2].trim();
+      // best-effort: JSON-parse scalars/objects, else keep as string
+      try { val = JSON.parse(val); } catch { /* keep string */ }
+      input[m[1]] = val;
+    }
+    if (name) { calls.push({ name, input }); return ''; }
+    return match;
+    void found;
+  });
+
+  // 3) Fenced ```json { "name": "...", "arguments": {...} } ``` — only when the
+  // fenced object is itself a tool-call shape (has a string `name`).
+  const fenced = /```(?:json)?\s*([\s\S]*?)\s*```/g;
+  cleaned = cleaned.replace(fenced, (match, inner) => {
+    try {
+      const obj = JSON.parse(inner);
+      if (obj && typeof obj.name === 'string' && ('arguments' in obj || 'parameters' in obj)) {
+        let args = obj.arguments ?? obj.parameters ?? {};
+        if (typeof args === 'string') { try { args = JSON.parse(args); } catch { args = {}; } }
+        calls.push({ name: obj.name, input: (args && typeof args === 'object') ? args : {} });
+        return '';
+      }
+    } catch { /* not a tool-call fenced block */ }
+    return match;
+  });
+
+  return { calls, cleanedText: cleaned.trim() };
+}
+
 // ── Response translation (OpenAI → Anthropic) for non-streaming ──
 
-export function translateResponse(openaiResponse) {
+export function translateResponse(openaiResponse, { localProvider = false } = {}) {
   const choice = openaiResponse.choices?.[0];
   if (!choice) {
     return { type: 'error', error: { type: 'api_error', message: 'No choices in response' } };
@@ -130,10 +219,13 @@ export function translateResponse(openaiResponse) {
     content.push({ type: 'thinking', thinking: reasoning });
   }
 
+  let textBlock = null;
   if (choice.message?.content) {
-    content.push({ type: 'text', text: choice.message.content });
+    textBlock = { type: 'text', text: choice.message.content };
+    content.push(textBlock);
   }
 
+  let hasStructuredToolCall = false;
   if (choice.message?.tool_calls) {
     for (const tc of choice.message.tool_calls) {
       const input = (() => { try { return JSON.parse(tc.function.arguments || '{}'); } catch { return {}; } })();
@@ -146,16 +238,33 @@ export function translateResponse(openaiResponse) {
         name: tc.function.name,
         input,
       });
+      hasStructuredToolCall = true;
     }
   }
 
+  // P0.2: if the model emitted NO structured tool_calls but parked a tool call in
+  // the text channel, recover it. Gated/local-only via ANYMODEL_PARSE_TEXT_TOOLCALLS.
+  let recoveredToolCall = false;
+  if (!hasStructuredToolCall && textBlock && textChannelParsingEnabled(localProvider)) {
+    const { calls, cleanedText } = extractTextToolCalls(textBlock.text);
+    if (calls.length) {
+      recoveredToolCall = true;
+      if (cleanedText) textBlock.text = cleanedText;
+      else content.splice(content.indexOf(textBlock), 1); // drop now-empty text block
+      for (const c of calls) {
+        content.push({ type: 'tool_use', id: genToolId(), name: c.name, input: c.input });
+      }
+    }
+  }
+
+  const mappedStop = { tool_calls: 'tool_use', length: 'max_tokens', stop: 'end_turn' }[choice.finish_reason] || 'end_turn';
   return {
     id: openaiResponse.id || `msg_${Date.now()}`,
     type: 'message',
     role: 'assistant',
     content,
     model: openaiResponse.model,
-    stop_reason: { tool_calls: 'tool_use', length: 'max_tokens', stop: 'end_turn' }[choice.finish_reason] || 'end_turn',
+    stop_reason: recoveredToolCall ? 'tool_use' : mappedStop,
     stop_sequence: null,
     usage: {
       input_tokens: openaiResponse.usage?.prompt_tokens || 0,
