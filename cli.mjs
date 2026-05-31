@@ -56,7 +56,7 @@ const C = {
 };
 
 export function parseArgs(argv) {
-  const opts = { provider: 'auto', port: 9090, model: null, help: false, freeOnly: false, token: null, rpm: 60, passthrough: [], fullMcp: false };
+  const opts = { provider: 'auto', port: 9090, host: null, model: null, help: false, freeOnly: false, token: null, rpm: 60, passthrough: [], fullMcp: false };
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -72,6 +72,9 @@ export function parseArgs(argv) {
     } else if (arg === '--port' || arg === '-p') {
       const p = parseInt(argv[++i], 10);
       opts.port = (p > 0 && p <= 65535) ? p : 9090;
+    } else if (arg === '--host') {
+      // P1.7: opt in to LAN exposure. Default (unset) binds loopback 127.0.0.1.
+      opts.host = argv[++i] || null;
     } else if (arg === '--free-only' || arg === '--free') {
       opts.freeOnly = true;
     } else if (arg === '--token' || arg === '-t') {
@@ -242,6 +245,7 @@ ${C.magenta('  anymodel')} — universal AI coding tool
   ${C.bold('Proxy Options:')} (only apply to ${C.bold('anymodel proxy')})
     --model, -m     Model to use (e.g., qwen/qwen3-coder:free)
     --port, -p      Proxy port (default: 9090)
+    --host          Bind address (default: 127.0.0.1 loopback). Use 0.0.0.0 to expose on LAN — pair with --token
     --free-only     Only allow free models
     --token, -t     Require auth token for requests
     --rpm           Rate limit: requests per minute (default: 60)
@@ -631,7 +635,7 @@ async function startProxyOnly(args) {
     console.log(`${C.cyan('[AUTH]')} Token authentication enabled`);
   }
 
-  createProxy(provider, { port, model, freeOnly: opts.freeOnly, token: opts.token, rpm: opts.rpm });
+  createProxy(provider, { port, host: opts.host, model, freeOnly: opts.freeOnly, token: opts.token, rpm: opts.rpm });
 }
 
 // ── Entry point ──────────────────────────────────────

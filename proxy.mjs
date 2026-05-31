@@ -37,6 +37,73 @@ export function sendError(res, status, type, message, extraHeaders = {}) {
   res.end(JSON.stringify({ type: 'error', error: { type, message } }));
 }
 
+// P1.7: default to loopback. `server.listen(port, cb)` with no host binds all
+// interfaces (0.0.0.0), so with the default no-token config the proxy was
+// reachable from the LAN with no auth — anyone could POST /v1/messages to spend
+// the user's cloud credits or drive the local GPU. Exposing now requires an
+// explicit ANYMODEL_HOST / --host opt-in.
+export function resolveBindHost(host) {
+  return host || process.env.ANYMODEL_HOST || '127.0.0.1';
+}
+export function isLoopbackHost(host) {
+  return host === '127.0.0.1' || host === '::1' || host === 'localhost';
+}
+
+// P1.8: when fronting a LOCAL provider, never forward the client's real Anthropic
+// credentials to api.anthropic.com on passthrough housekeeping routes. cli.mjs
+// injects a dummy key by default, but a user with a real ANTHROPIC_API_KEY
+// exported (or launching Claude Code independently) would otherwise egress it.
+export function stripAuthHeaders(headers) {
+  const out = { ...headers };
+  delete out['x-api-key'];
+  delete out['authorization'];
+  return out;
+}
+
+// P1.9: cap buffered bodies. Every buffered read was unbounded `chunks.push` +
+// `Buffer.concat`; a large body OOMs the proxy (a trivial LAN DoS once exposed).
+// Default 64MB, override via ANYMODEL_MAX_BODY_BYTES.
+export function maxBodyBytes() {
+  return Number(process.env.ANYMODEL_MAX_BODY_BYTES) || 64 * 1024 * 1024;
+}
+
+// Read a request/response stream into a Buffer, enforcing a byte cap. Fails fast
+// on a Content-Length already over the cap, and aborts mid-stream if the running
+// size exceeds it. Rejects with an error whose `.code` is 'BODY_TOO_LARGE'.
+export function readCappedBody(stream, limit = maxBodyBytes()) {
+  return new Promise((resolve, reject) => {
+    const declared = Number(stream.headers?.['content-length']);
+    if (Number.isFinite(declared) && declared > limit) {
+      const e = new Error(`body exceeds ${limit} bytes (content-length ${declared})`);
+      e.code = 'BODY_TOO_LARGE';
+      stream.resume(); // drain so the socket can close cleanly
+      return reject(e);
+    }
+    const chunks = [];
+    let size = 0;
+    stream.on('data', c => {
+      size += c.length;
+      if (size > limit) {
+        const e = new Error(`body exceeds ${limit} bytes`);
+        e.code = 'BODY_TOO_LARGE';
+        stream.destroy();
+        return reject(e);
+      }
+      chunks.push(c);
+    });
+    stream.on('end', () => resolve(Buffer.concat(chunks)));
+    stream.on('error', reject);
+  });
+}
+
+// P1.9: guard a JSON.parse over an upstream body. On failure returns null (callers
+// surface an Anthropic api_error) instead of throwing into the retry loop, which
+// masked the real content as a generic 502 + spurious retry.
+export function safeJsonParse(str) {
+  try { return { ok: true, value: JSON.parse(str) }; }
+  catch (e) { return { ok: false, error: e }; }
+}
+
 // Sanitize tool_use blocks in responses from non-Anthropic models.
 // Fixes structural issues that cause "Invalid tool parameters" in Claude Code.
 //
@@ -259,18 +326,25 @@ function sendRequest(provider, url, payload) {
 }
 
 async function handleMessages(req, res, provider, model, isFreeTierModel) {
-  const chunks = [];
-  req.on('data', c => chunks.push(c));
-  await new Promise(r => req.on('end', r));
-  const raw = Buffer.concat(chunks);
-
-  let parsed;
+  let raw;
   try {
-    parsed = JSON.parse(raw.toString());
-  } catch {
+    raw = await readCappedBody(req);
+  } catch (e) {
+    if (e.code === 'BODY_TOO_LARGE') {
+      console.log(`${C.red('[BODY]')} Inbound body exceeds cap: ${e.message}`);
+      sendError(res, 413, 'invalid_request_error', `Request body exceeds ${maxBodyBytes()} bytes (ANYMODEL_MAX_BODY_BYTES)`);
+    } else {
+      sendError(res, 400, 'invalid_request_error', 'Failed to read request body');
+    }
+    return;
+  }
+
+  const jp = safeJsonParse(raw.toString());
+  if (!jp.ok) {
     sendError(res, 400, 'invalid_request_error', 'Invalid JSON');
     return;
   }
+  const parsed = jp.value;
 
   const originalModel = parsed.model;
   if (model) parsed.model = model;
@@ -654,8 +728,15 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
                 await new Promise(r => freeUpstream.on('end', r));
                 let respStr = Buffer.concat(respChunks).toString();
                 if (provider.transformResponse) {
-                  const respBody = JSON.parse(respStr);
-                  const translated = provider.transformResponse(respBody);
+                  // P1.9: guard the upstream parse — a malformed free response was
+                  // previously mis-reported as "no free variant".
+                  const parsedFree = safeJsonParse(respStr);
+                  if (!parsedFree.ok) {
+                    console.error(`${C.red(`[${provider.name.toUpperCase()}]`)} :free upstream returned non-JSON body: ${respStr.slice(0, 120)}`);
+                    sendError(res, 502, 'api_error', 'Upstream returned a non-JSON response body');
+                    return;
+                  }
+                  const translated = provider.transformResponse(parsedFree.value);
                   sanitizeToolUseResponse(translated);
                   respStr = JSON.stringify(translated);
                 }
@@ -702,7 +783,17 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         const respChunks = [];
         upstream.on('data', c => respChunks.push(c));
         await new Promise(r => upstream.on('end', r));
-        const respBody = JSON.parse(Buffer.concat(respChunks).toString());
+        const respStr = Buffer.concat(respChunks).toString();
+        // P1.9: a local server can return a truncated/non-JSON 200 (HTML error
+        // page, partial body on reset). Surface a clear api_error instead of
+        // letting an unhandled throw bubble to the retry catch → generic 502.
+        const parsedResp = safeJsonParse(respStr);
+        if (!parsedResp.ok) {
+          console.error(`${C.red(`[${provider.name.toUpperCase()}]`)} Upstream returned non-JSON 200 body: ${respStr.slice(0, 120)}`);
+          sendError(res, 502, 'api_error', 'Upstream returned a non-JSON response body');
+          return;
+        }
+        const respBody = parsedResp.value;
         const translated = provider.transformResponse(respBody, prefixCacheResult);
         sanitizeToolUseResponse(translated);
         const translatedPayload = JSON.stringify(translated);
@@ -794,7 +885,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
   }
 }
 
-function proxyToAnthropic(req, res) {
+function proxyToAnthropic(req, res, { stripAuth = false } = {}) {
   // Mock known Claude Code internal endpoints that don't need Anthropic auth.
   // Without this, Claude Code's auth/capability checks hit api.anthropic.com
   // and fail with 401/403, causing misleading "Please run /login" errors.
@@ -811,12 +902,17 @@ function proxyToAnthropic(req, res) {
     if (!res.writableEnded) { res.writeHead(502); res.end(); }
   });
   req.on('end', () => {
+    // P1.8: for local providers, strip the client's Anthropic credentials before
+    // forwarding housekeeping routes — don't egress a real key to api.anthropic.com.
+    const fwdHeaders = stripAuth
+      ? { ...stripAuthHeaders(req.headers), host: 'api.anthropic.com' }
+      : { ...req.headers, host: 'api.anthropic.com' };
     const opts = {
       hostname: 'api.anthropic.com',
       port: 443,
       path: req.url,
       method: req.method,
-      headers: { ...req.headers, host: 'api.anthropic.com' },
+      headers: fwdHeaders,
     };
     const pr = https.request(opts, upstream => {
       // If Anthropic returns auth error on passthrough, don't forward it raw —
@@ -836,9 +932,12 @@ function proxyToAnthropic(req, res) {
   });
 }
 
-export function createProxy(provider, { port = 9090, model, maxPortRetries = 10, freeOnly = false, token = null, rpm = 60 } = {}) {
+export function createProxy(provider, { port = 9090, host = null, model, maxPortRetries = 10, freeOnly = false, token = null, rpm = 60 } = {}) {
   // Rate limiting state
   const rateWindow = {};
+  const bindHost = resolveBindHost(host);
+  // P1.8: local providers must not egress real Anthropic credentials on passthrough.
+  const isLocalProvider = provider.name === 'ollama' || provider.name === 'lmstudio' || provider.name === 'llamacpp';
 
   function checkRateLimit(ip) {
     const now = Date.now();
@@ -920,7 +1019,7 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10,
       });
     } else {
       console.log(`${C.yellow('[PASSTHROUGH]')} ${req.method} ${req.url}`);
-      proxyToAnthropic(req, res);
+      proxyToAnthropic(req, res, { stripAuth: isLocalProvider });
     }
   });
 
@@ -965,9 +1064,14 @@ export function createProxy(provider, { port = 9090, model, maxPortRetries = 10,
         throw err;
       }
     });
-    server.listen(tryPort, () => {
+    server.listen(tryPort, bindHost, () => {
       if (attempt > 0) {
         console.log(`${C.green('[PORT]')} Found free port :${tryPort}`);
+      }
+      // P1.7: a non-loopback bind with no token is open to the LAN — warn loudly.
+      if (!isLoopbackHost(bindHost) && !token) {
+        console.log(`${C.red('[SECURITY]')} Bound to ${C.bold(bindHost)} (LAN-exposed) with NO auth token.`);
+        console.log(`${C.red('[SECURITY]')} Anyone on the network can POST /v1/messages. Set ${C.bold('--token <secret>')} or bind loopback (unset ANYMODEL_HOST/--host).`);
       }
       // Notify parent process of actual port (IPC)
       if (process.send) process.send({ type: 'port', port: tryPort });
