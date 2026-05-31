@@ -4,6 +4,7 @@
 // causing qwen3/deepseek models to waste all output tokens on hidden chain-of-thought.
 
 import http from 'http';
+import { randomUUID } from 'crypto';
 import { translateRequest } from './openai.mjs';
 
 // Default context size — keeps KV cache small for fast responses.
@@ -35,7 +36,7 @@ function ollamaToAnthropic(ollamaResp, model, cacheMetrics) {
       // US-004: no longer strip _unused/_placeholder — preserved as real user params
       content.push({
         type: 'tool_use',
-        id: tc.id || `toolu_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        id: tc.id || `toolu_${randomUUID()}`,
         name: tc.function.name,
         input,
       });
@@ -149,7 +150,7 @@ function createOllamaStreamTranslator(cacheMetrics) {
                   index: blockIndex,
                   content_block: {
                     type: 'tool_use',
-                    id: tc.id || `toolu_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                    id: tc.id || `toolu_${randomUUID()}`,
                     name: tc.function.name,
                     input: {},
                   },

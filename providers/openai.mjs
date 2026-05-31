@@ -336,7 +336,16 @@ export function translateResponse(openaiResponse, { localProvider = false } = {}
   let hasStructuredToolCall = false;
   if (choice.message?.tool_calls) {
     for (const tc of choice.message.tool_calls) {
-      const input = (() => { try { return JSON.parse(tc.function.arguments || '{}'); } catch { return {}; } })();
+      const input = (() => {
+        try { return JSON.parse(tc.function.arguments || '{}'); }
+        catch {
+          // P2.4: a local model under max_tokens pressure can emit truncated arg
+          // JSON. We still emit the named tool_use with input:{} (the client would
+          // otherwise lose the call) — but surface it so it isn't silently wrong.
+          console.warn(`[openai] tool "${tc.function?.name}" returned unparseable arguments → using {}`);
+          return {};
+        }
+      })();
       // US-004: no longer strip _unused/_placeholder — since we stopped injecting
       // them, any such fields in the response are real user params that must be
       // preserved.
@@ -410,6 +419,9 @@ export function createStreamTranslator() {
   // finish_reason chunk, so we can't read usage on finish_reason alone.
   let accumulatedStopReason = null;
   let accumulatedOutputTokens = 0;
+  // P2.1: streaming previously reported input_tokens:0, under-counting prompt
+  // tokens for every streamed turn (the default mode) → unreliable /context budgets.
+  let accumulatedInputTokens = 0;
 
   function closeOpenBlocks(output) {
     for (let i = 0; i < blockIndex; i++) {
@@ -427,7 +439,7 @@ export function createStreamTranslator() {
     output.push(formatSSE('message_delta', {
       type: 'message_delta',
       delta: { stop_reason: accumulatedStopReason || 'end_turn' },
-      usage: { output_tokens: accumulatedOutputTokens },
+      usage: { input_tokens: accumulatedInputTokens, output_tokens: accumulatedOutputTokens },
     }));
     output.push(formatSSE('message_stop', { type: 'message_stop' }));
   }
@@ -454,6 +466,11 @@ export function createStreamTranslator() {
           // streams may emit a dedicated usage-only chunk after finish_reason.
           if (parsed.usage && typeof parsed.usage.completion_tokens === 'number') {
             accumulatedOutputTokens = parsed.usage.completion_tokens;
+          }
+          // P2.1: capture prompt_tokens wherever it appears (LM Studio emits it in
+          // the dedicated usage-only chunk after finish_reason).
+          if (parsed.usage && typeof parsed.usage.prompt_tokens === 'number') {
+            accumulatedInputTokens = parsed.usage.prompt_tokens;
           }
 
           const delta = parsed.choices?.[0]?.delta;
@@ -598,7 +615,7 @@ export default {
       hostname: parsedUrl.hostname,
       port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
       protocol: parsedUrl.protocol,
-      path: `${parsedUrl.pathname.replace(/\/$/, '')}/chat/completions`,
+      path: `${parsedUrl.pathname.replace(/\/+$/, '')}/chat/completions`,
       method: 'POST',
       headers: {
         'content-type': 'application/json',

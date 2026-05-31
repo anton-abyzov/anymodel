@@ -4,6 +4,7 @@
 import http from 'http';
 import https from 'https';
 import { readFileSync } from 'fs';
+import { randomUUID } from 'crypto';
 
 const pkg = JSON.parse(readFileSync(new URL('package.json', import.meta.url), 'utf8'));
 
@@ -118,8 +119,10 @@ export function sanitizeToolUseResponse(respObj) {
   respObj.content = respObj.content.filter(block => {
     if (block.type !== 'tool_use') return true;
 
-    // Ensure required fields exist
-    if (!block.id) block.id = `toolu_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    // Ensure required fields exist. P2.7: randomUUID avoids the Date.now()+Math.random
+    // collisions that two parallel tool calls in the same ms could hit, which would
+    // break tool_use/tool_result id correlation.
+    if (!block.id) block.id = `toolu_${randomUUID()}`;
     if (!block.name) return false; // drop tool_use with no name — invalid
     if (!block.input || typeof block.input !== 'object') block.input = {};
 
@@ -806,15 +809,31 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         // Streaming: pipe through translator to convert SSE format
         const translator = provider.createStreamTranslator(prefixCacheResult);
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'connection': 'keep-alive' });
+
+        // P2.2: heartbeat during time-to-first-token. An 80B model on a large
+        // prompt can take tens of seconds before the first token; with no bytes on
+        // the wire an intermediary idle-timeout can drop the connection before
+        // message_start ever arrives. Emit `event: ping` every 15s until the first
+        // real translated write, then stop. unref so it never holds the loop open.
+        let firstWrite = false;
+        const pingTimer = setInterval(() => {
+          if (!res.writableEnded && !firstWrite) res.write('event: ping\ndata: {"type":"ping"}\n\n');
+        }, 15000);
+        if (pingTimer.unref) pingTimer.unref();
+        const clearPing = () => clearInterval(pingTimer);
+
         upstream.on('data', chunk => {
           const translated = translator.transform(chunk.toString());
           if (translated) {
+            firstWrite = true;
+            clearPing();
             const ok = res.write(translated);
             if (!ok) upstream.pause();
           }
         });
         res.on('drain', () => upstream.resume());
         upstream.on('end', () => {
+          clearPing();
           // P0.1: many OpenAI-compatible servers (LM Studio/MLX, llama.cpp, vLLM)
           // close the stream WITHOUT a `data: [DONE]` sentinel. Without flushing
           // the translator the client never receives message_delta + message_stop,
@@ -832,10 +851,11 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
           if (!res.writableEnded) res.end();
         });
         upstream.on('error', (e) => {
+          clearPing();
           console.error(`${C.red('[STREAM]')} Upstream error: ${e.message}`);
           if (!res.writableEnded) res.end();
         });
-        res.on('close', () => upstream.destroy());
+        res.on('close', () => { clearPing(); upstream.destroy(); });
         return;
       }
 

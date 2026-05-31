@@ -39,7 +39,7 @@ export function makeOpenAILocalProvider({
         hostname: parsedUrl.hostname,
         port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
         protocol: parsedUrl.protocol,
-        path: `${parsedUrl.pathname.replace(/\/$/, '')}/chat/completions`,
+        path: `${parsedUrl.pathname.replace(/\/+$/, '')}/chat/completions`,
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -68,7 +68,7 @@ export function makeOpenAILocalProvider({
         const req = transport.get({
           hostname: parsedUrl.hostname,
           port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
-          path: `${parsedUrl.pathname.replace(/\/$/, '')}/models`,
+          path: `${parsedUrl.pathname.replace(/\/+$/, '')}/models`,
         }, res => { res.resume(); resolve(true); });
         req.on('error', () => resolve(false));
         req.setTimeout(1000, () => { req.destroy(); resolve(false); });
@@ -105,7 +105,7 @@ export function makeOpenAILocalProvider({
         .filter(m => !/embed/i.test(m.id || ''))
         .map(m => ({ id: m.id, loaded: undefined, capabilities: [] }));
 
-      const v1Path = `${parsedUrl.pathname.replace(/\/$/, '')}/models`;
+      const v1Path = `${parsedUrl.pathname.replace(/\/+$/, '')}/models`;
 
       if (v0Probe) {
         return getJson('/api/v0/models', v0Mapper).then(v0 => (v0 && v0.length)
