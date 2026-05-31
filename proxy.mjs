@@ -38,6 +38,23 @@ export function sendError(res, status, type, message, extraHeaders = {}) {
   res.end(JSON.stringify({ type: 'error', error: { type, message } }));
 }
 
+// P1.6: pull a short human-readable message out of an upstream error body so the
+// canonical envelope keeps the upstream detail without leaking the foreign shape.
+// Handles OpenAI flat `{error:{message}}`, string `{error:"..."}` (LM Studio),
+// and bare-string bodies. Returns '' when nothing useful is found.
+export function extractUpstreamErrorMessage(errBody) {
+  if (!errBody) return '';
+  try {
+    const o = JSON.parse(errBody);
+    const m = (o && o.error && (o.error.message || (typeof o.error === 'string' ? o.error : null))) || o?.message;
+    if (typeof m === 'string' && m.trim()) return m.trim().slice(0, 300);
+  } catch {
+    const s = String(errBody).trim();
+    if (s && !s.startsWith('<')) return s.slice(0, 300);
+  }
+  return '';
+}
+
 // P1.7: default to loopback. `server.listen(port, cb)` with no host binds all
 // interfaces (0.0.0.0), so with the default no-token config the proxy was
 // reachable from the LAN with no auth — anyone could POST /v1/messages to spend
@@ -636,11 +653,16 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         console.log(`${tag} ${errBody.slice(0, 200)}`);
 
         if (attempt === MAX_RETRIES) {
-          // Forward rate limit headers to the client
-          const headers = { ...upstream.headers };
-          if (retryAfter) headers['retry-after'] = retryAfter;
-          res.writeHead(upstream.statusCode, headers);
-          res.end(errBody);
+          // P1.6: emit a canonical Anthropic error envelope so Claude Code can key
+          // its backoff/recovery off error.type. Forwarding the raw upstream
+          // (OpenAI/LM Studio-shaped) body would give the client a flat,
+          // non-canonical shape on the exact 429/5xx path that drives retry logic.
+          // 429 → rate_limit_error, 5xx → overloaded_error. Preserve retry-after.
+          const errType = upstream.statusCode === 429 ? 'rate_limit_error' : 'overloaded_error';
+          const extraHeaders = retryAfter ? { 'retry-after': retryAfter } : {};
+          const upstreamMsg = extractUpstreamErrorMessage(errBody);
+          const message = `[anymodel] Upstream ${provider.name} returned ${upstream.statusCode} after ${MAX_RETRIES} attempts${upstreamMsg ? `: ${upstreamMsg}` : ''}`;
+          sendError(res, upstream.statusCode, errType, message, extraHeaders);
           return;
         }
 
@@ -764,8 +786,16 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
           return;
         }
 
-        res.writeHead(upstream.statusCode, upstream.headers);
-        res.end(errBody);
+        // P1.6: any remaining non-200 (e.g. 400/404/422 from upstream) must also
+        // be emitted as a canonical Anthropic envelope rather than the raw
+        // upstream body. Map by status; default to api_error.
+        const fallbackType =
+          upstream.statusCode === 404 ? 'not_found_error'
+          : upstream.statusCode === 401 || upstream.statusCode === 403 ? 'authentication_error'
+          : upstream.statusCode >= 400 && upstream.statusCode < 500 ? 'invalid_request_error'
+          : 'api_error';
+        const upstreamMsg = extractUpstreamErrorMessage(errBody);
+        sendError(res, upstream.statusCode, fallbackType, `[anymodel] Upstream ${provider.name} error (${upstream.statusCode})${upstreamMsg ? `: ${upstreamMsg}` : ''}`);
         return;
       }
 
@@ -1020,15 +1050,18 @@ export function createProxy(provider, { port = 9090, host = null, model, maxPort
       // providers don't implement it, causing cascading 500 errors and server
       // instability (Ollama GitHub #13949). Return approximate token count.
       if (req.url.includes('/count_tokens') && provider.name !== 'openrouter') {
-        const chunks = [];
-        req.on('data', c => chunks.push(c));
-        req.on('end', () => {
-          const raw = Buffer.concat(chunks).toString();
+        // P1.9: cap this buffered read too — it was the one inbound path that still
+        // did unbounded chunks.push + Buffer.concat (a LAN-DoS surface once exposed).
+        readCappedBody(req).then(buf => {
+          const raw = buf.toString();
           // Rough estimate: ~4 chars per token for English/code text
           const inputTokens = Math.ceil(raw.length / 4);
           console.log(`${C.cyan(`[${provider.name.toUpperCase()}]`)} count_tokens mock → ${inputTokens} tokens (${(raw.length / 1024).toFixed(1)}KB payload)`);
           res.writeHead(200, { 'content-type': 'application/json' });
           res.end(JSON.stringify({ input_tokens: inputTokens }));
+        }).catch(e => {
+          if (e.code === 'BODY_TOO_LARGE') sendError(res, 413, 'invalid_request_error', `Request body exceeds ${maxBodyBytes()} bytes (ANYMODEL_MAX_BODY_BYTES)`);
+          else sendError(res, 400, 'invalid_request_error', 'Failed to read request body');
         });
         return;
       }

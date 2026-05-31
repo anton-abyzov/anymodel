@@ -62,7 +62,8 @@ export function extractToolResultParts(block) {
         const url = imageBlockToUrl(b);
         if (url) imageUrls.push(url);
         else pieces.push('[image omitted]');
-      } else if (typeof b?.text === 'string') pieces.push(b.text);
+      } else if (b?.type === 'document') pieces.push('[document omitted]');
+      else if (typeof b?.text === 'string') pieces.push(b.text);
     }
     text = pieces.join('');
   } else {
@@ -413,6 +414,13 @@ export function createStreamTranslator() {
   // this map, fragments cross-assign → one tool_use accumulates two calls' JSON
   // (parses to {}), the other gets none. Maps tc.index → Anthropic block index.
   const toolBlockByIndex = new Map();
+  // P1.1 robustness: Anthropic carries the tool name ONLY in content_block_start,
+  // which is emitted once and can't be amended. If a (non-compliant) server streams
+  // an arguments fragment for an index BEFORE its name chunk, we must NOT open the
+  // block yet with an empty name — buffer id + early args per index until the name
+  // arrives, then open and flush. Compliant servers (OpenAI/LM Studio/llama.cpp)
+  // send id+name in the first fragment, so this rarely engages.
+  const toolPending = new Map(); // tcIdx → { id, argBuffer: [] }
 
   // US-006: accumulate usage across all chunks. OpenAI-compat streams commonly
   // emit `completion_tokens` in a dedicated usage-only chunk AFTER the
@@ -432,9 +440,34 @@ export function createStreamTranslator() {
     }
   }
 
+  // P1.1: if the stream ended while a tool index was still awaiting its name,
+  // open it now with a synthesized name so its buffered args aren't lost. A
+  // name-less tool call is unrecoverable, so surface it.
+  function flushPendingTools(output) {
+    for (const [tcIdx, pend] of toolPending) {
+      const bi = blockIndex++;
+      toolBlockByIndex.set(tcIdx, bi);
+      console.warn(`[openai] streamed tool call index ${tcIdx} ended without a name — synthesizing tool_${tcIdx}`);
+      output.push(formatSSE('content_block_start', {
+        type: 'content_block_start',
+        index: bi,
+        content_block: { type: 'tool_use', id: pend.id || genToolId(), name: `tool_${tcIdx}`, input: {} },
+      }));
+      for (const frag of pend.argBuffer) {
+        output.push(formatSSE('content_block_delta', {
+          type: 'content_block_delta',
+          index: bi,
+          delta: { type: 'input_json_delta', partial_json: frag },
+        }));
+      }
+    }
+    toolPending.clear();
+  }
+
   function emitStop(output) {
     if (stopEmitted) return;
     stopEmitted = true;
+    flushPendingTools(output);
     closeOpenBlocks(output);
     output.push(formatSSE('message_delta', {
       type: 'message_delta',
@@ -545,34 +578,39 @@ export function createStreamTranslator() {
 
           if (delta.tool_calls) {
             for (const tc of delta.tool_calls) {
-              // P1.1: a compliant server sends the id+name in the first fragment
-              // for each index, then arguments-only fragments. Allocate the block
-              // on first sighting of ANY index (capturing id/name when present) so
-              // a leading arguments fragment never misroutes.
               const tcIdx = tc.index ?? 0;
-              if (!toolBlockByIndex.has(tcIdx)) {
+              const emitArgs = (bi, args) => {
+                // US-004: no longer strip _unused/_placeholder — real user params.
+                output.push(formatSSE('content_block_delta', {
+                  type: 'content_block_delta',
+                  index: bi,
+                  delta: { type: 'input_json_delta', partial_json: args },
+                }));
+              };
+              if (toolBlockByIndex.has(tcIdx)) {
+                // Block already open — straight arg passthrough.
+                if (tc.function?.arguments) emitArgs(toolBlockByIndex.get(tcIdx), tc.function.arguments);
+                continue;
+              }
+              // Not yet open. Remember id; open only once the name is known.
+              const pend = toolPending.get(tcIdx) || { id: undefined, argBuffer: [] };
+              if (tc.id) pend.id = tc.id;
+              const name = tc.function?.name;
+              if (name) {
                 const bi = blockIndex++;
                 toolBlockByIndex.set(tcIdx, bi);
                 output.push(formatSSE('content_block_start', {
                   type: 'content_block_start',
                   index: bi,
-                  content_block: {
-                    type: 'tool_use',
-                    id: tc.id || genToolId(),
-                    name: tc.function?.name || '',
-                    input: {},
-                  },
+                  content_block: { type: 'tool_use', id: pend.id || tc.id || genToolId(), name, input: {} },
                 }));
-              }
-              if (tc.function?.arguments) {
-                // US-004: no longer strip _unused/_placeholder — since we stopped
-                // injecting them, any such fields here are real user params.
-                const bi = toolBlockByIndex.get(tcIdx);
-                output.push(formatSSE('content_block_delta', {
-                  type: 'content_block_delta',
-                  index: bi,
-                  delta: { type: 'input_json_delta', partial_json: tc.function.arguments },
-                }));
+                for (const frag of pend.argBuffer) emitArgs(bi, frag); // flush buffered args
+                if (tc.function?.arguments) emitArgs(bi, tc.function.arguments); // this chunk's args
+                toolPending.delete(tcIdx);
+              } else {
+                // Still no name — buffer args and keep waiting.
+                if (tc.function?.arguments) pend.argBuffer.push(tc.function.arguments);
+                toolPending.set(tcIdx, pend);
               }
             }
           }
