@@ -4,10 +4,82 @@
 
 // ── Request translation (Anthropic → OpenAI) ────────────
 
+// P1.2: resolve an Anthropic image block to an OpenAI `image_url` data/URL string.
+// base64 → data: URI; url source → the URL verbatim. Returns null for an
+// unknown/undefined source so the caller can substitute a visible marker instead
+// of silently dropping the image.
+export function imageBlockToUrl(b) {
+  const src = b?.source;
+  if (!src || typeof src !== 'object') return null;
+  if (src.type === 'base64' && src.data && src.media_type) {
+    return `data:${src.media_type};base64,${src.data}`;
+  }
+  if (src.type === 'url' && src.url) return src.url;
+  return null;
+}
+
+// P1.2: translate an Anthropic content-block array into OpenAI message content.
+// Returns a plain STRING when every block is text (keeps text-only turns
+// byte-identical to the old behavior for servers that reject array content), or
+// an ARRAY of {type:'text'|'image_url'} parts when any image is present. Images
+// that can't be resolved and documents become a visible marker — never a silent
+// drop.
+export function blocksToOpenAIContent(blocks) {
+  const parts = [];
+  let hasImage = false;
+  for (const b of blocks) {
+    if (typeof b === 'string') { parts.push({ type: 'text', text: b }); continue; }
+    if (!b || typeof b !== 'object') continue;
+    if (b.type === 'text') { parts.push({ type: 'text', text: b.text || '' }); continue; }
+    if (b.type === 'image') {
+      const url = imageBlockToUrl(b);
+      if (url) { parts.push({ type: 'image_url', image_url: { url } }); hasImage = true; }
+      else parts.push({ type: 'text', text: '[image omitted]' });
+      continue;
+    }
+    if (b.type === 'document') { parts.push({ type: 'text', text: '[document omitted]' }); continue; }
+    if (typeof b.text === 'string') parts.push({ type: 'text', text: b.text });
+  }
+  if (!hasImage) return parts.map(p => (p.type === 'text' ? p.text : '')).join('');
+  return parts;
+}
+
+// P1.2 + P1.3: extract the OpenAI `tool` message content from an Anthropic
+// tool_result block. Returns { text, imageUrls } — images are hoisted out by the
+// caller because the OpenAI tool role is text-only. When `is_error` is set the
+// text is prefixed with a `[tool_error]` marker so a failed tool looks failed to
+// the model (OpenAI's tool role has no structured error field).
+export function extractToolResultParts(block) {
+  const imageUrls = [];
+  let text;
+  if (typeof block.content === 'string') {
+    text = block.content;
+  } else if (Array.isArray(block.content)) {
+    const pieces = [];
+    for (const b of block.content) {
+      if (b?.type === 'text') pieces.push(b.text || '');
+      else if (b?.type === 'image') {
+        const url = imageBlockToUrl(b);
+        if (url) imageUrls.push(url);
+        else pieces.push('[image omitted]');
+      } else if (typeof b?.text === 'string') pieces.push(b.text);
+    }
+    text = pieces.join('');
+  } else {
+    text = JSON.stringify(block.content);
+  }
+  if (block.is_error) text = '[tool_error] ' + text;
+  return { text, imageUrls };
+}
+
 export function translateRequest(anthropicBody) {
   const openaiBody = {
     model: anthropicBody.model,
-    max_tokens: anthropicBody.max_tokens,
+    // P1.4: fall back to the newer `max_output_tokens` when `max_tokens` is absent.
+    // sanitizeBody clamps each to >=16 independently but never bridges the two, so
+    // a client sending only `max_output_tokens` would otherwise get `max_tokens:
+    // undefined` and over-generate.
+    max_tokens: anthropicBody.max_tokens ?? anthropicBody.max_output_tokens,
     stream: anthropicBody.stream || false,
     messages: [],
   };
@@ -40,22 +112,33 @@ export function translateRequest(anthropicBody) {
       if (hasToolResults) {
         for (const block of msg.content) {
           if (block.type === 'tool_result') {
-            const content = typeof block.content === 'string' ? block.content
-              : Array.isArray(block.content) ? block.content.map(b => b.text || '').join('')
-              : JSON.stringify(block.content);
+            // P1.3: preserve is_error marker; P1.2: hoist images (tool role is text-only)
+            const { text, imageUrls } = extractToolResultParts(block);
             openaiBody.messages.push({
               role: 'tool',
               tool_call_id: block.tool_use_id,
-              content,
+              content: text,
             });
+            if (imageUrls.length) {
+              openaiBody.messages.push({
+                role: 'user',
+                content: imageUrls.map(url => ({ type: 'image_url', image_url: { url } })),
+              });
+            }
           } else if (block.type === 'text') {
             openaiBody.messages.push({ role: 'user', content: block.text });
+          } else if (block.type === 'image') {
+            // P1.2: a bare image alongside tool_result blocks — emit as its own user turn
+            const url = imageBlockToUrl(block);
+            openaiBody.messages.push({
+              role: 'user',
+              content: url ? [{ type: 'image_url', image_url: { url } }] : '[image omitted]',
+            });
           }
         }
       } else {
-        // Regular user message with content blocks
-        const text = msg.content.map(b => typeof b === 'string' ? b : b.text || '').join('');
-        openaiBody.messages.push({ role: 'user', content: text });
+        // Regular user message with content blocks (P1.2: images → vision parts)
+        openaiBody.messages.push({ role: 'user', content: blocksToOpenAIContent(msg.content) });
       }
     } else {
       // Simple string content
@@ -110,6 +193,14 @@ export function translateRequest(anthropicBody) {
 
   // Temperature
   if (anthropicBody.temperature !== undefined) openaiBody.temperature = anthropicBody.temperature;
+
+  // P1.4: sampling parity. The real-world bite is `stop_sequences` — a local Qwen
+  // loop relying on stop tokens over-generates without it. OpenRouter (native
+  // passthrough) keeps all of these, so dropping them here was a parity regression.
+  if (anthropicBody.top_p !== undefined) openaiBody.top_p = anthropicBody.top_p;
+  if (Array.isArray(anthropicBody.stop_sequences) && anthropicBody.stop_sequences.length) {
+    openaiBody.stop = anthropicBody.stop_sequences;
+  }
 
   return openaiBody;
 }
@@ -203,6 +294,23 @@ export function extractTextToolCalls(text) {
   return { calls, cleanedText: cleaned.trim() };
 }
 
+// P1.5: single source of truth for OpenAI finish_reason → Anthropic stop_reason,
+// applied at all non-streaming and streaming sites so they can never drift.
+// `content_filter` → 'refusal' (Anthropic's moderation stop) rather than masking a
+// blocked/aborted generation as a clean 'end_turn'. Legacy `function_call` is
+// intentionally NOT mapped to 'tool_use': modern OpenAI-compatible servers all use
+// the `tool_calls` shape, and the legacy function_call payload is never extracted
+// here — emitting stop_reason:'tool_use' with no tool_use block would mislead the
+// client. It therefore falls through to 'end_turn'.
+export function mapFinishReason(fr) {
+  return {
+    tool_calls: 'tool_use',
+    length: 'max_tokens',
+    stop: 'end_turn',
+    content_filter: 'refusal',
+  }[fr] || 'end_turn';
+}
+
 // ── Response translation (OpenAI → Anthropic) for non-streaming ──
 
 export function translateResponse(openaiResponse, { localProvider = false } = {}) {
@@ -257,7 +365,7 @@ export function translateResponse(openaiResponse, { localProvider = false } = {}
     }
   }
 
-  const mappedStop = { tool_calls: 'tool_use', length: 'max_tokens', stop: 'end_turn' }[choice.finish_reason] || 'end_turn';
+  const mappedStop = mapFinishReason(choice.finish_reason);
   return {
     id: openaiResponse.id || `msg_${Date.now()}`,
     type: 'message',
@@ -355,7 +463,7 @@ export function createStreamTranslator() {
             // Also check if this chunk has finish_reason (unlikely without delta, but handle it).
             if (parsed.choices?.[0]?.finish_reason && !accumulatedStopReason) {
               const fr = parsed.choices[0].finish_reason;
-              accumulatedStopReason = { tool_calls: 'tool_use', length: 'max_tokens', stop: 'end_turn' }[fr] || 'end_turn';
+              accumulatedStopReason = mapFinishReason(fr);
             }
             continue;
           }
@@ -457,7 +565,7 @@ export function createStreamTranslator() {
             // before the stream terminates, so don't emit message_delta yet. The
             // [DONE] sentinel (or a final flush) is what commits the stop event.
             const fr = parsed.choices[0].finish_reason;
-            accumulatedStopReason = { tool_calls: 'tool_use', length: 'max_tokens', stop: 'end_turn' }[fr] || 'end_turn';
+            accumulatedStopReason = mapFinishReason(fr);
           }
         } catch (e) {
           console.warn(`[SSE PARSE] Dropped chunk: ${e.message}`);

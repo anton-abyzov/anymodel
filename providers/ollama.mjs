@@ -266,6 +266,15 @@ export default {
       ollamaBody.options.temperature = openaiBody.temperature;
     }
 
+    // P1.4: mirror sampling parity into Ollama's options. `stop` is the important
+    // one — Qwen/llama loops rely on stop tokens to avoid over-generation.
+    if (openaiBody.top_p !== undefined) {
+      ollamaBody.options.top_p = openaiBody.top_p;
+    }
+    if (openaiBody.stop) {
+      ollamaBody.options.stop = openaiBody.stop;
+    }
+
     return ollamaBody;
   },
 
