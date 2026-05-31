@@ -31,8 +31,9 @@ AnyModel client (cli.js) → anymodel proxy (:9090) → OpenRouter / Ollama / Op
 
 ### Three providers:
 - **OpenRouter** (`providers/openrouter.mjs`) — 300+ cloud models, passes through Anthropic format, preserves cache_control
-- **Ollama** (`providers/ollama.mjs`) — local models, translates to OpenAI format via /v1/chat/completions, injects num_ctx=8192, strips tools
-- **OpenAI** (`providers/openai.mjs`) — any OpenAI-compatible API (OpenAI, Azure, Together, Groq, vLLM, LM Studio, llama-server), full bidirectional Anthropic ↔ OpenAI translation
+- **Ollama** (`providers/ollama.mjs`) — local models, translates to OpenAI format via /v1/chat/completions, injects num_ctx=8192, **capability-aware tool passthrough since v1.12.0** (see below)
+- **OpenAI** (`providers/openai.mjs`) — any OpenAI-compatible API (OpenAI, Azure, Together, Groq, vLLM), full bidirectional Anthropic ↔ OpenAI translation
+- **LMStudio / llama.cpp** (`providers/lmstudio.mjs`, `providers/llamacpp.mjs`) — thin aliases over OpenAI translator via `providers/openai-local.mjs` factory; `:1234/v1` and `:8080/v1` defaults respectively
 
 ## CLI Commands
 
@@ -71,8 +72,8 @@ What the proxy does to every request:
 5. **max_output_tokens**: Also clamped to minimum 16
 6. **Tool schemas**: Fixes empty `properties: {}`, missing `properties`, missing `input_schema`, recursive nested schemas. Adds `_unused` placeholder, strips it from responses.
 7. **tool_choice**: Normalizes string to object format
-8. **Ollama-specific**: Strips all 86 tools (local models can't use MCP tools, 50K token overhead)
-9. **Auto-retry without tools**: When model returns "No endpoints found that support tool use", retries with tools removed
+8. **Local-provider tool handling** (Ollama, LMStudio, llama.cpp): since v1.12.0, **capability-aware passthrough instead of blanket strip**. Controlled by `OLLAMA_TOOLS` env var — `auto` (default, try + cache per-model), `on` (always pass), `off` (legacy, always strip). Tools are then compressed and budget-trimmed via `providers/tool-compressor.mjs` so schemas fit local context windows. Core tools (Bash, Read, Write, Edit) are always retained. `tool_choice` is always removed for Ollama.
+9. **Auto-retry without tools**: When provider returns "No endpoints found that support tool use" / "does not support tools", proxy retries with tools removed AND caches the model as no-tool-support (skips retry on subsequent calls)
 
 ## Client (cli.js) Identity
 
@@ -107,7 +108,49 @@ When `npx anymodel` connects, it finds the client in this order:
 - Injects `num_ctx: 8192` (default) — prevents 30-60s KV cache allocation on large context models
 - Configurable via `OLLAMA_NUM_CTX` env var
 - Auto-detects installed models via `/api/tags` when no `--model` specified
-- All tools stripped before sending to Ollama
+- **Tool passthrough (v1.12.0+)**: tools forwarded to tool-capable models (Qwen 3 / Qwen-Coder, Llama 3.1+, Mistral, DeepSeek R1, Gemma 4). Response `message.tool_calls[]` is translated back to Anthropic `tool_use` content blocks with `stop_reason: "tool_use"`. Streaming tool deltas supported.
+- Per-model no-tool-support cache — if a model rejects tool schemas once, the proxy remembers and strips tools on subsequent calls for that model until the process restarts.
+
+## Local-Model Reliability & Security (increment 0008)
+
+Hardening that turns the happy-path bridge into one that survives realistic local-model
+failure modes. All gated/additive — cloud (OpenRouter) paths are untouched.
+
+**Streaming / tool-call fidelity** (`providers/openai.mjs`):
+- **Flush on upstream `end`** (P0.1) — LM Studio/MLX, llama.cpp, vLLM often close the
+  socket without `data: [DONE]`. The translator is flushed on `end` so the client always
+  gets a terminal `message_stop` (idempotent — exactly one stop even when `[DONE]` arrives).
+- **Text-channel tool-call recovery** (P0.2) — Hermes `<tool_call>`, Qwen `<function=>` XML,
+  and fenced ```json tool calls parked in the text channel are recovered into real
+  `tool_use` blocks. Gated by `ANYMODEL_PARSE_TEXT_TOOLCALLS` (`auto` = local-only, `on`, `off`).
+- **Per-`tc.index` streamed tool-call routing** (P1.1) — parallel/batched streamed tool
+  calls no longer cross-assign argument fragments (was hard-coded `blockIndex-1`).
+- **Image / document translation** (P1.2) — `{type:'image'}` → OpenAI `image_url` parts
+  (base64 data URI / url); images in `tool_result` are hoisted to a following user message;
+  documents / unresolvable images become a visible marker, never a silent drop. Text-only
+  turns stay plain strings (byte-stable).
+- **`tool_result.is_error`** (P1.3) → `[tool_error]` marker so failed tools look failed.
+- **Sampling parity** (P1.4) — `top_p`, `stop_sequences`→`stop`, `max_tokens` fallback to
+  `max_output_tokens`; mirrored into Ollama `options`.
+- **Unified `finish_reason` map** (P1.5) — one `mapFinishReason()`; `content_filter`→`refusal`.
+- **Streaming `input_tokens`** (P2.1) and **TTFT `ping` heartbeat** (P2.2, every 15s until
+  first token) for big-prompt 80B cold starts.
+
+**Robustness / security** (`proxy.mjs`, `cli.mjs`):
+- **Upstream idle timeout** (P0.3) — `ANYMODEL_UPSTREAM_TIMEOUT_MS` (default 300000) so a
+  stalled model becomes a bounded retry→502 instead of an infinite hang.
+- **Canonical error envelope** (P1.6) — one `sendError()` emits `{type:"error",error:{type,message}}`
+  with canonical Anthropic `error.type` strings so Claude Code's retry logic recognizes them.
+- **Loopback bind by default** (P1.7) — binds `127.0.0.1`; expose with `--host 0.0.0.0` /
+  `ANYMODEL_HOST` (warns loudly when LAN-exposed without `--token`).
+- **No key leak on local passthrough** (P1.8) — local providers strip `x-api-key` /
+  `authorization` before forwarding housekeeping routes to api.anthropic.com.
+- **Body cap + parse guards** (P1.9) — `ANYMODEL_MAX_BODY_BYTES` (default 64MB) → 413;
+  unguarded upstream `JSON.parse` now returns an `api_error` 502 instead of a generic crash.
+- **`crypto.randomUUID()` tool ids** (P2.7) — no same-millisecond id collisions for parallel calls.
+
+**New env vars / flags:** `ANYMODEL_PARSE_TEXT_TOOLCALLS`, `ANYMODEL_UPSTREAM_TIMEOUT_MS`,
+`ANYMODEL_HOST` / `--host`, `ANYMODEL_MAX_BODY_BYTES`.
 
 ## Key Technical Decisions
 
@@ -115,15 +158,21 @@ When `npx anymodel` connects, it finds the client in this order:
 OpenRouter supports `ANTHROPIC_BASE_URL=https://openrouter.ai/api` — but it only works reliably with Anthropic models. AnyModel adds:
 - Format translation for non-Anthropic models (GPT, DeepSeek, Gemini)
 - Tool schema sanitization (empty properties fix)
-- Ollama support (fully offline)
-- Tool stripping for local models
+- Ollama / LMStudio / llama.cpp support (fully offline)
+- Capability-aware tool passthrough for local models (v1.12.0+) — slash commands like `/openspec`, file tools (Read/Write/Edit), and WebFetch work end-to-end with tool-capable local models
 - max_tokens clamping
 
 ### Why bundle cli.js (12MB) in the npm package?
 So `npx anymodel` works from anywhere without cloning repos. The client is a modified Claude Code v2.1.88 with AnyModel branding.
 
-### Why strip tools for Ollama?
-Claude Code sends 86 MCP tool definitions (~50K tokens) with every request. Local models can't use them and processing them adds 30-60 seconds of overhead.
+### Why capability-aware tool handling for local providers (was: strip all)?
+Pre-v1.12.0 the proxy blanket-stripped all tools for Ollama because Claude Code sends 80+ MCP tool definitions (~50K tokens) and most local models at the time couldn't use them. Modern local models (Qwen 3 / Qwen-Coder, Llama 3.1+, Mistral, DeepSeek R1, Gemma 4) **do** support function calling natively, so v1.12.0 replaced the blanket strip with:
+
+1. `OLLAMA_TOOLS=auto` (default) — try with tools, cache success/failure per model
+2. Schema compression + budget trimming (`providers/tool-compressor.mjs`) — cuts tool payload 50–70% so it fits local context windows
+3. Core-tool preservation — Bash, Read, Write, Edit are always kept; lower-priority tools are trimmed first
+
+Net effect: slash commands like `/openspec propose`, file tools, and WebFetch now work end-to-end on local models that support function calling. Weaker / older models still fall back silently to the no-tools retry path.
 
 ### Why preserve thinking field?
 DeepSeek R1 and other reasoning models need the `thinking` configuration to enable visible chain-of-thought. Stripping it (as we originally did) disables the reasoning UI.
