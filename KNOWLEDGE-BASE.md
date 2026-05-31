@@ -125,8 +125,11 @@ failure modes. All gated/additive — cloud (OpenRouter) paths are untouched.
   channel are recovered into real `tool_use` blocks. Gated by `ANYMODEL_PARSE_TEXT_TOOLCALLS`
   (`auto` = local-only, `on`, `off`). For STREAMING (Claude Code's default), local providers
   buffer the text channel until end-of-message, then recover — so a parked tool call no longer
-  dead-ends the agentic loop. Trade-off: local streamed *text* appears at message end (structured
-  tool calls and thinking still stream incrementally; cloud paths stream text incrementally as before).
+  dead-ends the agentic loop. Only the unambiguous Hermes/Qwen-XML spans recover under `auto`;
+  the ambiguous fenced ```json pattern requires explicit `=on` (coding models print JSON examples).
+  Trade-off: pre-tool / pure-text segments buffer to end-of-message (structured tool calls,
+  thinking, and post-tool narration stream incrementally; cloud streams text incrementally as
+  before). Disable with `ANYMODEL_PARSE_TEXT_TOOLCALLS=off`.
 - **Local tool-capability cache** (0009 P1.10) — the per-model no-tool-support cache + the
   `tool_choice` strip now apply to LM Studio / llama.cpp too (were Ollama-only), so weak local
   models learn once instead of re-probing every request.
