@@ -407,8 +407,9 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     } else {
       console.log(`${C.yellow(localTag)} Passing ${parsed.tools.length} tools to ${parsed.model} (mode=${mode})`);
     }
-    // Always strip tool_choice — local providers don't need it (some reject it)
-    if (provider.name === 'ollama') delete parsed.tool_choice;
+    // Always strip tool_choice — local providers don't need it (some reject it).
+    // P1.10 (0009): generalized from Ollama-only to all local providers.
+    if (isLocal) delete parsed.tool_choice;
 
     // Smart tool optimization: compress schemas + trim descriptions + budget-limit.
     // Instead of blindly stripping by count, this compresses JSON Schema param
@@ -685,10 +686,11 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         const { isToolError: checkToolErr, cacheToolResult: cacheResult } = await import('./providers/ollama-tools.mjs');
         if (checkToolErr(errBody) && parsed.tools && parsed.tools.length > 0) {
           console.log(`${C.yellow(`[${provider.name.toUpperCase()}]`)} Model doesn't support tool use (${parsed.tools.length} tools). Retrying without tools...`);
-          // Cache this model as not supporting tools (for Ollama auto mode)
-          if (provider.name === 'ollama') {
+          // P1.10 (0009): cache no-tool-support for ALL local providers (was Ollama-
+          // only, so lmstudio/llamacpp never learned and re-probed every request).
+          if (isLocal) {
             cacheResult(parsed.model, false);
-            console.log(`${C.yellow('[OLLAMA]')} Cached: ${parsed.model} does not support tools`);
+            console.log(`${C.yellow(`[${provider.name.toUpperCase()}]`)} Cached: ${parsed.model} does not support tools`);
           }
           const noToolsBody = { ...parsed };
           delete noToolsBody.tools;
@@ -806,10 +808,10 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
       const ttfb = ((Date.now() - reqStartTime) / 1000).toFixed(1);
       console.log(`${C.green(`[${provider.name.toUpperCase()}]`)} 200 \u2190 response (attempt ${attempt}, ${ttfb}s)`);
 
-      // Cache successful tool use for Ollama auto mode
+      // Cache successful tool use for all local providers' auto mode (P1.10, 0009).
       // Check parsed.tools (post-strip) not toolCount (pre-strip) to avoid
-      // caching true for models whose tools were stripped
-      if (provider.name === 'ollama' && parsed.tools && parsed.tools.length > 0) {
+      // caching true for models whose tools were stripped.
+      if (isLocal && parsed.tools && parsed.tools.length > 0) {
         const { cacheToolResult: cacheOk } = await import('./providers/ollama-tools.mjs');
         cacheOk(parsed.model, true);
       }

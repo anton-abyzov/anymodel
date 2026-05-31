@@ -397,7 +397,16 @@ function formatSSE(event, data) {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
-export function createStreamTranslator() {
+export function createStreamTranslator(opts) {
+  // Guard null — the proxy calls createStreamTranslator(prefixCacheResult) and
+  // prefixCacheResult is null for non-ollama providers, so we must not destructure null.
+  const { localProvider = false } = opts || {};
+  // US-1 (0009): for local providers, recover tool calls that the model parked in
+  // the TEXT channel (Hermes/Qwen-XML/fenced) during a STREAMED turn. Because we
+  // cannot reclassify already-streamed text, we buffer the text channel and decide
+  // at end-of-message. Gated by ANYMODEL_PARSE_TEXT_TOOLCALLS (auto = local-only).
+  const recoverText = textChannelParsingEnabled(localProvider);
+
   let buffer = '';
   let blockIndex = 0;
   let started = false;
@@ -430,6 +439,9 @@ export function createStreamTranslator() {
   // P2.1: streaming previously reported input_tokens:0, under-counting prompt
   // tokens for every streamed turn (the default mode) → unreliable /context budgets.
   let accumulatedInputTokens = 0;
+  // US-1 (0009): buffered text channel for end-of-message tool-call recovery (local).
+  let bufferedText = '';
+  let bufferConsumed = false;
 
   function closeOpenBlocks(output) {
     for (let i = 0; i < blockIndex; i++) {
@@ -438,6 +450,44 @@ export function createStreamTranslator() {
         stoppedBlocks.add(i);
       }
     }
+  }
+
+  // US-1 (0009): emit the buffered text channel exactly once. When allowRecovery
+  // (no structured tool_calls were produced), scan the buffered text for a parked
+  // tool call and convert it: emit the cleaned text as a text block, then a
+  // tool_use block per recovered call (full-JSON input_json_delta), and override
+  // the stop reason to 'tool_use'. closeOpenBlocks() stops the emitted blocks.
+  function emitBufferedText(output, allowRecovery) {
+    if (bufferConsumed) return;
+    bufferConsumed = true;
+    if (!bufferedText) return;
+    let text = bufferedText;
+    let calls = [];
+    if (allowRecovery) {
+      const r = extractTextToolCalls(bufferedText);
+      if (r.calls.length) { calls = r.calls; text = r.cleanedText; }
+    }
+    if (text) {
+      const bi = blockIndex++;
+      output.push(formatSSE('content_block_start', {
+        type: 'content_block_start', index: bi, content_block: { type: 'text', text: '' },
+      }));
+      output.push(formatSSE('content_block_delta', {
+        type: 'content_block_delta', index: bi, delta: { type: 'text_delta', text },
+      }));
+    }
+    for (const c of calls) {
+      const bi = blockIndex++;
+      output.push(formatSSE('content_block_start', {
+        type: 'content_block_start', index: bi,
+        content_block: { type: 'tool_use', id: genToolId(), name: c.name, input: {} },
+      }));
+      output.push(formatSSE('content_block_delta', {
+        type: 'content_block_delta', index: bi,
+        delta: { type: 'input_json_delta', partial_json: JSON.stringify(c.input || {}) },
+      }));
+    }
+    if (calls.length) accumulatedStopReason = 'tool_use';
   }
 
   // P1.1: if the stream ended while a tool index was still awaiting its name,
@@ -467,6 +517,7 @@ export function createStreamTranslator() {
   function emitStop(output) {
     if (stopEmitted) return;
     stopEmitted = true;
+    emitBufferedText(output, true); // US-1: recover a text-channel tool call if no structured one came
     flushPendingTools(output);
     closeOpenBlocks(output);
     output.push(formatSSE('message_delta', {
@@ -561,22 +612,32 @@ export function createStreamTranslator() {
               }));
               stoppedBlocks.add(thinkingBlockIndex);
             }
-            if (textBlockIndex === -1) {
-              textBlockIndex = blockIndex++;
-              output.push(formatSSE('content_block_start', {
-                type: 'content_block_start',
+            if (recoverText) {
+              // US-1: hold the text channel for end-of-message tool-call recovery.
+              // It is flushed verbatim if no tool call is found, so nothing is lost.
+              bufferedText += delta.content;
+            } else {
+              if (textBlockIndex === -1) {
+                textBlockIndex = blockIndex++;
+                output.push(formatSSE('content_block_start', {
+                  type: 'content_block_start',
+                  index: textBlockIndex,
+                  content_block: { type: 'text', text: '' },
+                }));
+              }
+              output.push(formatSSE('content_block_delta', {
+                type: 'content_block_delta',
                 index: textBlockIndex,
-                content_block: { type: 'text', text: '' },
+                delta: { type: 'text_delta', text: delta.content },
               }));
             }
-            output.push(formatSSE('content_block_delta', {
-              type: 'content_block_delta',
-              index: textBlockIndex,
-              delta: { type: 'text_delta', text: delta.content },
-            }));
           }
 
           if (delta.tool_calls) {
+            // US-1: a structured tool call means we don't need text-channel recovery;
+            // flush any buffered text as a plain text block FIRST so it precedes the
+            // tool blocks (correct Anthropic order) and isn't re-scanned for recovery.
+            if (recoverText && !bufferConsumed) emitBufferedText(output, false);
             for (const tc of delta.tool_calls) {
               const tcIdx = tc.index ?? 0;
               const emitArgs = (bi, args) => {

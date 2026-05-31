@@ -96,6 +96,19 @@ async function main() {
       record('(c) streaming — exactly one message_stop', ok, `message_stop=${stops} start=${hasStart} delta=${hasDelta}`);
     }
 
+    // (e) Streaming WITH tools — structured tool call must survive the local text
+    // buffering path (0009) and still produce exactly one message_stop.
+    {
+      const res = await fetch(`${BASE}/v1/messages`, { method: 'POST', headers: HEADERS,
+        body: JSON.stringify({ model: MODEL, max_tokens: 256, stream: true, tools: [RUN_BASH],
+          messages: [{ role: 'user', content: 'Use the run_bash tool to run: echo hi. Call the tool, do not answer in text.' }] }) });
+      const sse = await res.text();
+      const stops = (sse.match(/event: message_stop/g) || []).length;
+      const hasTool = sse.includes('"tool_use"') || sse.includes('input_json_delta');
+      const ok = res.status === 200 && stops === 1 && hasTool;
+      record('(e) streaming + tools — tool_use survives, one message_stop', ok, `message_stop=${stops} tool=${hasTool}`);
+    }
+
     // (d) Multi-turn tool_result round-trip
     {
       const r1 = await post({ model: MODEL, max_tokens: 256, tools: [RUN_BASH],

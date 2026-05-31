@@ -53,7 +53,9 @@ export function makeOpenAILocalProvider({
     // P0.2: mark responses as coming from a LOCAL provider so text-channel
     // tool-call recovery engages under ANYMODEL_PARSE_TEXT_TOOLCALLS=auto.
     transformResponse: (body) => translateResponse(body, { localProvider: true }),
-    createStreamTranslator,
+    // 0009 US-1: same for the STREAMING path — buffer + recover text-channel tool
+    // calls. The factory ignores the prefix-cache arg (only ollama uses it).
+    createStreamTranslator: () => createStreamTranslator({ localProvider: true }),
 
     displayInfo(model) {
       const base = getBaseUrl();

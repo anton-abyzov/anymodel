@@ -196,6 +196,8 @@ function createOllamaStreamTranslator(cacheMetrics) {
               type: 'message_delta',
               delta: { stop_reason: reason },
               usage: {
+                // 0009 P2.1 parity: surface prompt tokens (openai got this in 0008).
+                input_tokens: parsed.prompt_eval_count || 0,
                 output_tokens: parsed.eval_count || 0,
                 ...(cacheMetrics ? {
                   cache_read_input_tokens: cacheMetrics.hit ? cacheMetrics.tokenEstimate : 0,
