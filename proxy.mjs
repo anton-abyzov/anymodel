@@ -272,6 +272,48 @@ export function isProviderRoute(url) {
   return url.startsWith('/v1/messages');
 }
 
+// OpenAI-wire routes served locally (Codex CLI etc.). Only matched when the active
+// provider is LOCAL — see the dispatcher's `isLocalProvider && isOpenAIRoute` guard.
+// Cloud providers (openai/openrouter) keep passing these paths through unchanged,
+// and api.anthropic.com passthrough stays the fallback for everything else. Exact
+// match (after stripping query + trailing slashes) so we never shadow /v1/messages.
+//
+// Covers BOTH OpenAI wire dialects local clients use:
+//   - /v1/chat/completions  (classic Chat Completions — curl, older Codex, etc.)
+//   - /v1/responses          (Responses API — current Codex; it dropped `wire_api=chat`)
+//   - /v1/models             (model enumeration)
+export function isOpenAIRoute(url) {
+  const p = url.split('?')[0].replace(/\/+$/, '');
+  return p === '/v1/chat/completions' || p === '/v1/responses' || p === '/v1/models';
+}
+
+export function isResponsesRoute(url) {
+  return url.split('?')[0].replace(/\/+$/, '') === '/v1/responses';
+}
+
+// P1.6 analogue for the OpenAI wire: Codex parses the OpenAI error envelope
+// `{error:{message,type,code}}`, NOT the Anthropic `{type:'error',error:{...}}`
+// shape sendError emits. Reusing sendError here would hand Codex an unparseable
+// body and mask failures as the empty-stub symptom. Keep this dedicated.
+export function openaiError(res, status, message, type = 'api_error', code = null) {
+  if (res.writableEnded) return;
+  if (res.headersSent) { res.end(); return; }
+  res.writeHead(status, { 'content-type': 'application/json' });
+  res.end(JSON.stringify({ error: { message, type, code } }));
+}
+
+// Filter an OpenAI-shaped tools array down to `type:"function"` entries. LM Studio
+// (and most local OpenAI-compat servers) reject any tool whose type is not
+// "function" with `tools.N.type invalid_string` — Codex sends web_search /
+// image_generation / namespace tools that trip this. Filtering server-side is the
+// proxy equivalent of Codex's `--disable apps/image_generation/...` flags, so Codex
+// works through AnyModel WITHOUT them. Returns { tools, dropped }.
+export function filterOpenAITools(tools) {
+  if (!Array.isArray(tools)) return { tools, dropped: 0 };
+  const kept = tools.filter(t => t && t.type === 'function');
+  return { tools: kept, dropped: tools.length - kept.length };
+}
+
 export function injectPlatformHints(parsed, platform) {
   if (platform !== 'win32' || !parsed.system) return;
   const hint = 'The user is on Windows. Use Windows-style file paths (e.g., C:\\Users\\name\\project). Use backslashes for paths in shell commands.';
@@ -944,6 +986,323 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
   }
 }
 
+// GET /v1/models — serve the LOCAL provider's model list in OpenAI shape so Codex's
+// model-refresh succeeds against the local server (fixes the "cannot enumerate
+// models" gap). listModels() returns the internal {id,loaded,capabilities} shape;
+// map it to OpenAI {object:'list',data:[{id,object:'model',...}]}.
+async function handleOpenAIModels(req, res, provider) {
+  try {
+    const entries = (typeof provider.listModels === 'function') ? (await provider.listModels()) || [] : [];
+    const data = entries.map(e => ({ id: e.id, object: 'model', created: 0, owned_by: provider.name }));
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ object: 'list', data }));
+  } catch (e) {
+    console.error(`${C.red(`[${provider.name.toUpperCase()}]`)} /v1/models error: ${e.message}`);
+    openaiError(res, 502, `Failed to list local models: ${e.message}`);
+  }
+}
+
+// POST /v1/chat/completions — LOCAL-provider-only OpenAI-wire passthrough. This is
+// OpenAI-in / OpenAI-out: we do NOT translate to/from Anthropic. We forward the body
+// to the local server's /chat/completions (provider.buildRequest hardcodes that
+// path and ignores `url`), after applying the local-model sanitizers, and reuse the
+// existing sendRequest transport (idle-timeout re-arm) + retry envelope. Errors and
+// the model-list use the OpenAI envelope that Codex understands.
+async function handleOpenAIChat(req, res, provider, model, isFreeTierModel) {
+  let raw;
+  try {
+    raw = await readCappedBody(req);
+  } catch (e) {
+    if (e.code === 'BODY_TOO_LARGE') {
+      console.log(`${C.red('[BODY]')} Inbound body exceeds cap: ${e.message}`);
+      openaiError(res, 413, `Request body exceeds ${maxBodyBytes()} bytes (ANYMODEL_MAX_BODY_BYTES)`, 'invalid_request_error');
+    } else {
+      openaiError(res, 400, 'Failed to read request body', 'invalid_request_error');
+    }
+    return;
+  }
+
+  const jp = safeJsonParse(raw.toString());
+  if (!jp.ok) {
+    openaiError(res, 400, 'Invalid JSON', 'invalid_request_error');
+    return;
+  }
+  const parsed = jp.value;
+
+  const originalModel = parsed.model;
+  if (model) parsed.model = model;
+
+  // Free-only enforcement (parity with handleMessages). Local providers are never
+  // free-gated in practice, but honor the flag if set.
+  if (isFreeTierModel && !isFreeTierModel(parsed.model)) {
+    console.log(`${C.red('[FREE-ONLY]')} Blocked paid model: ${parsed.model}`);
+    openaiError(res, 403, `Model "${parsed.model}" is not free. Use --model with a :free model or disable --free-only.`, 'permission_error');
+    return;
+  }
+
+  const localTag = `[${provider.name.toUpperCase()}]`;
+
+  // 1) Drop non-function tools — the EXACT Codex blocker (LM Studio rejects
+  //    type!=="function"). Logged so it's never a silent capability loss (riskNote 5).
+  if (Array.isArray(parsed.tools) && parsed.tools.length > 0) {
+    const { tools: filtered, dropped } = filterOpenAITools(parsed.tools);
+    if (dropped > 0) console.log(`${C.yellow(localTag)} Dropped ${dropped} non-function tool(s) (LM Studio accepts only type:"function")`);
+    parsed.tools = filtered;
+    if (!parsed.tools.length) { delete parsed.tools; delete parsed.tool_choice; }
+  }
+
+  // NOTE on tool compression: the existing optimizeTools() is Anthropic-tool-shaped
+  // (reads top-level `name`/`description`/`input_schema`). OpenAI tools nest those
+  // under `function.{name,description,parameters}`, so running it here would be a
+  // no-op at best and could silently drop tools at worst. v1 deliberately ships only
+  // the non-function FILTER above (the actual Codex/LM Studio blocker) and leaves the
+  // OpenAI tool schemas intact. An OpenAI-aware compressor is a clean follow-up.
+
+  // Local models waste output budget on hidden reasoning — strip thinking knobs.
+  delete parsed.thinking;
+  delete parsed.reasoning;
+
+  const isStreaming = !!parsed.stream;
+  const payload = JSON.stringify(parsed);
+  const modelDisplay = model ? `${originalModel} → ${model}` : originalModel;
+  const toolCount = parsed.tools ? parsed.tools.length : 0;
+  const reqStartTime = Date.now();
+  const payloadKB = (Buffer.byteLength(payload) / 1024).toFixed(1);
+  const msgCount = (parsed.messages || []).length;
+  console.log(`${C.cyan(localTag)} ${req.method} ${req.url} (OpenAI wire) model=${modelDisplay}${toolCount ? ` tools=${toolCount}` : ''}${isStreaming ? ' stream=true' : ''} (${payloadKB} KB, ${msgCount} msgs)`);
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const upstream = await sendRequest(provider, req.url, payload);
+
+      // 429 / 5xx → backoff + retry, then OpenAI error envelope.
+      if (upstream.statusCode === 429 || upstream.statusCode >= 500) {
+        const errChunks = [];
+        upstream.on('data', c => errChunks.push(c));
+        await new Promise(r => upstream.on('end', r));
+        const errBody = Buffer.concat(errChunks).toString();
+        const tag = C.red(localTag);
+        console.log(`${tag} ${upstream.statusCode} on attempt ${attempt}/${MAX_RETRIES}: ${errBody.slice(0, 200)}`);
+        if (attempt === MAX_RETRIES) {
+          const type = upstream.statusCode === 429 ? 'rate_limit_error' : 'api_error';
+          const upstreamMsg = extractUpstreamErrorMessage(errBody);
+          openaiError(res, upstream.statusCode, `[anymodel] Upstream ${provider.name} returned ${upstream.statusCode} after ${MAX_RETRIES} attempts${upstreamMsg ? `: ${upstreamMsg}` : ''}`, type);
+          return;
+        }
+        const retryAfter = Number(upstream.headers['retry-after']);
+        const retryDelay = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : calcDelay(attempt);
+        console.log(`${tag} Retrying in ${Math.ceil(retryDelay / 1000)}s...`);
+        await sleep(retryDelay);
+        continue;
+      }
+
+      // Other non-200 (400/401/403/404/422) — emit OpenAI envelope; no retry.
+      if (upstream.statusCode !== 200) {
+        const errChunks = [];
+        upstream.on('data', c => errChunks.push(c));
+        await new Promise(r => upstream.on('end', r));
+        const errBody = Buffer.concat(errChunks).toString();
+
+        // no-tools fallback: if the local model rejects tool use, retry once without tools.
+        const { isToolError: checkToolErr } = await import('./providers/ollama-tools.mjs');
+        if (checkToolErr(errBody) && parsed.tools && parsed.tools.length > 0) {
+          console.log(`${C.yellow(localTag)} Model rejected ${parsed.tools.length} tools — retrying without tools...`);
+          const noTools = { ...parsed };
+          delete noTools.tools;
+          delete noTools.tool_choice;
+          const retryUpstream = await sendRequest(provider, req.url, JSON.stringify(noTools));
+          if (retryUpstream.statusCode === 200) {
+            await finalizeOpenAIResponse(retryUpstream, res, provider, isStreaming, reqStartTime);
+            return;
+          }
+          retryUpstream.resume();
+        }
+
+        const tag = C.red(localTag);
+        console.log(`${tag} ${upstream.statusCode}: ${errBody.slice(0, 300)}`);
+        const type =
+          upstream.statusCode === 404 ? 'not_found_error'
+          : (upstream.statusCode === 401 || upstream.statusCode === 403) ? 'authentication_error'
+          : (upstream.statusCode >= 400 && upstream.statusCode < 500) ? 'invalid_request_error'
+          : 'api_error';
+        const upstreamMsg = extractUpstreamErrorMessage(errBody);
+        openaiError(res, upstream.statusCode, `[anymodel] Upstream ${provider.name} error (${upstream.statusCode})${upstreamMsg ? `: ${upstreamMsg}` : ''}`, type);
+        return;
+      }
+
+      const ttfb = ((Date.now() - reqStartTime) / 1000).toFixed(1);
+      console.log(`${C.green(localTag)} 200 ← response (attempt ${attempt}, ${ttfb}s)`);
+      await finalizeOpenAIResponse(upstream, res, provider, isStreaming, reqStartTime);
+      return;
+    } catch (e) {
+      console.error(`${C.red(localTag)} Connection error on attempt ${attempt}: ${e.message}`);
+      if (attempt === MAX_RETRIES) {
+        openaiError(res, 502, e.message);
+        return;
+      }
+      await sleep(calcDelay(attempt));
+    }
+  }
+}
+
+// Emit a successful upstream OpenAI response back to the client. Non-streaming runs
+// text-channel tool-call recovery (Qwen XML → structured tool_calls) before sending.
+// Streaming passes OpenAI SSE through verbatim with two safeguards Codex needs: a
+// TTFT ping heartbeat (cold-start) and a synthesized `data: [DONE]` if the local
+// server closes without one (LM Studio/MLX/llama.cpp frequently do).
+async function finalizeOpenAIResponse(upstream, res, provider, isStreaming, reqStartTime) {
+  if (!isStreaming) {
+    const respChunks = [];
+    upstream.on('data', c => respChunks.push(c));
+    await new Promise(r => upstream.on('end', r));
+    const respStr = Buffer.concat(respChunks).toString();
+    const parsedResp = safeJsonParse(respStr);
+    if (!parsedResp.ok) {
+      console.error(`${C.red(`[${provider.name.toUpperCase()}]`)} Upstream returned non-JSON 200 body: ${respStr.slice(0, 120)}`);
+      openaiError(res, 502, 'Upstream returned a non-JSON response body');
+      return;
+    }
+    // Recover Qwen/Hermes XML tool calls parked in the text channel into structured
+    // OpenAI tool_calls BEFORE Codex sees them (defuses the "<function=" parse crash).
+    const { recoverOpenAIToolCalls } = await import('./providers/openai.mjs');
+    const recovered = recoverOpenAIToolCalls(parsedResp.value, { localProvider: true });
+    const out = JSON.stringify(recovered);
+    res.writeHead(200, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(out) });
+    res.end(out);
+    return;
+  }
+
+  // Streaming: verbatim OpenAI SSE passthrough (Codex expects OpenAI SSE).
+  res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'connection': 'keep-alive' });
+
+  // TTFT ping heartbeat — keep intermediaries from dropping a slow cold start
+  // before the first token. Stops on first real byte. SSE comment line is ignored
+  // by OpenAI SSE readers (Codex), so it never corrupts the stream.
+  let firstWrite = false;
+  const pingTimer = setInterval(() => {
+    if (!res.writableEnded && !firstWrite) res.write(': ping\n\n');
+  }, 15000);
+  if (pingTimer.unref) pingTimer.unref();
+  const clearPing = () => clearInterval(pingTimer);
+
+  // Track whether the upstream emitted a `data: [DONE]` sentinel; synthesize one if
+  // not, so Codex's SSE reader finalizes the turn (OpenAI-wire analogue of flush()).
+  let sawDone = false;
+  upstream.on('data', chunk => {
+    const s = chunk.toString();
+    if (s.includes('[DONE]')) sawDone = true;
+    if (!firstWrite) { firstWrite = true; clearPing(); }
+    const ok = res.write(chunk);
+    if (!ok) upstream.pause();
+  });
+  res.on('drain', () => upstream.resume());
+  upstream.on('end', () => {
+    clearPing();
+    if (!sawDone && !res.writableEnded) res.write('data: [DONE]\n\n');
+    if (!res.writableEnded) res.end();
+  });
+  upstream.on('error', (e) => {
+    clearPing();
+    console.error(`${C.red('[STREAM]')} Upstream error: ${e.message}`);
+    if (!res.writableEnded) res.end();
+  });
+  res.on('close', () => { clearPing(); upstream.destroy(); });
+}
+
+// POST /v1/responses — LOCAL-provider-only OpenAI Responses-wire support (Codex CLI).
+// Codex dropped `wire_api="chat"`, so current builds only speak Responses. The local
+// server speaks Chat Completions, so we translate Responses→chat, forward via the
+// existing sendRequest transport (which targets /chat/completions on the local
+// server), run text-channel tool-call recovery, and emit a synthetic Responses SSE
+// stream Codex can finalize. See providers/responses.mjs for the rationale.
+async function handleResponses(req, res, provider, model, isFreeTierModel) {
+  const { responsesToChat, chatResponseToOutputItems, buildResponsesSSE, buildResponsesError } = await import('./providers/responses.mjs');
+
+  let raw;
+  try {
+    raw = await readCappedBody(req);
+  } catch (e) {
+    if (e.code === 'BODY_TOO_LARGE') openaiError(res, 413, `Request body exceeds ${maxBodyBytes()} bytes (ANYMODEL_MAX_BODY_BYTES)`, 'invalid_request_error');
+    else openaiError(res, 400, 'Failed to read request body', 'invalid_request_error');
+    return;
+  }
+  const jp = safeJsonParse(raw.toString());
+  if (!jp.ok) { openaiError(res, 400, 'Invalid JSON', 'invalid_request_error'); return; }
+  const body = jp.value;
+
+  const originalModel = body.model;
+  if (model) body.model = model;
+  if (isFreeTierModel && !isFreeTierModel(body.model)) {
+    openaiError(res, 403, `Model "${body.model}" is not free.`, 'permission_error');
+    return;
+  }
+
+  const localTag = `[${provider.name.toUpperCase()}]`;
+  const { chat, droppedTools } = responsesToChat(body);
+  if (droppedTools > 0) console.log(`${C.yellow(localTag)} Dropped ${droppedTools} non-function tool(s) (Responses→chat; LM Studio accepts only type:"function")`);
+
+  const payload = JSON.stringify(chat);
+  const reqStartTime = Date.now();
+  const modelDisplay = model ? `${originalModel} → ${model}` : originalModel;
+  const toolCount = chat.tools ? chat.tools.length : 0;
+  console.log(`${C.cyan(localTag)} ${req.method} ${req.url} (Responses→chat) model=${modelDisplay}${toolCount ? ` tools=${toolCount}` : ''} (${(Buffer.byteLength(payload) / 1024).toFixed(1)} KB, ${chat.messages.length} msgs)`);
+
+  // The Responses transport is ALWAYS SSE — open the stream up front so a slow
+  // local cold start gets the TTFT heartbeat instead of an intermediary timeout.
+  res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache', 'connection': 'keep-alive' });
+  let firstWrite = false;
+  const pingTimer = setInterval(() => { if (!res.writableEnded && !firstWrite) res.write(': ping\n\n'); }, 15000);
+  if (pingTimer.unref) pingTimer.unref();
+  const clearPing = () => clearInterval(pingTimer);
+  res.on('close', () => clearPing());
+
+  const fail = (msg) => {
+    clearPing();
+    if (!res.writableEnded) { res.write(buildResponsesError(msg)); res.end(); }
+  };
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const upstream = await sendRequest(provider, '/v1/chat/completions', payload);
+      const chunks = [];
+      upstream.on('data', c => chunks.push(c));
+      await new Promise((resolve, reject) => { upstream.on('end', resolve); upstream.on('error', reject); });
+      const respStr = Buffer.concat(chunks).toString();
+
+      if (upstream.statusCode === 429 || upstream.statusCode >= 500) {
+        console.log(`${C.red(localTag)} ${upstream.statusCode} on attempt ${attempt}/${MAX_RETRIES}: ${respStr.slice(0, 200)}`);
+        if (attempt === MAX_RETRIES) { fail(`Upstream ${provider.name} returned ${upstream.statusCode}`); return; }
+        await sleep(calcDelay(attempt));
+        continue;
+      }
+      if (upstream.statusCode !== 200) {
+        const upstreamMsg = extractUpstreamErrorMessage(respStr);
+        console.log(`${C.red(localTag)} ${upstream.statusCode}: ${respStr.slice(0, 300)}`);
+        fail(`[anymodel] Upstream ${provider.name} error (${upstream.statusCode})${upstreamMsg ? `: ${upstreamMsg}` : ''}`);
+        return;
+      }
+
+      const parsedResp = safeJsonParse(respStr);
+      if (!parsedResp.ok) { fail('Upstream returned a non-JSON response body'); return; }
+
+      const ttfb = ((Date.now() - reqStartTime) / 1000).toFixed(1);
+      console.log(`${C.green(localTag)} 200 ← response (attempt ${attempt}, ${ttfb}s)`);
+
+      const { items, usage } = chatResponseToOutputItems(parsedResp.value, { localProvider: true });
+      const sseChunks = buildResponsesSSE({ responseId: parsedResp.value.id, model: parsedResp.value.model || body.model, items, usage });
+      clearPing();
+      firstWrite = true;
+      for (const c of sseChunks) { if (!res.writableEnded) res.write(c); }
+      if (!res.writableEnded) res.end();
+      return;
+    } catch (e) {
+      console.error(`${C.red(localTag)} Connection error on attempt ${attempt}: ${e.message}`);
+      if (attempt === MAX_RETRIES) { fail(e.message); return; }
+      await sleep(calcDelay(attempt));
+    }
+  }
+}
+
 function proxyToAnthropic(req, res, { stripAuth = false } = {}) {
   // Mock known Claude Code internal endpoints that don't need Anthropic auth.
   // Without this, Claude Code's auth/capability checks hit api.anthropic.com
@@ -1040,6 +1399,38 @@ export function createProxy(provider, { port = 9090, host = null, model, maxPort
       return;
     }
 
+    // OpenAI-wire route for LOCAL providers (Codex CLI etc.). Sits BEFORE the
+    // Anthropic /v1/messages branch and is gated by `isLocalProvider && isOpenAIRoute`,
+    // so Claude Code (/v1/messages) and cloud providers are provably unaffected — they
+    // never enter this branch. Auth + rate-limit are applied exactly like the messages
+    // branch; failures use the OpenAI envelope Codex understands.
+    if (isLocalProvider && isOpenAIRoute(req.url)) {
+      if (!checkAuth(req)) {
+        openaiError(res, 401, 'Invalid or missing token. Set Authorization: Bearer <token>', 'authentication_error');
+        return;
+      }
+      const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
+      if (!checkRateLimit(clientIp)) {
+        console.log(`${C.red('[RATE]')} Limit exceeded for ${clientIp}`);
+        openaiError(res, 429, `Rate limit: ${rpm} requests/minute exceeded`, 'rate_limit_error');
+        return;
+      }
+      if (req.method === 'GET') {
+        handleOpenAIModels(req, res, provider).catch(e => {
+          console.error(`${C.red('[PROXY]')} Unhandled error: ${e.message}`);
+          openaiError(res, 502, 'Internal proxy error');
+        });
+        return;
+      }
+      // /v1/responses (Codex Responses wire) vs /v1/chat/completions (classic).
+      const handler = isResponsesRoute(req.url) ? handleResponses : handleOpenAIChat;
+      handler(req, res, provider, model, isFreeTierModel).catch(e => {
+        console.error(`${C.red('[PROXY]')} Unhandled error: ${e.message}`);
+        openaiError(res, 502, 'Internal proxy error');
+      });
+      return;
+    }
+
     if (isProviderRoute(req.url)) {
       // Auth check
       if (!checkAuth(req)) {
@@ -1091,6 +1482,9 @@ export function createProxy(provider, { port = 9090, host = null, model, maxPort
     console.log('');
     console.log(`  ${C.cyan('\u2194')}  Proxy on :${actualPort}`);
     console.log(`     /v1/messages \u2192 ${C.bold(provider.name)} ${provider.displayInfo(model)}`);
+    if (isLocalProvider) {
+      console.log(`     /v1/chat/completions + /v1/responses + /v1/models \u2192 ${C.bold(provider.name)} (local OpenAI wire)`);
+    }
     console.log(`     everything else \u2192 passthrough`);
     console.log(`     Retries: ${MAX_RETRIES} with exponential backoff`);
     if (model) {

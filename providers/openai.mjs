@@ -406,6 +406,41 @@ export function translateResponse(openaiResponse, { localProvider = false } = {}
   };
 }
 
+// OpenAI-in / OpenAI-out tool-call recovery (mirror of translateResponse:378-411
+// but the OUTPUT stays OpenAI-shaped). Used by the local OpenAI-wire passthrough
+// (proxy.mjs handleOpenAIChat) so Codex never sees a Hermes/Qwen XML tool call in
+// the text channel — it gets structured `tool_calls` instead. This directly
+// defuses Codex's end-of-turn `Failed to parse tool call: Expected "<function="`
+// crash by converting Qwen XML → JSON tool_calls before Codex parses the turn.
+//
+// Mutates `openaiResponse` in place and returns it. No-op when the model already
+// emitted structured tool_calls, when text-channel parsing is disabled, or when
+// the text channel holds no recoverable call. allowFenced follows the same
+// 'auto'/'on' gating as the Anthropic path (false under 'auto').
+export function recoverOpenAIToolCalls(openaiResponse, { localProvider = false } = {}) {
+  const choice = openaiResponse?.choices?.[0];
+  const msg = choice?.message;
+  if (!msg) return openaiResponse;
+  // Already has structured tool_calls — nothing to recover.
+  if (Array.isArray(msg.tool_calls) && msg.tool_calls.length > 0) return openaiResponse;
+  if (typeof msg.content !== 'string' || !msg.content) return openaiResponse;
+  if (!textChannelParsingEnabled(localProvider)) return openaiResponse;
+
+  const { calls, cleanedText } = extractTextToolCalls(msg.content, { allowFenced: fencedRecoveryEnabled() });
+  if (!calls.length) return openaiResponse;
+
+  msg.tool_calls = calls.map(c => ({
+    id: genToolId(),
+    type: 'function',
+    function: { name: c.name, arguments: JSON.stringify(c.input ?? {}) },
+  }));
+  // Keep any residual prose; null it out when the XML was the whole message so
+  // Codex doesn't render leftover tool syntax as assistant text.
+  msg.content = cleanedText || null;
+  choice.finish_reason = 'tool_calls';
+  return openaiResponse;
+}
+
 // ── Streaming translation (OpenAI SSE → Anthropic SSE) ──
 
 function formatSSE(event, data) {
