@@ -11,7 +11,7 @@
 
 import http from 'http';
 import https from 'https';
-import { translateRequest, translateResponse, createStreamTranslator } from './openai.mjs';
+import { translateRequest, translateResponse, createStreamTranslator, isVisionModel } from './openai.mjs';
 
 export function makeOpenAILocalProvider({
   name,
@@ -49,7 +49,10 @@ export function makeOpenAILocalProvider({
       };
     },
 
-    transformRequest: translateRequest,
+    // US-003: gate image forwarding on the model's vision capability so a screenshot
+    // sent to a non-vision local coding model degrades to a descriptive marker instead
+    // of an image_url the model silently ignores (LOCAL_VISION overrides the heuristic).
+    transformRequest: (body) => translateRequest(body, { visionCapable: isVisionModel(body?.model) }),
     // P0.2: mark responses as coming from a LOCAL provider so text-channel
     // tool-call recovery engages under ANYMODEL_PARSE_TEXT_TOOLCALLS=auto.
     transformResponse: (body) => translateResponse(body, { localProvider: true }),

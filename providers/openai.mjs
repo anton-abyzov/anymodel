@@ -18,13 +18,43 @@ export function imageBlockToUrl(b) {
   return null;
 }
 
+// US-003: a descriptive placeholder for an image we are NOT forwarding (non-vision
+// backend or unresolvable source). Includes the decoded byte size + mime when known
+// so a blind model still knows a screenshot was produced, instead of a bare marker
+// or a silent ''.
+export function imageMarker(b) {
+  const src = b?.source;
+  const mime = (src && typeof src === 'object') ? src.media_type : undefined;
+  let bytes;
+  if (src && src.type === 'base64' && typeof src.data === 'string') {
+    bytes = Math.floor((src.data.length * 3) / 4); // base64 → approx decoded bytes
+  } else if (src && src.type === 'url' && typeof src.url === 'string') {
+    return mime ? `[image omitted: ${mime}, ${src.url}]` : `[image omitted: ${src.url}]`;
+  }
+  if (bytes != null && mime) return `[image omitted: ${bytes} bytes, ${mime}]`;
+  if (mime) return `[image omitted: ${mime}]`;
+  return '[image omitted]';
+}
+
+// US-003: decide whether the target model can consume image parts. `LOCAL_VISION`
+// (on|off|auto, default auto) overrides; auto matches known multimodal model-name
+// fragments. Coding models (qwen3-coder, deepseek-coder, …) are non-vision → images
+// become a descriptive marker rather than an image_url the model silently ignores.
+export function isVisionModel(model) {
+  const mode = (process.env.LOCAL_VISION || 'auto').toLowerCase();
+  if (mode === 'on') return true;
+  if (mode === 'off') return false;
+  const m = String(model || '').toLowerCase();
+  return /(?:^|[-_/])(?:vl|vision|llava|pixtral|moondream|internvl)|minicpm-?v|gemma-?[34]|llama-?3\.2-vision|qwen[\w.-]*-vl/.test(m);
+}
+
 // P1.2: translate an Anthropic content-block array into OpenAI message content.
 // Returns a plain STRING when every block is text (keeps text-only turns
 // byte-identical to the old behavior for servers that reject array content), or
 // an ARRAY of {type:'text'|'image_url'} parts when any image is present. Images
 // that can't be resolved and documents become a visible marker — never a silent
 // drop.
-export function blocksToOpenAIContent(blocks) {
+export function blocksToOpenAIContent(blocks, { visionCapable = true } = {}) {
   const parts = [];
   let hasImage = false;
   for (const b of blocks) {
@@ -32,9 +62,9 @@ export function blocksToOpenAIContent(blocks) {
     if (!b || typeof b !== 'object') continue;
     if (b.type === 'text') { parts.push({ type: 'text', text: b.text || '' }); continue; }
     if (b.type === 'image') {
-      const url = imageBlockToUrl(b);
+      const url = visionCapable ? imageBlockToUrl(b) : null;
       if (url) { parts.push({ type: 'image_url', image_url: { url } }); hasImage = true; }
-      else parts.push({ type: 'text', text: '[image omitted]' });
+      else parts.push({ type: 'text', text: imageMarker(b) });
       continue;
     }
     if (b.type === 'document') { parts.push({ type: 'text', text: '[document omitted]' }); continue; }
@@ -49,7 +79,7 @@ export function blocksToOpenAIContent(blocks) {
 // caller because the OpenAI tool role is text-only. When `is_error` is set the
 // text is prefixed with a `[tool_error]` marker so a failed tool looks failed to
 // the model (OpenAI's tool role has no structured error field).
-export function extractToolResultParts(block) {
+export function extractToolResultParts(block, { visionCapable = true } = {}) {
   const imageUrls = [];
   let text;
   if (typeof block.content === 'string') {
@@ -59,9 +89,9 @@ export function extractToolResultParts(block) {
     for (const b of block.content) {
       if (b?.type === 'text') pieces.push(b.text || '');
       else if (b?.type === 'image') {
-        const url = imageBlockToUrl(b);
+        const url = visionCapable ? imageBlockToUrl(b) : null;
         if (url) imageUrls.push(url);
-        else pieces.push('[image omitted]');
+        else pieces.push(imageMarker(b));
       } else if (b?.type === 'document') pieces.push('[document omitted]');
       else if (typeof b?.text === 'string') pieces.push(b.text);
     }
@@ -73,7 +103,7 @@ export function extractToolResultParts(block) {
   return { text, imageUrls };
 }
 
-export function translateRequest(anthropicBody) {
+export function translateRequest(anthropicBody, { visionCapable = true } = {}) {
   const openaiBody = {
     model: anthropicBody.model,
     // P1.4: fall back to the newer `max_output_tokens` when `max_tokens` is absent.
@@ -114,7 +144,7 @@ export function translateRequest(anthropicBody) {
         for (const block of msg.content) {
           if (block.type === 'tool_result') {
             // P1.3: preserve is_error marker; P1.2: hoist images (tool role is text-only)
-            const { text, imageUrls } = extractToolResultParts(block);
+            const { text, imageUrls } = extractToolResultParts(block, { visionCapable });
             openaiBody.messages.push({
               role: 'tool',
               tool_call_id: block.tool_use_id,
@@ -130,16 +160,16 @@ export function translateRequest(anthropicBody) {
             openaiBody.messages.push({ role: 'user', content: block.text });
           } else if (block.type === 'image') {
             // P1.2: a bare image alongside tool_result blocks — emit as its own user turn
-            const url = imageBlockToUrl(block);
+            const url = visionCapable ? imageBlockToUrl(block) : null;
             openaiBody.messages.push({
               role: 'user',
-              content: url ? [{ type: 'image_url', image_url: { url } }] : '[image omitted]',
+              content: url ? [{ type: 'image_url', image_url: { url } }] : imageMarker(block),
             });
           }
         }
       } else {
         // Regular user message with content blocks (P1.2: images → vision parts)
-        openaiBody.messages.push({ role: 'user', content: blocksToOpenAIContent(msg.content) });
+        openaiBody.messages.push({ role: 'user', content: blocksToOpenAIContent(msg.content, { visionCapable }) });
       }
     } else {
       // Simple string content
