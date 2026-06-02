@@ -40,6 +40,54 @@ function contentToText(content) {
     .join('\n');
 }
 
+// Chat Completions allows only these `detail` values; Responses additionally
+// permits 'original', which a Chat endpoint would reject.
+const CHAT_DETAILS = new Set(['low', 'high', 'auto']);
+
+// Pull a URL string out of a Responses input_image block. Responses uses
+// image_url as a flat STRING (data URI or https URL); be lenient and also accept
+// the Chat-style {url} object in case a client mislabels it.
+function imageUrlFromBlock(c) {
+  if (typeof c.image_url === 'string') return c.image_url;
+  if (c.image_url && typeof c.image_url === 'object' && typeof c.image_url.url === 'string') return c.image_url.url;
+  return null;
+}
+
+// Translate a Responses content array → Chat Completions message content.
+// Text-only → a plain STRING (byte-stable; keeps every existing text turn
+// identical). When any input_image is present → an ARRAY of Chat Completions
+// parts: {type:'text'} and {type:'image_url', image_url:{url[, detail]}}. The key
+// translation is type input_image (image_url STRING) → type image_url (image_url
+// OBJECT {url}). A file_id-only image can't be inlined into a local Chat request,
+// so it becomes a visible marker — never a silent drop.
+export function responsesContentToChatParts(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  const parts = [];
+  let hasImage = false;
+  for (const c of content) {
+    if (typeof c === 'string') { parts.push({ type: 'text', text: c }); continue; }
+    if (!c || typeof c !== 'object') continue;
+    if (c.type === 'input_image' || c.type === 'image_url') {
+      const url = imageUrlFromBlock(c);
+      if (url) {
+        const image_url = { url };
+        if (CHAT_DETAILS.has(c.detail)) image_url.detail = c.detail;
+        parts.push({ type: 'image_url', image_url });
+        hasImage = true;
+      } else if (c.file_id) {
+        parts.push({ type: 'text', text: `[image file ${c.file_id} omitted — local server can't fetch uploaded files]` });
+      } else {
+        parts.push({ type: 'text', text: '[image omitted]' });
+      }
+      continue;
+    }
+    if (typeof c.text === 'string') parts.push({ type: 'text', text: c.text });
+  }
+  if (!hasImage) return parts.map(p => (p.type === 'text' ? p.text : '')).filter(Boolean).join('\n');
+  return parts;
+}
+
 // Translate a Responses request body → a Chat Completions request body.
 // Returns the chat body (always non-streaming; the proxy synthesizes the SSE).
 export function responsesToChat(body) {
@@ -65,7 +113,10 @@ export function responsesToChat(body) {
     if (type === 'message') {
       // Responses uses role 'developer' for system-ish guidance; map it to system.
       const role = item.role === 'developer' ? 'system' : (item.role || 'user');
-      messages.push({ role, content: contentToText(item.content) });
+      // Only user turns carry attached images; preserve them as Chat image parts.
+      // system/assistant content stays a flat string (Chat system content is text).
+      const content = role === 'user' ? responsesContentToChatParts(item.content) : contentToText(item.content);
+      messages.push({ role, content });
     } else if (type === 'function_call') {
       // Assistant turn that issued a tool call.
       messages.push({
@@ -78,9 +129,18 @@ export function responsesToChat(body) {
         }],
       });
     } else if (type === 'function_call_output') {
-      // Tool result feeding back in.
-      const out = typeof item.output === 'string' ? item.output : contentToText(item.output);
-      messages.push({ role: 'tool', tool_call_id: item.call_id || item.id, content: out });
+      // Tool result feeding back in. The Chat `tool` role is text-only, so when a
+      // tool returns image(s) we send the text in the tool message and hoist the
+      // images into a following user turn (mirrors openai.mjs:116-128).
+      const parts = responsesContentToChatParts(item.output);
+      if (typeof parts === 'string') {
+        messages.push({ role: 'tool', tool_call_id: item.call_id || item.id, content: parts });
+      } else {
+        const text = parts.filter(p => p.type === 'text').map(p => p.text).join('\n');
+        messages.push({ role: 'tool', tool_call_id: item.call_id || item.id, content: text });
+        const imgs = parts.filter(p => p.type === 'image_url');
+        if (imgs.length) messages.push({ role: 'user', content: imgs });
+      }
     }
     // Unknown item types (reasoning, etc.) are skipped — local models can't use them.
   }

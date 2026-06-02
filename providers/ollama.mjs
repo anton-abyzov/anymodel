@@ -69,6 +69,48 @@ function ollamaToAnthropic(ollamaResp, model, cacheMetrics) {
   };
 }
 
+// Strip a `data:<mime>;base64,` prefix → raw base64. Ollama's native /api/chat
+// `images` field wants RAW base64 with NO data-URI prefix. Returns null when the
+// string is not a base64 data URI (e.g. an http(s) URL), which the native field
+// cannot carry.
+export function dataUriToBase64(url) {
+  if (typeof url !== 'string') return null;
+  const m = /^data:[^;,]*;base64,([\s\S]*)$/.exec(url);
+  return m ? m[1] : null;
+}
+
+// Ollama's NATIVE /api/chat does NOT understand OpenAI content-part arrays
+// ({type:'image_url'|'text'}). It wants `content` as a plain STRING plus a
+// top-level `images` array of RAW base64 on the message (see the official
+// docs/api.md "Chat request (with images)"). translateRequest() (shared with the
+// OpenAI provider) emits image_url parts, so we post-process here: collapse text
+// parts into the string content and hoist each base64 image into message.images.
+// A URL-sourced image can't be sent to the native field, so it becomes a visible
+// text marker — never a silent drop.
+export function toOllamaNativeMessages(messages) {
+  return messages.map(msg => {
+    if (!Array.isArray(msg.content)) return msg;
+    const textParts = [];
+    const images = [];
+    for (const part of msg.content) {
+      if (typeof part === 'string') { textParts.push(part); continue; }
+      if (!part || typeof part !== 'object') continue;
+      if (part.type === 'text') { textParts.push(part.text || ''); continue; }
+      if (part.type === 'image_url') {
+        const url = part.image_url?.url || '';
+        const b64 = dataUriToBase64(url);
+        if (b64) images.push(b64);
+        else if (url) textParts.push(`[image: ${url} — Ollama native API accepts base64 only]`);
+        continue;
+      }
+      if (typeof part.text === 'string') textParts.push(part.text);
+    }
+    const out = { ...msg, content: textParts.join('') };
+    if (images.length) out.images = images;
+    return out;
+  });
+}
+
 // SSE formatting helper
 function formatSSE(event, data) {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -242,10 +284,12 @@ export default {
 
     const keepAlive = process.env.OLLAMA_KEEP_ALIVE || DEFAULT_KEEP_ALIVE;
 
-    // Build Ollama native request
+    // Build Ollama native request. toOllamaNativeMessages converts any OpenAI
+    // image_url content parts into the native message.images base64 array so
+    // attached images survive to a multimodal model (llava, llama3.2-vision, …).
     const ollamaBody = {
       model: openaiBody.model,
-      messages: openaiBody.messages,
+      messages: toOllamaNativeMessages(openaiBody.messages),
       stream: openaiBody.stream || false,
       think: false, // Disable thinking — this is why we use native API
       keep_alive: keepAlive, // Keep model in GPU between requests (avoids cold-start)
