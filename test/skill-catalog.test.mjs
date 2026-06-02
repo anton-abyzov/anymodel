@@ -11,7 +11,13 @@ import {
   selectSkills,
   buildBehavioralCore,
   buildFidelityAddition,
+  readProjectSkillNames,
+  WORKFLOW_CORE,
+  _resetProjectSkillMemo,
 } from '../providers/skill-catalog.mjs';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const HEADER = 'The following skills are available for use with the Skill tool:';
 
@@ -165,10 +171,67 @@ describe('buildFidelityAddition', () => {
   });
 
   it('full retains whenToUse tails (richer than balanced) (AC-US5-02)', () => {
-    const balanced = buildFidelityAddition(msgs, { fidelity: 'balanced' }).addition;
+    const balanced = buildFidelityAddition(msgs, { fidelity: 'balanced', scope: 'all' }).addition;
     const full = buildFidelityAddition(msgs, { fidelity: 'full' }).addition;
     assert.ok(full.length >= balanced.length, 'full index is at least as large as balanced');
     assert.ok(full.includes('when implementing') || full.includes('When asked to verify'),
       'full keeps the whenToUse tail that balanced drops');
+  });
+});
+
+// ── 0016: project scoping ──────────────────────────────────────────
+describe('readProjectSkillNames (0016)', () => {
+  it('returns project skill dir names that contain SKILL.md, memoized; [] on missing', () => {
+    _resetProjectSkillMemo();
+    const root = mkdtempSync(join(tmpdir(), 'proj-'));
+    const skills = join(root, '.claude', 'skills');
+    mkdirSync(join(skills, 'pptx'), { recursive: true });
+    writeFileSync(join(skills, 'pptx', 'SKILL.md'), '# pptx');
+    mkdirSync(join(skills, 'no-md'), { recursive: true }); // dir without SKILL.md → excluded
+    assert.deepEqual(readProjectSkillNames(root), ['pptx']);
+    assert.deepEqual(readProjectSkillNames(root), ['pptx'], 'memoized 2nd call');
+    assert.deepEqual(readProjectSkillNames(join(root, 'nope')), [], 'missing dir → [] (no throw)');
+    assert.deepEqual(readProjectSkillNames(null), []);
+  });
+});
+
+describe('buildFidelityAddition project scope (0016)', () => {
+  const catalog = `${HEADER}\n\n- sw:do: Execute increment tasks - when implementing\n- pptx: Build slide decks - when presenting\n- nanobanana: Generate images - when imaging`;
+  const msgs = reminderMessages(catalog);
+
+  it('balanced (project scope) keeps project skills + workflow-core, drops the rest (AC-US1-01)', () => {
+    _resetProjectSkillMemo();
+    const root = mkdtempSync(join(tmpdir(), 'proj-'));
+    const skills = join(root, '.claude', 'skills');
+    mkdirSync(join(skills, 'pptx'), { recursive: true });
+    writeFileSync(join(skills, 'pptx', 'SKILL.md'), '# pptx');
+    const { addition } = buildFidelityAddition(msgs, { fidelity: 'balanced', projectDir: root });
+    assert.ok(addition.includes('- sw:do:'), 'workflow-core sw:do kept');
+    assert.ok(addition.includes('- pptx:'), 'project skill pptx kept');
+    assert.ok(!addition.includes('nanobanana'), 'unrelated global skill dropped');
+  });
+
+  it('full (scope=all) keeps the whole catalog (AC-US1-02 regression guard)', () => {
+    const { addition } = buildFidelityAddition(msgs, { fidelity: 'full' });
+    assert.ok(addition.includes('nanobanana'), 'full keeps all skills');
+    assert.ok(addition.includes('pptx') && addition.includes('sw:do'));
+  });
+
+  it('project scope is query-independent → cacheable (AC-US2-01)', () => {
+    _resetProjectSkillMemo();
+    const withQuery = q => ([
+      { role: 'user', content: [{ type: 'text', text: `<system-reminder>\n${catalog}\n</system-reminder>` }] },
+      { role: 'user', content: q },
+    ]);
+    const a = buildFidelityAddition(withQuery('do the auth thing'), { fidelity: 'balanced', projectDir: '/none' }).addition;
+    const b = buildFidelityAddition(withQuery('completely different image task'), { fidelity: 'balanced', projectDir: '/none' }).addition;
+    assert.equal(a, b, 'same project+catalog → identical addition regardless of query');
+  });
+
+  it('alwaysInclude overrides the workflow-core set', () => {
+    _resetProjectSkillMemo();
+    const { addition } = buildFidelityAddition(msgs, { fidelity: 'balanced', projectDir: '/none', alwaysInclude: ['nanobanana'] });
+    assert.ok(addition.includes('nanobanana'), 'custom always-include kept');
+    assert.ok(!addition.includes('- sw:do:'), 'default workflow-core no longer forced');
   });
 });

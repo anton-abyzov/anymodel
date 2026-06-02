@@ -508,12 +508,23 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     const numCtx = provider.name === 'ollama'
       ? (parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192)
       : (parseInt(process.env.LOCAL_NUM_CTX, 10) || 32768);
+    // 0016: scope the index to project skills + workflow-core by default (balanced);
+    // 'full' keeps the whole catalog. LOCAL_SKILL_SCOPE overrides; LOCAL_PROJECT_DIR (else
+    // cwd) is where project .claude/skills is read; LOCAL_SKILL_ALWAYS overrides the core.
+    const scope = (process.env.LOCAL_SKILL_SCOPE || '').toLowerCase()
+      || (fidelity === 'full' ? 'all' : 'project');
+    const alwaysInclude = process.env.LOCAL_SKILL_ALWAYS
+      ? process.env.LOCAL_SKILL_ALWAYS.split(',').map(s => s.trim()).filter(Boolean)
+      : null;
     const { addition, injected, rawCount } = buildFidelityAddition(parsed.messages, {
       fidelity,
       skillIndexMode: (process.env.LOCAL_SKILL_INDEX || 'auto').toLowerCase(),
       descChars: parseInt(process.env.LOCAL_SKILL_DESC_CHARS, 10) || 140,
       numCtx,
       systemPct: parseFloat(process.env.LOCAL_MAX_SYSTEM_PCT) || 0.08,
+      scope,
+      projectDir: process.env.LOCAL_PROJECT_DIR || process.cwd(),
+      alwaysInclude,
     });
     fidelityAddition = addition;
     injectedSkillCount = injected;

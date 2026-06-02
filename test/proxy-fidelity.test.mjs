@@ -76,7 +76,7 @@ function request(model) {
     model, max_tokens: 50, system: 'You are Claude Code.',
     tools: TOOLS,
     messages: [
-      { role: 'user', content: [{ type: 'text', text: `<system-reminder>\n${HEADER}\n\n- sw:do: Execute increment tasks - when implementing\n- verify: Verify that a change works - When validating\n</system-reminder>` }] },
+      { role: 'user', content: [{ type: 'text', text: `<system-reminder>\n${HEADER}\n\n- sw:do: Execute increment tasks - when implementing\n- verify: Verify that a change works - When validating\n- pptx: Build slide decks - when presenting\n</system-reminder>` }] },
       { role: 'user', content: 'Please verify my change works' },
     ],
   };
@@ -87,7 +87,7 @@ describe('local skill-fidelity (proxy integration)', () => {
   let ollama, lmstudio, proxyO, proxyL, portO, portL;
 
   before(async () => {
-    for (const k of ['LOCAL_FIDELITY', 'LOCAL_SKILL_INDEX', 'OLLAMA_TOOLS', 'LOCAL_MAX_SYSTEM_PCT']) saved[k] = process.env[k];
+    for (const k of ['LOCAL_FIDELITY', 'LOCAL_SKILL_INDEX', 'OLLAMA_TOOLS', 'LOCAL_MAX_SYSTEM_PCT', 'LOCAL_SKILL_SCOPE', 'LOCAL_PROJECT_DIR', 'LOCAL_SKILL_ALWAYS']) saved[k] = process.env[k];
     process.env.OLLAMA_TOOLS = 'auto';
     ollama = await startStub('ollama');
     lmstudio = await startStub('lmstudio');
@@ -105,16 +105,28 @@ describe('local skill-fidelity (proxy integration)', () => {
 
   beforeEach(() => { toolCache.clear(); resetCache(); ollama.captured.lastBody = null; lmstudio.captured.lastBody = null; });
 
-  it('balanced re-injects the skill catalog into the forwarded request (AC-US1-01) and strips the raw reminder (AC-US1-04)', async () => {
+  it('balanced (project scope) keeps workflow-core, drops global skills (0016 AC-US1-01) and strips the raw reminder (AC-US1-04)', async () => {
     process.env.LOCAL_FIDELITY = 'balanced';
+    process.env.LOCAL_PROJECT_DIR = '/nonexistent-project'; // only workflow-core applies
     const res = await postJSON(portO, '/v1/messages', request('qwen3-coder:stub'));
+    delete process.env.LOCAL_PROJECT_DIR;
     assert.equal(res.status, 200);
     const fwd = JSON.stringify(ollama.captured.lastBody);
     assert.ok(fwd.includes('Available skills (call the Skill tool when a request matches'), 'skill index injected');
-    assert.ok(fwd.includes('BLOCKING REQUIREMENT'), 'blocking rule present');
+    assert.ok(fwd.includes('sw:do'), 'workflow-core sw:do kept');
+    assert.ok(!fwd.includes('pptx'), 'unrelated global skill pptx dropped (project scope)');
     assert.ok(!fwd.includes('<system-reminder>'), 'raw system-reminder stripped from messages');
     const skill = (ollama.captured.lastBody.tools || []).find(t => t?.function?.name === 'Skill');
     assert.ok(skill, 'Skill tool retained in forwarded tools (AC-US1-03)');
+  });
+
+  it('full keeps the whole catalog incl. global skills (0016 AC-US1-02 regression guard)', async () => {
+    process.env.LOCAL_FIDELITY = 'full';
+    const res = await postJSON(portO, '/v1/messages', request('qwen3-coder:stub'));
+    assert.equal(res.status, 200);
+    const fwd = JSON.stringify(ollama.captured.lastBody);
+    assert.ok(fwd.includes('pptx'), 'full tier keeps global skill pptx');
+    assert.ok(fwd.includes('sw:do'), 'full tier keeps sw:do');
   });
 
   it('lean is a no-op — no skill block injected (AC-US2-01)', async () => {

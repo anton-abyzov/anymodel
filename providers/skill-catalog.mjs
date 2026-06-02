@@ -7,6 +7,13 @@
 // behavioral core into the system prefix — so a tool-capable local model knows which
 // skills exist and that matching one is a blocking precondition, while the block stays
 // byte-stable for prefix-cache (KV) reuse.
+//
+// Increment 0016 adds project-SCOPING: on local providers the default index is
+// restricted to the project's own .claude/skills + a workflow-core, keeping it small
+// and query-independent (cacheable) instead of injecting ~30 irrelevant global skills.
+
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 
 const CATALOG_HEADER = 'The following skills are available for use with the Skill tool:';
 
@@ -16,6 +23,41 @@ const SKILL_LINE = /^-\s+([A-Za-z0-9_][\w:.-]*?):\s+(.+)$/;
 
 const HEADER_LINE =
   'Available skills (call the Skill tool when a request matches — matching is a BLOCKING REQUIREMENT, call Skill FIRST):';
+
+// Curated SpecWeave workflow essentials always kept in project scope (small + stable).
+// Overridable via the caller's alwaysInclude (LOCAL_SKILL_ALWAYS). Keeps the local index
+// relevant + cacheable instead of injecting ~30 irrelevant global skills every turn (0016).
+export const WORKFLOW_CORE = [
+  'sw:increment', 'sw:do', 'sw:done', 'sw:pm', 'sw:architect',
+  'sw:grill', 'sw:validate', 'sw:progress', 'sw:brainstorm', 'sw:code-reviewer',
+];
+
+const _projectSkillMemo = new Map(); // dir -> string[]
+
+/**
+ * Names of project-local skills under `<dir>/.claude/skills/<name>/SKILL.md`. Memoized
+ * per dir (one fs read per project dir, not per request). Best-effort: returns [] on a
+ * missing/unreadable dir, never throws. (0016)
+ */
+export function readProjectSkillNames(dir) {
+  if (!dir) return [];
+  if (_projectSkillMemo.has(dir)) return _projectSkillMemo.get(dir);
+  let names = [];
+  try {
+    const skillsDir = join(dir, '.claude', 'skills');
+    if (existsSync(skillsDir)) {
+      names = readdirSync(skillsDir).filter(n => {
+        try { return statSync(join(skillsDir, n)).isDirectory() && existsSync(join(skillsDir, n, 'SKILL.md')); }
+        catch { return false; }
+      });
+    }
+  } catch { names = []; }
+  _projectSkillMemo.set(dir, names);
+  return names;
+}
+
+/** Test hook: clear the project-skill memo. */
+export function _resetProjectSkillMemo() { _projectSkillMemo.clear(); }
 
 function flattenText(messages) {
   if (!Array.isArray(messages)) return '';
@@ -151,8 +193,13 @@ export function buildFidelityAddition(messages, {
   descChars = 140,
   numCtx = 32768,
   systemPct = 0.08,
+  scope = null,          // 'project' | 'all'; null → derive (full→all, else→project) (0016)
+  projectDir = null,     // where to read .claude/skills for project scope
+  alwaysInclude = null,  // names always kept in project scope; null → WORKFLOW_CORE
 } = {}) {
   if (fidelity === 'lean') return { addition: '', injected: 0, rawCount: 0 };
+  const effScope = scope || (fidelity === 'full' ? 'all' : 'project');
+  const always = alwaysInclude || WORKFLOW_CORE;
 
   const parts = [];
   const core = buildBehavioralCore(fidelity);
@@ -164,15 +211,29 @@ export function buildFidelityAddition(messages, {
     const dc = descChars * (fidelity === 'full' ? 2 : 1);
     const harvested = harvestSkillCatalog(messages, { descChars: dc, keepWhenToUse: fidelity === 'full' });
     rawCount = harvested.rawCount;
-    if (harvested.skills.length) {
+    let skills = harvested.skills;
+    const projectSkills = effScope === 'project' ? readProjectSkillNames(projectDir) : [];
+
+    if (effScope === 'project') {
+      // Restrict to project skills + workflow-core → small AND query-independent (cacheable),
+      // instead of injecting the whole global catalog every turn.
+      const allow = new Set([...projectSkills, ...always].map(s => s.toLowerCase()));
+      skills = skills.filter(s => allow.has(s.name.toLowerCase()));
+    }
+
+    if (skills.length) {
       const ctxBudgetChars = Math.floor(numCtx * systemPct) * 4;
-      const budgetChars = fidelity === 'full'
-        ? Math.min(Math.max(ctxBudgetChars, 4000), 16000)
-        : Math.min(4000, Math.max(ctxBudgetChars, 2000));
-      const { block, kept } = selectSkills(harvested.skills, {
+      const budgetChars = effScope === 'project'
+        ? 1500                                                   // tight, stable
+        : (fidelity === 'full'
+            ? Math.min(Math.max(ctxBudgetChars, 4000), 16000)
+            : Math.min(4000, Math.max(ctxBudgetChars, 2000)));
+      const { block, kept } = selectSkills(skills, {
         budgetChars,
-        query: latestUserText(messages),
+        // project scope is query-INDEPENDENT so the block stays in the cacheable prefix.
+        query: effScope === 'project' ? '' : latestUserText(messages),
         fidelity,
+        projectSkills,
       });
       if (block) { parts.push(block); injected = kept; }
     }

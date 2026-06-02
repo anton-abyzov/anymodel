@@ -222,6 +222,9 @@ Set any of these env vars on the `npx anymodel proxy lmstudio` command (Terminal
 | `LOCAL_SKILL_INDEX` | `auto` | `on`/`off`/`auto` — gate the skill index independently |
 | `LOCAL_MAX_SYSTEM_PCT` | `0.08` | Fraction of context budgeted for the curated system block |
 | `LOCAL_SKILL_DESC_CHARS` | `140` | Max chars per skill description in the index |
+| `LOCAL_PROJECT_DIR` | cwd | Where the proxy reads `.claude/skills/` for project scope |
+| `LOCAL_SKILL_SCOPE` | derived | `project` \| `all` — override scope independent of tier |
+| `LOCAL_SKILL_ALWAYS` | sw:* essentials | Comma list of skills always kept in project scope |
 
 ## Skill auto-trigger on local models (`--local-fidelity`)
 
@@ -236,16 +239,34 @@ one-time cost that the prefix cache reuses from turn 2 onward.
 anymodel proxy lmstudio --local-fidelity balanced   # default
 ```
 
-| Tier | What it re-injects | Cold turn-1 TTFT | When to use |
+| Tier | Skill scope | Index size | When to use |
 |---|---|---|---|
-| `lean` | nothing (current pre-0010 behavior) | no change | latency purists; you don't use skills locally |
-| `balanced` *(default)* | curated behavioral core (~700 tok) + clipped skill index (≤~1000 tok, `whenToUse` dropped) | +~0.7-1.3 s, then ~0 ms (KV reuse) | the daily driver — skills auto-trigger |
-| `full` | richer index (keeps `whenToUse`, higher clamp) + fuller rules | +~1.7-3.3 s | 131 K ctx or the 80B model |
+| `lean` | — (nothing) | 0 | latency purists; you don't use skills locally |
+| `balanced` *(default)* | **project `.claude/skills` + sw:* workflow-core** | ~150-500 tok | the daily driver — relevant skills, small + cacheable |
+| `full` | whole harvested catalog | ~1-3 K tok | when you want every global/plugin skill available |
 
-Measured on M4 Max / qwen3-coder-30b MLX: `lean` triggers skills **0/12** of the time
-(catalog stripped); `balanced` triggers **9/12 (75%)** with valid skill names. Run the
-harness yourself: `node test/skill-trigger-eval.mjs` (needs a running proxy). MCP
-suppression is unaffected by this flag — use `--full-mcp` for that.
+**Scope matters more than budget (0016).** Measured on a realistic local request (100
+skills, 90 tools, 6.7 KB system) on qwen3-coder-30b MLX, the prefix breaks down as
+**tool schemas 7,757 tok (79%)**, system 917 tok (9%), skill index 1,147 tok (12%). So
+the skill index is the *small* cost — and `full` injects ~30 mostly-irrelevant global
+skills. `balanced` scopes the index to **your project's own skills + the SpecWeave
+workflow** (read from `LOCAL_PROJECT_DIR`, default cwd), dropping the rest: in the bench,
+**2,812 tok (full) → 147 tok (project scope)**. It stays *query-independent* on purpose,
+so it lives in the cacheable prefix instead of busting the KV cache every turn.
+
+To get your project's skills, start the proxy from the project dir or pass the dir:
+```bash
+LOCAL_PROJECT_DIR=~/Projects/wc26 anymodel proxy lmstudio   # balanced = wc26 skills + sw:*
+anymodel proxy lmstudio --local-fidelity full               # or: every skill, bigger prefix
+```
+
+**The real lever is tools, not skills.** If local is still slow, the 90 tool schemas
+(7.7 K tok even after 68 % compression) dominate — cut them with `LOCAL_MAX_TOOLS` or a
+lower `LOCAL_TOOL_BUDGET_PCT` (default `0.30`). MCP suppression is separate — `--full-mcp`.
+
+Skill triggering on qwen3-coder-30b is real but variable (~50-75 % per run at default
+temperature). Run the harness yourself: `node test/skill-trigger-eval.mjs` (needs a
+running proxy; `full` tier to exercise the whole catalog).
 
 ## The full three-command reference
 
