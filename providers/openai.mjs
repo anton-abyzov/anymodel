@@ -241,6 +241,28 @@ export function fencedRecoveryEnabled() {
   return (process.env.ANYMODEL_PARSE_TEXT_TOOLCALLS || 'auto').toLowerCase() === 'on';
 }
 
+// Parse the parenthesized args of a Qwen paren-style call, e.g.
+// `url="https://x", count=3, dry=true` → { url:'https://x', count:3, dry:true }.
+// Quote-aware: a comma inside a quoted value does NOT split the pair.
+function parseParenArgs(argStr) {
+  const input = {};
+  if (typeof argStr !== 'string' || !argStr.trim()) return input;
+  const pair = /([a-zA-Z_][\w.\-]*)\s*=\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^,]+?)(?=\s*,|\s*$)/g;
+  let m;
+  while ((m = pair.exec(argStr)) !== null) {
+    const key = m[1];
+    const raw = m[2].trim();
+    let val;
+    if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+      val = raw.slice(1, -1).replace(/\\(["'\\])/g, '$1');
+    } else {
+      try { val = JSON.parse(raw); } catch { val = raw; }
+    }
+    input[key] = val;
+  }
+  return input;
+}
+
 // Parse a text blob for tool-call syntax. Returns { calls: [{name,input}], cleanedText }.
 // Conservative: requires a strict whole-pattern match + valid structure so prose
 // that merely *mentions* `<tool_call>` is not converted.
@@ -270,8 +292,22 @@ export function extractTextToolCalls(text, { allowFenced = true } = {}) {
     return match;
   });
 
-  // 2) Qwen XML: <function=name><parameter=key>value</parameter>...</function>
-  const qwenFn = /<function=([^>\s]+)\s*>([\s\S]*?)<\/function>/g;
+  // 2) Qwen paren-style (qwen3-coder-next 80B hybrid):
+  //    <function=name(key="v", ...)>  — optionally with a trailing </function> and
+  //    optionally wrapped in <tool_call>...</tool_call> (the wrapper's close tag may be
+  //    absent; the Hermes branch above leaves it because the body is not JSON). The
+  //    canonical branch below would mis-capture `name(key="v")` as the tool NAME, so
+  //    recover this form first and strip the whole span (wrapper included).
+  const qwenParen = /(?:<tool_call>\s*)?<function=\s*([a-zA-Z_][\w.\-]*)\s*\(([\s\S]*?)\)\s*>(?:\s*<\/function>)?(?:\s*<\/tool_call>)?/g;
+  cleaned = cleaned.replace(qwenParen, (_match, name, argStr) => {
+    calls.push({ name, input: parseParenArgs(argStr) });
+    return '';
+  });
+
+  // 3) Qwen XML: <function=name><parameter=key>value</parameter>...</function>
+  //    Name excludes '(' so a paren-style call that slipped past branch 2 is never
+  //    mis-captured here.
+  const qwenFn = /<function=([^>\s(]+)\s*>([\s\S]*?)<\/function>/g;
   cleaned = cleaned.replace(qwenFn, (match, name, inner) => {
     const input = {};
     const paramRe = /<parameter=([^>\s]+)\s*>([\s\S]*?)<\/parameter>/g;

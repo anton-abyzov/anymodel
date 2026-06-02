@@ -37,6 +37,55 @@ test('P0.2 — extractTextToolCalls', async (t) => {
     assert.equal(calls[0].input.cmd, 'echo hi');
   });
 
+  // ── Qwen paren-style hybrid (qwen3-coder-next 80B) ──
+  await t.test('Qwen paren-style <function=name(args)> — bare', () => {
+    const { calls, cleanedText } = extractTextToolCalls(
+      '<function=web_fetch(url="https://wc-26.net/watch/live")>\n</function>'
+    );
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].name, 'web_fetch');
+    assert.deepEqual(calls[0].input, { url: 'https://wc-26.net/watch/live' });
+    assert.ok(!/<function|web_fetch\(/.test(cleanedText), 'no function residue left');
+  });
+
+  await t.test('Qwen paren-style wrapped in <tool_call> with dangling open tag (real 80B shape)', () => {
+    const { calls, cleanedText } = extractTextToolCalls(
+      'Let me check.\n<tool_call>\n<function=web_fetch(url="https://wc-26.net/watch/live")>\n</function>'
+    );
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].name, 'web_fetch');
+    assert.deepEqual(calls[0].input, { url: 'https://wc-26.net/watch/live' });
+    assert.ok(!/<\/?tool_call>|<function/.test(cleanedText), 'no dangling tool_call/function tags');
+    assert.equal(cleanedText, 'Let me check.');
+  });
+
+  await t.test('Qwen paren-style fully wrapped <tool_call>...</tool_call>', () => {
+    const { calls, cleanedText } = extractTextToolCalls(
+      '<tool_call>\n<function=run_bash(command="ls -la")>\n</function>\n</tool_call>'
+    );
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].name, 'run_bash');
+    assert.deepEqual(calls[0].input, { command: 'ls -la' });
+    assert.ok(!/<\/?tool_call>|<function/.test(cleanedText), 'wrapper fully stripped');
+  });
+
+  await t.test('Qwen paren-style with multiple params (string + number + bool)', () => {
+    const { calls } = extractTextToolCalls(
+      '<function=edit_file(path="/tmp/a.txt", count=3, dry=true)>\n</function>'
+    );
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].name, 'edit_file');
+    assert.deepEqual(calls[0].input, { path: '/tmp/a.txt', count: 3, dry: true });
+  });
+
+  await t.test('Qwen paren-style: quoted value containing a comma is not split', () => {
+    const { calls } = extractTextToolCalls(
+      '<function=search(q="apples, oranges", limit=2)>\n</function>'
+    );
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].input, { q: 'apples, oranges', limit: 2 });
+  });
+
   await t.test('fenced ```json tool-call block', () => {
     const { calls } = extractTextToolCalls(
       '```json\n{"name":"search","arguments":{"q":"foo"}}\n```'
