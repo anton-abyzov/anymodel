@@ -56,7 +56,7 @@ const C = {
 };
 
 export function parseArgs(argv) {
-  const opts = { provider: 'auto', port: 9090, host: null, model: null, help: false, freeOnly: false, token: null, rpm: 60, passthrough: [], fullMcp: false };
+  const opts = { provider: 'auto', port: 9090, host: null, model: null, help: false, freeOnly: false, token: null, rpm: 60, passthrough: [], fullMcp: false, localFidelity: null };
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -94,6 +94,10 @@ export function parseArgs(argv) {
     } else if (arg === '--full-mcp') {
       // Opt out of auto-MCP-suppression on local providers (keep global MCP servers)
       opts.fullMcp = true;
+    } else if (arg === '--local-fidelity' || arg.startsWith('--local-fidelity=')) {
+      // Local skill-fidelity tier: lean | balanced | full (default balanced). 0010.
+      const v = arg.includes('=') ? arg.split('=')[1] : argv[++i];
+      opts.localFidelity = (v || '').toLowerCase();
     } else if (!arg.startsWith('-') && MODEL_PRESETS[arg] && !opts.model) {
       opts.model = MODEL_PRESETS[arg];
     }
@@ -253,6 +257,8 @@ ${C.magenta('  anymodel')} — universal AI coding tool
   ${C.bold('General Options:')}
     --port, -p      Port to check/connect (for presets, default: 9090)
     --full-mcp      Keep all globally-configured MCP servers (default on local: suppress global MCP)
+    --local-fidelity <tier>  Local skill-fidelity: lean | balanced | full (default balanced).
+                    balanced re-injects a compact skill catalog so skills auto-trigger on local models.
     --help, -h      Show this help
 
   ${C.bold('Client passthrough:')} everything after ${C.bold('--')} is forwarded to Claude Code
@@ -478,6 +484,16 @@ async function startProxyOnly(args) {
   const opts = parseArgs(args);
 
   if (opts.help) { printHelp(); process.exit(0); }
+
+  // Local skill-fidelity tier (increment 0010) → drive the in-process proxy via env.
+  const localFidelity = opts.localFidelity || (process.env.ANYMODEL_LOCAL_FIDELITY || '').toLowerCase();
+  if (localFidelity) {
+    if (!['lean', 'balanced', 'full'].includes(localFidelity)) {
+      console.error(`${C.red('Error:')} --local-fidelity must be lean | balanced | full (got "${localFidelity}")`);
+      process.exit(1);
+    }
+    process.env.LOCAL_FIDELITY = localFidelity;
+  }
 
   let providerName = opts.provider;
   if (providerName === 'auto') {

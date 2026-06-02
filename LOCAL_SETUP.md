@@ -218,6 +218,34 @@ Set any of these env vars on the `npx anymodel proxy lmstudio` command (Terminal
 | `LOCAL_NUM_CTX` | `32768` | Assumed context for tool budgeting |
 | `LOCAL_TOOL_BUDGET_PCT` | `0.30` | % of context reserved for tool schemas |
 | `ANYMODEL_FULL_MCP` | `0` | Set to `1` to keep global MCP servers on local |
+| `LOCAL_FIDELITY` | `balanced` | Skill-fidelity tier — see below |
+| `LOCAL_SKILL_INDEX` | `auto` | `on`/`off`/`auto` — gate the skill index independently |
+| `LOCAL_MAX_SYSTEM_PCT` | `0.08` | Fraction of context budgeted for the curated system block |
+| `LOCAL_SKILL_DESC_CHARS` | `140` | Max chars per skill description in the index |
+
+## Skill auto-trigger on local models (`--local-fidelity`)
+
+To stay fast, the proxy condenses Claude Code's 50-100 KB system prompt and strips the
+`<system-reminder>` that carries the **skill catalog**. Without that catalog a local
+model can't auto-trigger skills (it still has the `Skill` *tool*, but doesn't know which
+skills exist). The fidelity layer fixes this by re-injecting a compact, name-sorted skill
+index + a curated behavioral core into the **system prefix** — deterministic, so it's a
+one-time cost that the prefix cache reuses from turn 2 onward.
+
+```bash
+anymodel proxy lmstudio --local-fidelity balanced   # default
+```
+
+| Tier | What it re-injects | Cold turn-1 TTFT | When to use |
+|---|---|---|---|
+| `lean` | nothing (current pre-0010 behavior) | no change | latency purists; you don't use skills locally |
+| `balanced` *(default)* | curated behavioral core (~700 tok) + clipped skill index (≤~1000 tok, `whenToUse` dropped) | +~0.7-1.3 s, then ~0 ms (KV reuse) | the daily driver — skills auto-trigger |
+| `full` | richer index (keeps `whenToUse`, higher clamp) + fuller rules | +~1.7-3.3 s | 131 K ctx or the 80B model |
+
+Measured on M4 Max / qwen3-coder-30b MLX: `lean` triggers skills **0/12** of the time
+(catalog stripped); `balanced` triggers **9/12 (75%)** with valid skill names. Run the
+harness yourself: `node test/skill-trigger-eval.mjs` (needs a running proxy). MCP
+suppression is unaffected by this flag — use `--full-mcp` for that.
 
 ## The full three-command reference
 

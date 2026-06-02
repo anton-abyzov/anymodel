@@ -494,6 +494,34 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     delete parsed.thinking;
   }
 
+  // --- Increment 0010: local skill-fidelity ---
+  // Restore skill auto-trigger + a curated behavioral core on local providers by
+  // re-injecting a compact, DETERMINISTIC block into the system prefix. Gated by
+  // LOCAL_FIDELITY (lean|balanced|full, default balanced) and LOCAL_SKILL_INDEX
+  // (on|off|auto, default auto). Harvest runs HERE — before the message strip below
+  // removes the <system-reminder> that carries the catalog.
+  let fidelityAddition = '';
+  let injectedSkillCount = 0;
+  const fidelity = (process.env.LOCAL_FIDELITY || 'balanced').toLowerCase();
+  if (isLocal && fidelity !== 'lean') {
+    const { buildFidelityAddition } = await import('./providers/skill-catalog.mjs');
+    const numCtx = provider.name === 'ollama'
+      ? (parseInt(process.env.OLLAMA_NUM_CTX, 10) || 8192)
+      : (parseInt(process.env.LOCAL_NUM_CTX, 10) || 32768);
+    const { addition, injected, rawCount } = buildFidelityAddition(parsed.messages, {
+      fidelity,
+      skillIndexMode: (process.env.LOCAL_SKILL_INDEX || 'auto').toLowerCase(),
+      descChars: parseInt(process.env.LOCAL_SKILL_DESC_CHARS, 10) || 140,
+      numCtx,
+      systemPct: parseFloat(process.env.LOCAL_MAX_SYSTEM_PCT) || 0.08,
+    });
+    fidelityAddition = addition;
+    injectedSkillCount = injected;
+    if (rawCount === 0 && Array.isArray(parsed.tools) && parsed.tools.some(t => t && t.name === 'Skill')) {
+      console.log(`${C.yellow(localTag)} [FIDELITY] Skill tool present but catalog harvest empty — CC system-reminder header may have changed`);
+    }
+  }
+
   // Condense system prompt for all local providers.
   // Claude Code sends 50-100KB system prompts with every request. On local models,
   // processing 15K+ tokens of system instructions takes 2-3 minutes BEFORE any output.
@@ -532,8 +560,16 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
           : '',
       ].filter(Boolean).join('\n').slice(0, MAX_SYSTEM_CHARS);
 
-      parsed.system = condensed;
+      parsed.system = fidelityAddition ? `${condensed}\n\n${fidelityAddition}` : condensed;
       console.log(`${C.yellow(localTag)} Condensed system prompt: ${originalLen} → ${condensed.length} chars (${Math.round((1 - condensed.length / originalLen) * 100)}% reduction)`);
+    } else if (fidelityAddition) {
+      // Short system prompt that wasn't condensed — still re-inject the fidelity block
+      // (so skills work on short turn-1 prompts too). Flattening to string is safe for
+      // local providers, which flatten system downstream anyway.
+      parsed.system = `${fullSystem}\n\n${fidelityAddition}`;
+    }
+    if (fidelityAddition) {
+      console.log(`${C.yellow(localTag)} [FIDELITY] tier=${fidelity} re-injected ${injectedSkillCount} skills (~${Math.ceil(fidelityAddition.length / 4)} tok)`);
     }
   }
 
@@ -616,10 +652,13 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     }
   }
 
-  // Prefix caching for Ollama — ensure byte-stable system+tools prefix
-  // so llama.cpp's implicit KV cache reuse kicks in (17.7x speedup).
+  // Prefix caching for ALL local providers — ensure byte-stable system+tools prefix
+  // so the engine's implicit KV cache reuse kicks in (17.7x speedup). Widened from
+  // ollama-only in 0010 so the LM Studio / llama.cpp (MLX) path also benefits; the
+  // lmstudio/llamacpp transformResponse/createStreamTranslator ignore the cacheMetrics
+  // arg (openai.mjs guards null), so this is metrics-safe for them.
   let prefixCacheResult = null;
-  if (provider.name === 'ollama') {
+  if (isLocal) {
     const { getOrStore } = await import('./providers/prefix-cache.mjs');
     const systemStr = typeof parsed.system === 'string' ? parsed.system
       : Array.isArray(parsed.system) ? parsed.system.map(b => typeof b === 'string' ? b : b.text || '').join('\n')

@@ -9,6 +9,9 @@
 
 const CORE = new Set(['Bash', 'Read', 'Write', 'Edit', 'Grep', 'Glob']);
 const IMPORTANT = new Set(['Agent', 'TodoWrite', 'WebFetch', 'WebSearch', 'Skill', 'ToolSearch', 'NotebookEdit']);
+// Tools that must never be dropped by the budget loop (increment 0010): the re-injected
+// local skill catalog references Skill, and ToolSearch loads deferred tool schemas.
+const NEVER_EVICT = new Set(['Skill', 'ToolSearch']);
 
 // Fields worth keeping in JSON Schema for tool calling.
 // Everything else ($schema, additionalProperties, description on params,
@@ -133,7 +136,19 @@ export function optimizeTools(tools, opts = {}) {
   const selected = [];
   let usedTokens = 0;
 
+  // Never-evict guard (increment 0010): Skill + ToolSearch must always survive budget
+  // pressure — the re-injected local skill catalog points the model at the Skill tool,
+  // and ToolSearch loads deferred tool schemas. Force-include them first so a tiny
+  // budget can't drop them (they are IMPORTANT-tier and would otherwise break the loop).
   for (const tool of sorted) {
+    if (NEVER_EVICT.has(tool.name)) {
+      selected.push(tool);
+      usedTokens += estimateTokens(tool);
+    }
+  }
+
+  for (const tool of sorted) {
+    if (NEVER_EVICT.has(tool.name)) continue; // already force-included
     if (selected.length >= cap) break;
     const tokens = estimateTokens(tool);
     // Always keep core tools; for others, check budget
