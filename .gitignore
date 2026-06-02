@@ -6,3 +6,6 @@ dist/
 .DS_Store
 .vercel/
 .vercel
+
+# brand-patch working backup (regenerate from upstream, do not commit)
+cli.js.prebrand-backup

@@ -11,11 +11,12 @@
 //   npx anymodel proxy ollama                 # start proxy with Ollama
 
 import { spawn, execSync } from 'child_process';
-import { existsSync, writeFileSync, mkdirSync } from 'fs';
+import { existsSync, writeFileSync, mkdirSync, rmSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { createProxy, loadEnv } from './proxy.mjs';
+import { buildSkillBridge } from './providers/skill-bridge.mjs';
 
 const PROVIDERS = ['openrouter', 'ollama', 'openai', 'lmstudio', 'llamacpp'];
 const LOCAL_PROVIDERS = ['ollama', 'lmstudio', 'llamacpp'];
@@ -364,6 +365,36 @@ async function waitForProxy(port, maxAttempts = 50) {
 }
 
 // ── Mode 1: Launch Claude Code directly (no proxy) ──
+// ── Universal skill bridge ───────────────────────────
+// Discover foreign-ecosystem skills (.agents / .codex / .gemini / .agent) — all of
+// which use the same open SKILL.md standard — and symlink them into a per-session temp
+// `.claude/skills` shadow passed to the client via `--add-dir`, so the client's native
+// SKILL.md loader picks them up. Best-effort: never blocks launch. Returns { args, cleanup }.
+export function setupSkillBridge() {
+  try {
+    const cwd = process.cwd();
+    const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+    const { discovered, plan, bridge } = buildSkillBridge({ cwd, homeDir, env: process.env });
+    if (bridge && bridge.bridgeDir && bridge.linked.length) {
+      console.log(`${C.green('[anymodel]')} Bridged ${bridge.linked.length} skill(s) from .agents/.codex/.gemini: ${C.cyan(bridge.linked.join(', '))}`);
+      if (plan.shadowed.length) {
+        console.log(`${C.yellow('[anymodel]')} ${plan.shadowed.length} foreign skill(s) shadowed by name conflict`);
+      }
+      if (bridge.skipped && bridge.skipped.length) {
+        console.log(`${C.yellow('[anymodel]')} ${bridge.skipped.length} skill(s) could not be linked (${bridge.skipped.map(s => s.code).join(', ')})`);
+      }
+      const dir = bridge.bridgeDir;
+      return { args: ['--add-dir', dir], cleanup: () => { try { rmSync(dir, { recursive: true, force: true }); } catch {} } };
+    }
+    // Found skills but linked none (e.g. Windows without symlink privilege) — say so,
+    // don't pretend nothing was there.
+    if (discovered.length && bridge && bridge.skipped && bridge.skipped.length) {
+      console.log(`${C.yellow('[anymodel]')} ${discovered.length} foreign skill(s) found but none could be linked (${bridge.skipped.map(s => s.code).join(', ')}) — skills not loaded.`);
+    }
+  } catch { /* best-effort: skill discovery never blocks the client */ }
+  return { args: [], cleanup: () => {} };
+}
+
 function launchClaude() {
   const client = findClient();
   if (!client) {
@@ -381,13 +412,16 @@ function launchClaude() {
   console.log(`${C.green('[anymodel]')} Launching Claude Code (${client.label})...`);
   console.log('');
 
-  const clientChild = spawn(client.cmd, client.args, {
+  const skillBridge = setupSkillBridge();
+  const clientChild = spawn(client.cmd, [...client.args, ...skillBridge.args], {
     stdio: 'inherit',
     env: process.env,
   });
 
-  clientChild.on('exit', (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
-  process.on('SIGINT', () => { clientChild.kill('SIGTERM'); process.exit(0); });
+  clientChild.on('exit', (code, signal) => { skillBridge.cleanup(); process.exit(code ?? (signal ? 1 : 0)); });
+  clientChild.on('error', (e) => { skillBridge.cleanup(); console.error(`${C.red('Error:')} failed to launch client: ${e.message}`); process.exit(1); });
+  process.on('SIGINT', () => { skillBridge.cleanup(); clientChild.kill('SIGTERM'); process.exit(0); });
+  process.on('SIGTERM', () => { skillBridge.cleanup(); clientChild.kill('SIGTERM'); process.exit(0); });
 }
 
 // ── Mode 2: Connect to running proxy ────────────────
@@ -455,10 +489,14 @@ async function connectToProxy(args) {
     console.log(`${C.yellow('[anymodel]')} --full-mcp: keeping global MCP servers (may be slow on local models)`);
   }
 
+  // Universal skill bridge — applies to every provider (cloud + local).
+  const skillBridge = setupSkillBridge();
+  autoArgs.push(...skillBridge.args);
+
   console.log(`${C.green('[anymodel]')} Starting...`);
   console.log('');
 
-  // clientArgs: auto-injected strict-mcp-config (if local provider) + user passthrough
+  // clientArgs: auto-injected strict-mcp-config + skill-bridge --add-dir + user passthrough
   const clientArgs = [...client.args, ...autoArgs, ...opts.passthrough];
   const clientChild = spawn(client.cmd, clientArgs, {
     stdio: 'inherit',
@@ -474,8 +512,10 @@ async function connectToProxy(args) {
     },
   });
 
-  clientChild.on('exit', (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
-  process.on('SIGINT', () => { clientChild.kill('SIGTERM'); process.exit(0); });
+  clientChild.on('exit', (code, signal) => { skillBridge.cleanup(); process.exit(code ?? (signal ? 1 : 0)); });
+  clientChild.on('error', (e) => { skillBridge.cleanup(); console.error(`${C.red('Error:')} failed to launch client: ${e.message}`); process.exit(1); });
+  process.on('SIGINT', () => { skillBridge.cleanup(); clientChild.kill('SIGTERM'); process.exit(0); });
+  process.on('SIGTERM', () => { skillBridge.cleanup(); clientChild.kill('SIGTERM'); process.exit(0); });
 }
 
 // ── Mode 3: Proxy only ──────────────────────────────

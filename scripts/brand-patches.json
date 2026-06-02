@@ -1,0 +1,530 @@
+[
+  {
+    "id": "announcement-opus-1m-promo",
+    "category": "announcement-tip",
+    "adaptive": true,
+    "from": "\"Opus now defaults to 1M context · 5x more room, same pricing\"",
+    "to": "(process.env.ANYMODEL_MODEL?process.env.ANYMODEL_MODEL+\" · /model to switch\":\"AnyModel · route any model to any tool\")",
+    "expect": 1
+  },
+  {
+    "id": "plan-mode-exploring",
+    "category": "plan-mode",
+    "adaptive": true,
+    "from": "\"Claude is now exploring and designing an implementation approach.\"",
+    "to": "`${process.env.ANYMODEL_MODEL||\"AnyModel\"} is now exploring and designing an implementation approach.`",
+    "expect": 1
+  },
+  {
+    "id": "plan-mode-will",
+    "category": "plan-mode",
+    "adaptive": true,
+    "from": "\"In plan mode, Claude will:\"",
+    "to": "`In plan mode, ${process.env.ANYMODEL_MODEL||\"AnyModel\"} will:`",
+    "expect": 1
+  },
+  {
+    "id": "plan-mode-ready",
+    "category": "plan-mode",
+    "adaptive": true,
+    "from": "\"Claude has written up a plan and is ready to execute. Would you like to proceed?\"",
+    "to": "`${process.env.ANYMODEL_MODEL||\"AnyModel\"} has written up a plan and is ready to execute. Would you like to proceed?`",
+    "expect": 1
+  },
+  {
+    "id": "idle-waiting",
+    "category": "status-spinner",
+    "adaptive": true,
+    "from": "message:\"Claude is waiting for your input\"",
+    "to": "message:`${process.env.ANYMODEL_MODEL||\"AnyModel\"} is waiting for your input`",
+    "expect": 1
+  },
+  {
+    "id": "computer-use-active",
+    "category": "status-spinner",
+    "adaptive": true,
+    "from": "message:K?\"Claude is using your computer · press Esc to stop\":\"Claude is using your computer · press Ctrl+C to stop\"",
+    "to": "message:K?`${process.env.ANYMODEL_MODEL||\"AnyModel\"} is using your computer · press Esc to stop`:`${process.env.ANYMODEL_MODEL||\"AnyModel\"} is using your computer · press Ctrl+C to stop`",
+    "expect": 1
+  },
+  {
+    "id": "computer-use-done",
+    "category": "status-spinner",
+    "adaptive": true,
+    "from": "message:\"Claude is done using your computer\"",
+    "to": "message:`${process.env.ANYMODEL_MODEL||\"AnyModel\"} is done using your computer`",
+    "expect": 1
+  },
+  {
+    "id": "ctx-has-context",
+    "category": "other-ui",
+    "adaptive": true,
+    "from": "\"• Claude has context of \"",
+    "to": "`• ${process.env.ANYMODEL_MODEL||\"AnyModel\"} has context of `",
+    "expect": 1
+  },
+  {
+    "id": "placeholder-tell",
+    "category": "other-ui",
+    "adaptive": true,
+    "from": "placeholder:\"Tell Claude what to change\"",
+    "to": "placeholder:`Tell ${process.env.ANYMODEL_MODEL||\"AnyModel\"} what to change`",
+    "expect": 1
+  },
+  {
+    "id": "searching-with",
+    "category": "status-spinner",
+    "adaptive": true,
+    "from": "\"Searching with Claude…\"",
+    "to": "`Searching with ${process.env.ANYMODEL_MODEL||\"AnyModel\"}…`",
+    "expect": 1
+  },
+  {
+    "id": "model-updated-opus",
+    "category": "announcement-tip",
+    "adaptive": false,
+    "from": "Model updated to Opus 4.6",
+    "to": "Model updated",
+    "expect": 2
+  },
+  {
+    "id": "model-updated-sonnet",
+    "category": "announcement-tip",
+    "adaptive": false,
+    "from": "Model updated to Sonnet 4.6",
+    "to": "Model updated",
+    "expect": 1
+  },
+  {
+    "id": "upgrade-max-opus",
+    "category": "slash-command-text",
+    "adaptive": false,
+    "from": "description:\"Upgrade to Max for higher rate limits and more Opus\"",
+    "to": "description:\"Upgrade for higher rate limits\"",
+    "expect": 1
+  },
+  {
+    "id": "err-high-load",
+    "category": "error-message",
+    "adaptive": false,
+    "from": "Opus is experiencing high load, please use /model to switch to Sonnet",
+    "to": "The model is experiencing high load, please use /model to switch to a different model",
+    "expect": 1
+  },
+  {
+    "id": "err-high-demand",
+    "category": "error-message",
+    "adaptive": false,
+    "from": "\"We are experiencing high demand for Opus 4.\"",
+    "to": "\"We are experiencing high demand for this model.\"",
+    "expect": 1
+  },
+  {
+    "id": "queue-while-working",
+    "category": "status-spinner",
+    "adaptive": false,
+    "from": "Hit Enter to queue up additional messages while Claude is working.",
+    "to": "Hit Enter to queue up additional messages while AnyModel is working.",
+    "expect": 1
+  },
+  {
+    "id": "can-make-mistakes",
+    "category": "other-ui",
+    "adaptive": false,
+    "from": "O3.default.createElement(k,null,\"Claude can make mistakes\")",
+    "to": "O3.default.createElement(k,null,\"AnyModel can make mistakes\")",
+    "expect": 1
+  },
+  {
+    "id": "welcome-banner",
+    "category": "welcome-onboarding",
+    "adaptive": false,
+    "from": "Welcome to Claude Code",
+    "to": "Welcome to AnyModel",
+    "expect": 4
+  },
+  {
+    "id": "login-title",
+    "category": "login-auth",
+    "adaptive": false,
+    "from": "title:\"Log in to Claude\"",
+    "to": "title:\"Log in to AnyModel\"",
+    "expect": 1
+  },
+  {
+    "id": "login-label",
+    "category": "login-auth",
+    "adaptive": false,
+    "from": "label:\"Login with Claude account\"",
+    "to": "label:\"Login with AnyModel account\"",
+    "expect": 1
+  },
+  {
+    "id": "signin-anthropic",
+    "category": "login-auth",
+    "adaptive": false,
+    "from": "\"Sign in with your Anthropic account\"",
+    "to": "\"Sign in with your AnyModel account\"",
+    "expect": 1
+  },
+  {
+    "id": "switch-anthropic",
+    "category": "login-auth",
+    "adaptive": false,
+    "from": "description:Ev1()?\"Switch Anthropic accounts\"",
+    "to": "description:Ev1()?\"Switch AnyModel accounts\"",
+    "expect": 1
+  },
+  {
+    "id": "signout-anthropic",
+    "category": "login-auth",
+    "adaptive": false,
+    "from": "\"Sign out from your Anthropic account\"",
+    "to": "\"Sign out from your AnyModel account\"",
+    "expect": 1
+  },
+  {
+    "id": "signout-success",
+    "category": "login-auth",
+    "adaptive": false,
+    "from": "\"Successfully logged out from your Anthropic account.\"",
+    "to": "\"Successfully logged out from your AnyModel account.\"",
+    "expect": 1
+  },
+  {
+    "id": "try-desktop",
+    "category": "announcement-tip",
+    "adaptive": false,
+    "from": "title:\"Try Claude Code Desktop\"",
+    "to": "title:\"Try AnyModel Desktop\"",
+    "expect": 1
+  },
+  {
+    "id": "transcript-consent",
+    "category": "welcome-onboarding",
+    "adaptive": false,
+    "from": "Can Anthropic look at your session transcript to help us improve Claude Code?",
+    "to": "Can we look at your session transcript to help us improve AnyModel?",
+    "expect": 1
+  },
+  {
+    "id": "upgrade-keep-using",
+    "category": "cost-billing",
+    "adaptive": false,
+    "from": "return\"/upgrade to keep using Claude Code\"",
+    "to": "return\"/upgrade to keep using AnyModel\"",
+    "expect": 1
+  },
+  {
+    "id": "billing-subscription",
+    "category": "cost-billing",
+    "adaptive": false,
+    "from": "\"You are currently using your subscription to power your Claude Code usage\"",
+    "to": "\"You are currently using your subscription to power your AnyModel usage\"",
+    "expect": 1
+  },
+  {
+    "id": "billing-canbeused",
+    "category": "cost-billing",
+    "adaptive": false,
+    "from": "\"Claude Code can be used with your Claude subscription or billed based on API usage through your Console account.\"",
+    "to": "\"AnyModel can be used with your configured provider subscription or billed based on API usage through your provider account.\"",
+    "expect": 1
+  },
+  {
+    "id": "billing-promax",
+    "category": "login-auth",
+    "adaptive": false,
+    "from": "\"Your Claude Pro/Max subscription will be used by Claude Code.\"",
+    "to": "\"Your provider subscription will be used by AnyModel.\"",
+    "expect": 1
+  },
+  {
+    "id": "cost-desc",
+    "category": "cost-billing",
+    "adaptive": false,
+    "from": "description:\"Cost of the Claude Code session\"",
+    "to": "description:\"Cost of the AnyModel session\"",
+    "expect": 1
+  },
+  {
+    "id": "feedback-desc",
+    "category": "slash-command-text",
+    "adaptive": false,
+    "from": "description:\"Submit feedback about Claude Code\"",
+    "to": "description:\"Submit feedback about AnyModel\"",
+    "expect": 1
+  },
+  {
+    "id": "plugins-desc",
+    "category": "slash-command-text",
+    "adaptive": false,
+    "from": "description:\"Manage Claude Code plugins\"",
+    "to": "description:\"Manage AnyModel plugins\"",
+    "expect": 1
+  },
+  {
+    "id": "usage-stats-desc",
+    "category": "slash-command-text",
+    "adaptive": false,
+    "from": "description:\"Show your Claude Code usage statistics and activity\"",
+    "to": "description:\"Show your AnyModel usage statistics and activity\"",
+    "expect": 1
+  },
+  {
+    "id": "doctor-desc",
+    "category": "slash-command-text",
+    "adaptive": false,
+    "from": "description:\"Diagnose and verify your Claude Code installation and settings\"",
+    "to": "description:\"Diagnose and verify your AnyModel installation and settings\"",
+    "expect": 1
+  },
+  {
+    "id": "yearinreview-desc",
+    "category": "slash-command-text",
+    "adaptive": false,
+    "from": "description:\"Your 2025 Claude Code Year in Review\"",
+    "to": "description:\"Your 2025 AnyModel Year in Review\"",
+    "expect": 1
+  },
+  {
+    "id": "stickers-desc",
+    "category": "slash-command-text",
+    "adaptive": false,
+    "from": "description:\"Order Claude Code stickers\"",
+    "to": "description:\"Order AnyModel stickers\"",
+    "expect": 1
+  },
+  {
+    "id": "web-setup-desc",
+    "category": "slash-command-text",
+    "adaptive": false,
+    "from": "description:\"Setup Claude Code on the web (requires connecting your GitHub account)\"",
+    "to": "description:\"Setup AnyModel on the web (requires connecting your GitHub account)\"",
+    "expect": 1
+  },
+  {
+    "id": "memory-desc",
+    "category": "slash-command-text",
+    "adaptive": false,
+    "from": "description:\"Edit Claude memory files\"",
+    "to": "description:\"Edit memory files\"",
+    "expect": 1
+  },
+  {
+    "id": "watermark-desc",
+    "category": "other-ui",
+    "adaptive": false,
+    "from": "description:\"Show Claude logo watermark (default: true)\"",
+    "to": "description:\"Show AnyModel logo watermark (default: true)\"",
+    "expect": 1
+  },
+  {
+    "id": "status-account",
+    "category": "error-message",
+    "adaptive": false,
+    "from": "Run /status in Claude Code to check your account.",
+    "to": "Run /status in AnyModel to check your account.",
+    "expect": 1
+  },
+  {
+    "id": "version-suffix",
+    "category": "other-ui",
+    "adaptive": false,
+    "from": ".VERSION} (Claude Code)",
+    "to": ".VERSION} (AnyModel)",
+    "expect": 2
+  },
+  {
+    "id": "cli-root-desc",
+    "category": "help-text",
+    "adaptive": false,
+    "from": "\"Claude Code - starts an interactive session by default, use -p/--print for non-interactive output\"",
+    "to": "\"AnyModel - starts an interactive session by default, use -p/--print for non-interactive output\"",
+    "expect": 1
+  },
+  {
+    "id": "cli-doctor-desc",
+    "category": "help-text",
+    "adaptive": false,
+    "from": "Check the health of your Claude Code auto-updater",
+    "to": "Check the health of your AnyModel auto-updater",
+    "expect": 1
+  },
+  {
+    "id": "cli-install-desc",
+    "category": "help-text",
+    "adaptive": false,
+    "from": "Install Claude Code native build",
+    "to": "Install AnyModel native build",
+    "expect": 2
+  },
+  {
+    "id": "cli-logout-desc",
+    "category": "help-text",
+    "adaptive": false,
+    "from": ".description(\"Log out from your Anthropic account\")",
+    "to": ".description(\"Log out from your AnyModel account\")",
+    "expect": 1
+  },
+  {
+    "id": "cli-login-desc",
+    "category": "help-text",
+    "adaptive": false,
+    "from": ".description(\"Sign in to your Anthropic account\")",
+    "to": ".description(\"Sign in to your AnyModel account\")",
+    "expect": 1
+  },
+  {
+    "id": "cli-marketplaces-desc",
+    "category": "help-text",
+    "adaptive": false,
+    "from": "\"Manage Claude Code marketplaces\"",
+    "to": "\"Manage AnyModel marketplaces\"",
+    "expect": 1
+  },
+  {
+    "id": "cli-plugins-desc",
+    "category": "help-text",
+    "adaptive": false,
+    "from": ".description(\"Manage Claude Code plugins\")",
+    "to": ".description(\"Manage AnyModel plugins\")",
+    "expect": 1
+  },
+  {
+    "id": "cli-mcp-server-desc",
+    "category": "help-text",
+    "adaptive": false,
+    "from": "Start the Claude Code MCP server",
+    "to": "Start the AnyModel MCP server",
+    "expect": 1
+  },
+  {
+    "id": "cli-token-desc",
+    "category": "help-text",
+    "adaptive": false,
+    "from": "Set up a long-lived authentication token (requires Claude subscription)",
+    "to": "Set up a long-lived authentication token (requires a provider subscription)",
+    "expect": 1
+  },
+  {
+    "id": "stats-empty",
+    "category": "other-ui",
+    "adaptive": false,
+    "from": "\"No stats available yet. Start using Claude Code!\"",
+    "to": "\"No stats available yet. Start using AnyModel!\"",
+    "expect": 1
+  },
+  {
+    "id": "help-get-help",
+    "category": "help-text",
+    "adaptive": false,
+    "from": "/help: Get help with using Claude Code",
+    "to": "/help: Get help with using AnyModel",
+    "expect": 1
+  },
+  {
+    "id": "report-sessions",
+    "category": "slash-command-text",
+    "adaptive": false,
+    "from": "report analyzing your Claude Code sessions",
+    "to": "report analyzing your AnyModel sessions",
+    "expect": 2
+  },
+  {
+    "id": "settings-env-sessions",
+    "category": "help-text",
+    "adaptive": false,
+    "from": "to set for Claude Code sessions",
+    "to": "to set for AnyModel sessions",
+    "expect": 1
+  },
+  {
+    "id": "overage-usage",
+    "category": "cost-billing",
+    "adaptive": false,
+    "from": "overages to power your Claude Code usage",
+    "to": "overages to power your AnyModel usage",
+    "expect": 1
+  },
+  {
+    "id": "update-uptodate",
+    "category": "status-spinner",
+    "adaptive": false,
+    "from": "Claude Code is up to date",
+    "to": "AnyModel is up to date",
+    "expect": 2
+  },
+  {
+    "id": "install-progress",
+    "category": "status-spinner",
+    "adaptive": false,
+    "from": "\"Installing Claude Code native build ",
+    "to": "\"Installing AnyModel native build ",
+    "expect": 1
+  },
+  {
+    "id": "restart-required",
+    "category": "error-message",
+    "adaptive": false,
+    "from": "manually restart Claude Code",
+    "to": "manually restart AnyModel",
+    "expect": 4
+  },
+  {
+    "id": "no-sessions",
+    "category": "other-ui",
+    "adaptive": false,
+    "from": "\"No Claude Code sessions found\"",
+    "to": "\"No AnyModel sessions found\"",
+    "expect": 1
+  },
+  {
+    "id": "version-mismatch",
+    "category": "error-message",
+    "adaptive": false,
+    "from": "your version of Claude Code",
+    "to": "your version of AnyModel",
+    "expect": 1
+  },
+  {
+    "id": "tier-labels",
+    "category": "other-ui",
+    "adaptive": false,
+    "from": "case\"enterprise\":return\"anymodel Enterprise\";case\"team\":return\"anymodel Team\";case\"max\":return\"anymodel\";case\"pro\":return\"anymodel\";default:return\"anymodel\"}",
+    "to": "case\"enterprise\":return\"AnyModel Enterprise\";case\"team\":return\"AnyModel Team\";case\"max\":return\"AnyModel\";case\"pro\":return\"AnyModel\";default:return\"AnyModel\"}",
+    "expect": 1
+  },
+  {
+    "id": "app-title",
+    "category": "welcome-onboarding",
+    "adaptive": false,
+    "from": "title:\"anymodel\"",
+    "to": "title:\"AnyModel\"",
+    "expect": 2
+  },
+  {
+    "id": "version-banner",
+    "category": "other-ui",
+    "adaptive": false,
+    "from": "title:`anymodel v",
+    "to": "title:`AnyModel v",
+    "expect": 1
+  },
+  {
+    "id": "bold-sentinel",
+    "category": "other-ui",
+    "adaptive": false,
+    "from": "{bold:!0},\"anymodel\")",
+    "to": "{bold:!0},\"AnyModel\")",
+    "expect": 1
+  },
+  {
+    "id": "via-proxy-fallback",
+    "category": "status-spinner",
+    "adaptive": false,
+    "from": "\"via anymodel proxy\"",
+    "to": "\"via AnyModel proxy\"",
+    "expect": 1
+  }
+]
