@@ -641,13 +641,10 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     if (totalChars > MAX_MSG_CHARS) {
       const originalCount = parsed.messages.length;
       if (parsed.messages.length > 4) {
-        // Keep first 2 + last N messages
-        const keep = Math.max(4, Math.min(parsed.messages.length, Math.floor(MAX_MSG_CHARS / (totalChars / parsed.messages.length))));
-        if (keep < parsed.messages.length) {
-          const head = parsed.messages.slice(0, 2);
-          const tail = parsed.messages.slice(-(keep - 2));
-          parsed.messages = [...head, { role: 'user', content: '[Earlier conversation condensed]' }, ...tail];
-        }
+        // 0013/US-005: plan-state-aware drop — never drop the plan-mode turn, and replace
+        // the dropped middle with a structured summary instead of empty filler.
+        const { condenseMessages } = await import('./providers/condense.mjs');
+        parsed.messages = condenseMessages(parsed.messages, { maxChars: MAX_MSG_CHARS }).messages;
       } else {
         // Few messages but still too large — truncate each message's content
         for (const msg of parsed.messages) {
