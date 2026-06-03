@@ -4,8 +4,12 @@ on:
   release:
     types: [published]
 
+# OIDC trusted publishing — npm verifies this workflow's identity, so no
+# NPM_TOKEN secret and no 2FA OTP are needed. Configure the trusted publisher
+# for the `anymodel` package at npmjs.com (package Settings -> Trusted Publishing).
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   publish:
@@ -16,8 +20,8 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
+      # Trusted publishing requires npm >= 11.5.0 (node 22 ships older).
+      - run: npm install -g npm@latest
       - run: node --test test/*.test.mjs
       - run: node scripts/brand-patch.mjs --check
-      - run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish --provenance --access public
