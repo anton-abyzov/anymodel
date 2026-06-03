@@ -525,11 +525,25 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
       scope,
       projectDir: process.env.LOCAL_PROJECT_DIR || process.cwd(),
       alwaysInclude,
+      tools: parsed.tools,   // 0013/US-001: part of the per-session cache key
     });
     fidelityAddition = addition;
     injectedSkillCount = injected;
     if (rawCount === 0 && Array.isArray(parsed.tools) && parsed.tools.some(t => t && t.name === 'Skill')) {
-      console.log(`${C.yellow(localTag)} [FIDELITY] Skill tool present but catalog harvest empty — CC system-reminder header may have changed`);
+      console.log(`${C.yellow(localTag)} [FIDELITY] Skill tool present but catalog harvest empty — CC system-reminder header may have changed (re-injecting from session cache if available)`);
+    }
+  }
+
+  // 0013/US-001 self-check: re-injection is OFF (LOCAL_FIDELITY=lean) yet this request
+  // carries a Skill tool + catalog → the proxy is about to strip skills without restoring
+  // them (the 1.14.1 trim-without-restore failure mode). Warn once per process.
+  if (isLocal && fidelity === 'lean') {
+    const { hasSkillCatalog, shouldWarnTrimWithoutRestore } = await import('./providers/skill-catalog.mjs');
+    const hasSkillTool = Array.isArray(parsed.tools) && parsed.tools.some(t => t && t.name === 'Skill');
+    if (!globalThis.__anymodelTrimWarned
+        && shouldWarnTrimWithoutRestore({ fidelity, hasSkillTool, catalogPresent: hasSkillCatalog(parsed.messages) })) {
+      globalThis.__anymodelTrimWarned = true;
+      console.log(`${C.yellow(localTag)} [FIDELITY] LOCAL_FIDELITY=lean strips the skill catalog WITHOUT re-injection (trim-without-restore). Set LOCAL_FIDELITY=balanced to restore skill auto-trigger.`);
     }
   }
 

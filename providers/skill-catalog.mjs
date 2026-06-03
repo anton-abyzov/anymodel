@@ -59,6 +59,74 @@ export function readProjectSkillNames(dir) {
 /** Test hook: clear the project-skill memo. */
 export function _resetProjectSkillMemo() { _projectSkillMemo.clear(); }
 
+// ── Per-session skill-catalog cache (0013 / US-001) ──
+// Claude Code injects the catalog <system-reminder> on the FIRST turn; later turns can
+// arrive without it. We cache the harvested catalog keyed by a stable session signature
+// (opening user prompt with reminder-tags stripped + the tool-name set) and re-inject on
+// turn 2+ so skills keep auto-triggering. Bounded by size + TTL.
+const SESSION_CACHE = new Map(); // key -> { skills, ts }
+const CACHE_MAX = 200;
+const CACHE_TTL_MS = 30 * 60 * 1000;
+
+function djb2(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
+// Earliest user prompt with catalog/xml reminder blocks stripped, so the key is stable
+// whether or not THIS turn still carries the catalog.
+function firstUserNormalized(messages) {
+  if (!Array.isArray(messages)) return '';
+  for (const m of messages) {
+    if (!m || m.role !== 'user') continue;
+    let t = typeof m.content === 'string' ? m.content
+      : Array.isArray(m.content) ? m.content.filter(b => b && b.type === 'text').map(b => b.text).join(' ') : '';
+    if (!t) continue;
+    t = t.replace(/<(?:system-reminder|functions|function)>[\s\S]*?<\/(?:system-reminder|functions|function)>/gi, '').trim();
+    if (t) return t;
+  }
+  return '';
+}
+
+function sessionKey(messages, tools) {
+  const first = firstUserNormalized(messages).slice(0, 2000);
+  if (!first) return '';
+  const toolNames = Array.isArray(tools) ? tools.map(t => t && t.name).filter(Boolean).sort().join(',') : '';
+  return djb2(first + '|' + toolNames);
+}
+
+function cacheSet(key, skills) {
+  if (!key || !skills || !skills.length) return;
+  SESSION_CACHE.set(key, { skills, ts: Date.now() });
+  while (SESSION_CACHE.size > CACHE_MAX) {
+    SESSION_CACHE.delete(SESSION_CACHE.keys().next().value); // FIFO evict oldest
+  }
+}
+
+function cacheGet(key) {
+  const e = key && SESSION_CACHE.get(key);
+  if (!e) return null;
+  if (Date.now() - e.ts > CACHE_TTL_MS) { SESSION_CACHE.delete(key); return null; }
+  return e.skills;
+}
+
+/** Test hooks (not used by production paths). */
+export function _resetSkillCatalogCache() { SESSION_CACHE.clear(); }
+export function _skillCatalogCacheSize() { return SESSION_CACHE.size; }
+
+// Cheap presence check: does the request still carry the Claude Code skill catalog?
+export function hasSkillCatalog(messages) {
+  return flattenText(messages).includes(CATALOG_HEADER);
+}
+
+// US-001 self-check: re-injection is OFF (LOCAL_FIDELITY=lean) yet the request carries a
+// Skill tool + catalog → the proxy is about to strip skills without restoring them (the
+// 1.14.1 trim-without-restore failure mode). Pure; the proxy adds the once-guard + log.
+export function shouldWarnTrimWithoutRestore({ fidelity, hasSkillTool, catalogPresent } = {}) {
+  return fidelity === 'lean' && Boolean(hasSkillTool) && Boolean(catalogPresent);
+}
+
 function flattenText(messages) {
   if (!Array.isArray(messages)) return '';
   const parts = [];
@@ -196,24 +264,29 @@ export function buildFidelityAddition(messages, {
   scope = null,          // 'project' | 'all'; null → derive (full→all, else→project) (0016)
   projectDir = null,     // where to read .claude/skills for project scope
   alwaysInclude = null,  // names always kept in project scope; null → WORKFLOW_CORE
+  tools = null,          // tool defs — part of the session-cache key (0013/US-001)
 } = {}) {
   if (fidelity === 'lean') return { addition: '', injected: 0, rawCount: 0 };
   const effScope = scope || (fidelity === 'full' ? 'all' : 'project');
   const always = alwaysInclude || WORKFLOW_CORE;
 
-  const parts = [];
-  const core = buildBehavioralCore(fidelity);
-  if (core) parts.push(core);
-
+  let block = '';
   let injected = 0;
   let rawCount = 0;
   if (skillIndexMode !== 'off' && Array.isArray(messages)) {
     const dc = descChars * (fidelity === 'full' ? 2 : 1);
     const harvested = harvestSkillCatalog(messages, { descChars: dc, keepWhenToUse: fidelity === 'full' });
     rawCount = harvested.rawCount;
-    let skills = harvested.skills;
-    const projectSkills = effScope === 'project' ? readProjectSkillNames(projectDir) : [];
 
+    // 0013/US-001: cache the RAW catalog on turn 1 (Claude Code sends it once); restore on
+    // turn 2+ when this turn arrives without it, so skills survive the whole session. The
+    // 0016 project-scoping filter below then applies identically to harvested or cached skills.
+    const key = sessionKey(messages, tools);
+    let skills = harvested.skills;
+    if (skills.length) cacheSet(key, skills);
+    else { const cached = cacheGet(key); if (cached) skills = cached; }
+
+    const projectSkills = effScope === 'project' ? readProjectSkillNames(projectDir) : [];
     if (effScope === 'project') {
       // Restrict to project skills + workflow-core → small AND query-independent (cacheable),
       // instead of injecting the whole global catalog every turn.
@@ -228,30 +301,40 @@ export function buildFidelityAddition(messages, {
         : (fidelity === 'full'
             ? Math.min(Math.max(ctxBudgetChars, 4000), 16000)
             : Math.min(4000, Math.max(ctxBudgetChars, 2000)));
-      const { block, kept } = selectSkills(skills, {
+      const sel = selectSkills(skills, {
         budgetChars,
         // project scope is query-INDEPENDENT so the block stays in the cacheable prefix.
         query: effScope === 'project' ? '' : latestUserText(messages),
         fidelity,
         projectSkills,
       });
-      if (block) { parts.push(block); injected = kept; }
+      if (sel.block) { block = sel.block; injected = sel.kept; }
     }
   }
+
+  // Build the behavioral core AFTER we know whether a skill block exists, so US-001's
+  // "available skills listed below" reference is not dangled when none is injected.
+  const parts = [];
+  const core = buildBehavioralCore(fidelity, { hasSkills: Boolean(block) });
+  if (core) parts.push(core);
+  if (block) parts.push(block);
   return { addition: parts.join('\n\n'), injected, rawCount };
 }
 
 /**
  * Curated, date-free Claude Code behavioral core. ~600-900 tokens; lean → ''.
  */
-export function buildBehavioralCore(fidelity = 'balanced') {
+export function buildBehavioralCore(fidelity = 'balanced', { hasSkills = true } = {}) {
   if (fidelity === 'lean') return '';
   const core = [
     'You are an agentic coding assistant operating through the Claude Code tool protocol.',
     'Be terse and direct. Lead with the answer. Use the tools available to you rather than describing what you would do.',
     'Plan before acting on multi-step work; satisfy dependencies before dependent steps; verify changes before claiming success.',
-    'SKILLS: When a user request matches one of the available skills listed below, calling the Skill tool with that skill name is a BLOCKING REQUIREMENT — call Skill FIRST, before any other response or tool use. "simple", "quick", and "basic" are NOT opt-out phrases.',
   ];
+  // US-001: only reference the skill index when one will actually follow.
+  if (hasSkills) {
+    core.push('SKILLS: When a user request matches one of the available skills listed below, calling the Skill tool with that skill name is a BLOCKING REQUIREMENT — call Skill FIRST, before any other response or tool use. "simple", "quick", and "basic" are NOT opt-out phrases.');
+  }
   if (fidelity === 'full') {
     core.push('Prefer reusing existing functions and patterns over writing new code. Match the surrounding code style. Never invent file paths or APIs — verify they exist before referencing them.');
   }
