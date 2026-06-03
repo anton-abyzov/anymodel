@@ -48,6 +48,22 @@ export function isVisionModel(model) {
   return /(?:^|[-_/])(?:vl|vision|llava|pixtral|moondream|internvl)|minicpm-?v|gemma-?[34]|llama-?3\.2-vision|qwen[\w.-]*-vl/.test(m);
 }
 
+// US-004 (0013): detect an RLHF capability-disclaimer refusal ("I can't browse the
+// internet", "I cannot deploy / run code", "I'm unable to access the URL"). A local
+// coding model emits these as prose even with tools attached, dead-ending the loop.
+const REFUSAL_RE = /\bI\b[^.!?\n]{0,30}?\b(?:can'?t|cannot|can ?not|unable to|am unable to|don'?t have (?:the )?(?:ability|access))\b[^.!?\n]{0,15}?\b(?:access|browse|visit|deploy|run|execute|open|reach|connect|provide|create)\b/i;
+
+export function isCapabilityRefusal(text) {
+  return typeof text === 'string' && text.length > 0 && REFUSAL_RE.test(text);
+}
+
+// US-004: should the proxy re-issue once with a "use your tools" nudge? Only when the
+// retry is enabled, the response is a prose refusal ending the turn, AND tools were
+// attached (so the model has a real alternative to disclaiming).
+export function shouldRetryRefusal({ enabled = true, stopReason, hasTools, text } = {}) {
+  return Boolean(enabled) && stopReason === 'end_turn' && Boolean(hasTools) && isCapabilityRefusal(text);
+}
+
 // P1.2: translate an Anthropic content-block array into OpenAI message content.
 // Returns a plain STRING when every block is text (keeps text-only turns
 // byte-identical to the old behavior for servers that reject array content), or

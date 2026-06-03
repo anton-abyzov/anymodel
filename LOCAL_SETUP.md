@@ -332,6 +332,35 @@ anymodel
 
 That's it. Three commands. Global MCP suppression handled automatically.
 
+## Local agentic profile (recommended for real coding loops)
+
+Local coding models are strong at single tool calls but degrade on long, multi-turn agentic
+tasks — they lose plan state and revert to RLHF refusals ("I can't browse / deploy"). The
+`--local-agentic` preset tunes the proxy for that workload:
+
+```bash
+anymodel proxy lmstudio --model qwen/qwen3-coder-30b --local-agentic
+```
+
+It sets (without overriding anything you set explicitly):
+
+| Setting | Value | Why |
+|---|---|---|
+| `--full-mcp` | implied | keeps the **Skill tool** so SpecWeave/skill hooks are satisfiable |
+| `LOCAL_FIDELITY` | `balanced` | re-inject the skill catalog + behavioral core every turn |
+| `LOCAL_REFUSAL_RETRY` | `on` | re-issue once with a "use your tools" nudge on a capability-disclaimer refusal |
+| `LOCAL_NUM_CTX` | `65536` | Qwen3-Coder's recommended agentic budget — keeps plan state from being truncated |
+
+**Also relax hook-heavy repos.** In a SpecWeave (or similar) project, the surviving `CLAUDE.md`
+can order things a local model cannot satisfy, producing the plan-mode loop. For local sessions:
+set `incrementAssist.mandatory=false` in `.specweave/config.json`, drop the "ALWAYS enter plan
+mode (MANDATORY)" and "SKILL FIRST = BLOCKING PRECONDITION" language, and keep `--full-mcp`
+whenever the project depends on the Skill tool (the preset does this for you).
+
+**Realistic expectations.** Local 30B is great for bounded edits, refactors, exploration, and
+tight tool-attached loops under ~65K context — not a drop-in autonomous Claude for long
+multi-turn tasks with screenshot verification.
+
 ## Further reading
 
 - [AnyModel README](./README.md)

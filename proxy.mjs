@@ -641,13 +641,10 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     if (totalChars > MAX_MSG_CHARS) {
       const originalCount = parsed.messages.length;
       if (parsed.messages.length > 4) {
-        // Keep first 2 + last N messages
-        const keep = Math.max(4, Math.min(parsed.messages.length, Math.floor(MAX_MSG_CHARS / (totalChars / parsed.messages.length))));
-        if (keep < parsed.messages.length) {
-          const head = parsed.messages.slice(0, 2);
-          const tail = parsed.messages.slice(-(keep - 2));
-          parsed.messages = [...head, { role: 'user', content: '[Earlier conversation condensed]' }, ...tail];
-        }
+        // 0013/US-005: plan-state-aware drop — never drop the plan-mode turn, and replace
+        // the dropped middle with a structured summary instead of empty filler.
+        const { condenseMessages } = await import('./providers/condense.mjs');
+        parsed.messages = condenseMessages(parsed.messages, { maxChars: MAX_MSG_CHARS }).messages;
       } else {
         // Few messages but still too large — truncate each message's content
         for (const msg of parsed.messages) {
@@ -942,7 +939,35 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
           return;
         }
         const respBody = parsedResp.value;
-        const translated = provider.transformResponse(respBody, prefixCacheResult);
+        let translated = provider.transformResponse(respBody, prefixCacheResult);
+
+        // 0013/US-004: opt-in refusal recovery (LOCAL_REFUSAL_RETRY=on). A local coding
+        // model can emit an RLHF capability disclaimer ("I can't browse/deploy/run code")
+        // with end_turn even though tools were attached. Re-issue ONCE with a tool nudge.
+        if (isLocal && (process.env.LOCAL_REFUSAL_RETRY || 'off').toLowerCase() === 'on') {
+          const { shouldRetryRefusal } = await import('./providers/openai.mjs');
+          const textOut = (translated.content || []).filter(b => b && b.type === 'text').map(b => b.text).join(' ');
+          if (shouldRetryRefusal({
+            stopReason: translated.stop_reason,
+            hasTools: Array.isArray(parsed.tools) && parsed.tools.length > 0,
+            text: textOut,
+          })) {
+            console.log(`${C.yellow(localTag)} [REFUSAL-RETRY] capability disclaimer with tools attached — re-issuing once with a tool nudge`);
+            const nudge = { role: 'system', content: 'You have tools available. Do NOT claim you cannot browse, deploy, or run code — call the appropriate tool to do it.' };
+            const retryReq = { ...requestBody, messages: [nudge, ...(requestBody.messages || [])] };
+            const retryUpstream = await sendRequest(provider, req.url, JSON.stringify(retryReq));
+            if (retryUpstream.statusCode === 200) {
+              const rc = [];
+              retryUpstream.on('data', c => rc.push(c));
+              await new Promise(r => retryUpstream.on('end', r));
+              const rp = safeJsonParse(Buffer.concat(rc).toString());
+              if (rp.ok) translated = provider.transformResponse(rp.value, prefixCacheResult);
+            } else if (retryUpstream.resume) {
+              retryUpstream.resume(); // drain the failed retry body
+            }
+          }
+        }
+
         sanitizeToolUseResponse(translated);
         const translatedPayload = JSON.stringify(translated);
         res.writeHead(200, { 'content-type': 'application/json' });

@@ -57,7 +57,7 @@ const C = {
 };
 
 export function parseArgs(argv) {
-  const opts = { provider: 'auto', port: 9090, host: null, model: null, help: false, freeOnly: false, token: null, rpm: 60, passthrough: [], fullMcp: false, localFidelity: null };
+  const opts = { provider: 'auto', port: 9090, host: null, model: null, help: false, freeOnly: false, token: null, rpm: 60, passthrough: [], fullMcp: false, localFidelity: null, localAgentic: false };
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -95,6 +95,12 @@ export function parseArgs(argv) {
     } else if (arg === '--full-mcp') {
       // Opt out of auto-MCP-suppression on local providers (keep global MCP servers)
       opts.fullMcp = true;
+    } else if (arg === '--local-agentic') {
+      // 0013/US-006: preset for agentic local coding — keep the Skill tool (--full-mcp),
+      // balanced skill-fidelity, and agentic env defaults (see applyLocalAgenticEnv).
+      opts.localAgentic = true;
+      opts.fullMcp = true;
+      if (!opts.localFidelity) opts.localFidelity = 'balanced';
     } else if (arg === '--local-fidelity' || arg.startsWith('--local-fidelity=')) {
       // Local skill-fidelity tier: lean | balanced | full (default balanced). 0010.
       const v = arg.includes('=') ? arg.split('=')[1] : argv[++i];
@@ -105,6 +111,16 @@ export function parseArgs(argv) {
   }
 
   return opts;
+}
+
+// 0013/US-006: apply the agentic-local env defaults WITHOUT overriding anything the user
+// set explicitly. No-op unless opts.localAgentic — so default behavior is unchanged.
+export function applyLocalAgenticEnv(env, opts = {}) {
+  if (!opts || !opts.localAgentic) return env;
+  if (env.LOCAL_REFUSAL_RETRY == null) env.LOCAL_REFUSAL_RETRY = 'on';
+  if (env.LOCAL_NUM_CTX == null) env.LOCAL_NUM_CTX = '65536';
+  if (env.LOCAL_FIDELITY == null) env.LOCAL_FIDELITY = opts.localFidelity || 'balanced';
+  return env;
 }
 
 // Decide whether to auto-strip global MCP servers for the current session.
@@ -258,6 +274,8 @@ ${C.magenta('  anymodel')} — universal AI coding tool
   ${C.bold('General Options:')}
     --port, -p      Port to check/connect (for presets, default: 9090)
     --full-mcp      Keep all globally-configured MCP servers (default on local: suppress global MCP)
+    --local-agentic Preset for agentic local coding: keeps the Skill tool (--full-mcp), balanced
+                    fidelity, refusal-retry on, 64K ctx, + guidance to relax hook-heavy repos.
     --local-fidelity <tier>  Local skill-fidelity: lean | balanced | full (default balanced).
                     balanced re-injects a compact skill catalog so skills auto-trigger on local models.
     --help, -h      Show this help
@@ -533,6 +551,13 @@ async function startProxyOnly(args) {
       process.exit(1);
     }
     process.env.LOCAL_FIDELITY = localFidelity;
+  }
+
+  // 0013/US-006: agentic-local preset — set env defaults + surface hook-relaxation guidance.
+  if (opts.localAgentic) {
+    applyLocalAgenticEnv(process.env, opts);
+    console.log(`${C.green('[anymodel]')} ${C.bold('--local-agentic')}: LOCAL_REFUSAL_RETRY=on, LOCAL_NUM_CTX=${process.env.LOCAL_NUM_CTX}, LOCAL_FIDELITY=${process.env.LOCAL_FIDELITY}, full MCP (Skill tool kept)`);
+    console.log(`${C.yellow('[anymodel]')} For SpecWeave/hook-heavy repos, relax local-hostile gates: set ${C.bold('incrementAssist.mandatory=false')} and drop "ALWAYS plan mode" / "SKILL FIRST (BLOCKING)" from the project CLAUDE.md — a local model cannot satisfy hard meta-directives and will loop.`);
   }
 
   let providerName = opts.provider;
