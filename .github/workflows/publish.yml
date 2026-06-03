@@ -17,6 +17,7 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
       - run: node --test test/*.test.mjs
+      - run: node scripts/brand-patch.mjs --check
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

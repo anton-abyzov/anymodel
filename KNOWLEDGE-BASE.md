@@ -162,6 +162,91 @@ failure modes. All gated/additive — cloud (OpenRouter) paths are untouched.
 **New env vars / flags:** `ANYMODEL_PARSE_TEXT_TOOLCALLS`, `ANYMODEL_UPSTREAM_TIMEOUT_MS`,
 `ANYMODEL_HOST` / `--host`, `ANYMODEL_MAX_BODY_BYTES`.
 
+## Universal Skill Loader (v1.16.0, `providers/skill-bridge.mjs`)
+
+SKILL.md is **one shared open standard** (agentskills.io): Claude Code, OpenAI/Codex,
+Google Gemini/Antigravity, Cursor, Copilot, and Goose all write the *same* format — a
+`<name>/SKILL.md` directory (YAML frontmatter + Markdown body, optional
+scripts/references/assets). Only the **discovery path** differs per tool. The bundled
+client only scans `.claude/skills`, so AnyModel bridges the other ecosystems at launch
+time with **zero format translation**.
+
+**How it works** (`providers/skill-bridge.mjs`, wired in `cli.mjs` `setupSkillBridge()`):
+1. **Discover** foreign skill roots under both the project cwd **and** `$HOME`, in
+   precedence order: `.agents/skills` (cross-tool interop convention — Codex, Cursor,
+   Copilot, Goose, Gemini CLI), `.codex/skills` (OpenAI Codex), `.gemini/skills`
+   (Gemini CLI), `.agent/skills` (Google Antigravity, singular). A skill is any
+   `<root>/<name>/` directory containing a `SKILL.md`. An optional Codex sidecar
+   (`<dir>/agents/openai.yaml`) is noted.
+2. **Symlink** each discovered skill into a per-session temp `.claude/skills` shadow.
+3. Pass that shadow to the client via **`--add-dir <shadow>`** — the client already
+   scans the `.claude/skills` of every added directory, so its native SKILL.md reader
+   + progressive disclosure handle everything. The temp dir is removed on exit.
+
+**`ANYMODEL_SKILL_ROOTS`** (new env var) — colon-separated paths that *add* discovery
+roots. Relative entries resolve against cwd (a relative root would otherwise produce a
+broken symlink); absolute entries are used as-is. Roots are de-duped (order preserved)
+and canonicalized via `realpathSync` so an aliased/symlinked root isn't double-scanned.
+
+**Collision & safety rules** (`planSkillBridge`, `discoverForeignSkills`):
+- **Project skills win**: a project-local `.claude/skills/<name>` shadows any foreign
+  skill of the same name (case-insensitive — the shadow may live on a case-insensitive
+  FS like APFS/NTFS).
+- Among foreign skills, the **first root wins** on a duplicate name; later duplicates
+  are shadowed. Both shadow reasons are logged (`N foreign skill(s) shadowed by name
+  conflict`).
+- **Symlink containment**: a symlinked skill entry must resolve *inside* its scanned
+  root, or it's skipped — an untrusted repo's `.codex/skills/x -> ~/.ssh` can't be
+  `--add-dir`'d into the driven model.
+- **Unlinkable skills** (e.g. Windows without symlink privilege) are recorded with
+  their errno and logged, never silently dropped; if *all* links fail the temp dir is
+  removed (no orphan).
+
+Best-effort throughout: skill discovery never blocks the client launch.
+
+## Reproducible Branding (v1.16.0, `scripts/brand-patch.mjs`)
+
+`cli.js` is a 13MB **minified** bundle (a re-branded Claude Code TUI). Branding used to
+be applied by hand-editing that blob — unmaintainable, because every upstream bundle
+refresh wiped the edits and vendor strings silently drifted (the "Opus now defaults to
+1M context" promo and the "Claude is now exploring…" plan-mode line both survived ~10
+hand patches and shipped to users running qwen).
+
+`scripts/brand-patch.mjs` replaces ad-hoc editing with a **declarative manifest**
+(`scripts/brand-patches.json`) + an applier that is reproducible, idempotent, and
+verifiable:
+- Each manifest entry is `{ id, category, adaptive, from, to, expect }`. The applier
+  **asserts each `from` appears exactly `expect` times** before touching anything — a
+  mismatch means upstream changed, so it fails loudly instead of corrupting the file.
+- **Model-adaptive patches** (`adaptive: true`) replace a static Anthropic string
+  literal with a JS expression that reads `process.env.ANYMODEL_MODEL` at render time,
+  so the UI shows whatever backend model the user loaded (default: qwen).
+- **Idempotent**: re-running is a no-op once `from` is gone and `to` is present.
+- **Atomic apply**: any drift (patch mismatch *or* denylist residual) → refuses to
+  write, leaving the bundle untouched; the result is re-validated with `node --check`
+  so a syntactically broken bundle can never ship.
+- **`VENDOR_DENYLIST` anti-regression sweep**: version-tolerant regexes for
+  user-visible vendor phrases (welcome banner, login titles, model-remap notices,
+  `(Claude Code)` version suffix) that must match **zero** times in a fully-branded
+  bundle — catches residuals the exact `from` anchors miss after an upstream version
+  bump.
+
+**`--check` CI gate**: `node scripts/brand-patch.mjs --check` is verify-only (never
+writes). It treats an un-applied patch as drift, runs the denylist sweep, and runs
+`node --check` on the bundle — non-zero exit on any drift. Apply mode:
+`node scripts/brand-patch.mjs` (defaults to `./cli.js`; takes an explicit path arg).
+
+## Project-Scoped Local Skill Index (`providers/skill-catalog.mjs`, increment 0016)
+
+On local providers AnyModel strips Claude Code's `<system-reminder>` skill catalog for
+latency, which kills skill auto-trigger. `providers/skill-catalog.mjs` re-injects a
+compact, budgeted, **deterministic** (name-sorted, date-free) skill index + a curated
+behavioral core into the system prefix, so it stays byte-stable for prefix-cache (KV)
+reuse. Increment 0016 adds **project scoping**: the default (`balanced`) index is
+restricted to the project's own `.claude/skills` + a SpecWeave workflow-core instead of
+~30 irrelevant global skills, keeping it small and query-independent. See LOCAL_SETUP.md
+(`--local-fidelity`, `LOCAL_SKILL_*` env vars) for the full tier/scope reference.
+
 ## Key Technical Decisions
 
 ### Why not just use OpenRouter's native Claude Code integration?
@@ -246,7 +331,12 @@ anymodel/
 ├── providers/
 │   ├── openrouter.mjs   # OpenRouter provider (passthrough)
 │   ├── ollama.mjs       # Ollama provider (OpenAI translation + num_ctx)
-│   └── openai.mjs       # OpenAI provider (full bidirectional translation)
+│   ├── openai.mjs       # OpenAI provider (full bidirectional translation)
+│   ├── skill-bridge.mjs # Universal SKILL.md loader (foreign roots → --add-dir shadow)
+│   └── skill-catalog.mjs # Project-scoped local skill index (re-injected system prefix)
+├── scripts/
+│   ├── brand-patch.mjs  # Reproducible cli.js branding applier (--check CI gate)
+│   └── brand-patches.json # Declarative branding patch manifest
 ├── site/
 │   ├── index.html       # anymodel.dev homepage
 │   ├── styles.css       # Site styles

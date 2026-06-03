@@ -18,3 +18,4 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
       - run: node --test test/*.test.mjs
+      - run: node scripts/brand-patch.mjs --check

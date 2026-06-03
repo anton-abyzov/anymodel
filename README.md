@@ -107,6 +107,26 @@ When you connect to a local provider, AnyModel automatically suppresses your glo
 
 See [LOCAL_SETUP.md](./LOCAL_SETUP.md) for the full guide, including 32 K context setup and full isolation.
 
+### Universal Skills (1.16.0+)
+
+`SKILL.md` is one shared open standard — Claude Code, OpenAI/Codex, Gemini/Antigravity, Cursor, and Copilot all read the same format (a `<name>/SKILL.md` directory with YAML frontmatter + Markdown body). AnyModel auto-discovers your skills no matter which tool's convention you used, with zero format translation.
+
+At launch, AnyModel scans these roots in both the project working directory **and** `$HOME`:
+
+```
+.claude/skills/    .agents/skills/    .codex/skills/    .gemini/skills/    .agent/skills/
+```
+
+Each discovered skill is symlinked into a per-session temp `.claude/skills` shadow that is passed to the client via `--add-dir`, so the client's native SKILL.md reader and progressive disclosure handle everything.
+
+- **Project wins on collision** — a project `.claude/skills/<name>` shadows a foreign-root skill of the same name.
+- **Duplicates and unlinkable skills are logged** — foreign-root name collisions and any skills that can't be symlinked are surfaced, not silently dropped.
+- **Add or override roots** with `ANYMODEL_SKILL_ROOTS` — a colon-separated list of absolute paths merged into discovery.
+
+```bash
+ANYMODEL_SKILL_ROOTS=/opt/shared/skills:/Users/me/extra/skills npx anymodel
+```
+
 ### OpenAI-Compatible APIs
 
 Works with OpenAI, Azure, Together, Groq, vLLM, and any OpenAI-compatible endpoint:
@@ -164,6 +184,7 @@ When proxying to Ollama, AnyModel automatically applies several optimizations to
 | `PROXY_PORT` | `9090` | Proxy port |
 | `ANYMODEL_CLIENT` | — | Path to custom client cli.js |
 | `ANYMODEL_TOKEN` | — | Auth token for remote mode |
+| `ANYMODEL_SKILL_ROOTS` | — | Colon-separated absolute paths added to skill discovery roots |
 | `OLLAMA_NUM_CTX` | `8192` | Ollama context window size |
 | `OLLAMA_KEEP_ALIVE` | `30m` | How long Ollama keeps model in GPU memory |
 | `OLLAMA_MAX_SYSTEM_CHARS` | `4000` | System prompt condensing threshold |

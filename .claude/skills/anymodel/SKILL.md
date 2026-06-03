@@ -98,6 +98,17 @@ Without sanitization, MCP tools break on non-Anthropic models. Claude Code sends
 
 When modifying the client: never break the violet identity. The diamond character and "AnyModel" branding are what distinguish this from standard Claude Code.
 
+### Branding (reproducible)
+
+`cli.js` is a 13MB minified bundle, so branding is NOT hand-edited anymore. It is applied declaratively and verifiably:
+
+- **`scripts/brand-patch.mjs`** — idempotent applier. Asserts each patch's `from` appears exactly `expect` times before touching anything (a mismatch means upstream changed → fail loudly), applies replacements, then re-parses with `node --check` so a broken bundle can never ship. Some patches are `adaptive`: they swap a static literal for a JS expression that reads `process.env.ANYMODEL_MODEL` at render time, so the UI reflects the loaded backend model.
+- **`scripts/brand-patches.json`** — the declarative manifest (data/code separation).
+- **`scripts/gen-brand-manifest.py`** — regenerates the manifest. Run it against a PRISTINE bundle (it computes each `expect` from live anchor counts and fails if any anchor is missing).
+- **`--check` gate** — `node scripts/brand-patch.mjs --check` is verify-only (CI anti-regression gate): non-zero exit on drift. Includes a version-tolerant vendor denylist sweep that catches residual user-visible vendor strings the exact `from` anchors miss (e.g. version-bumped model promos).
+
+User-facing UI text reads "AnyModel" (capital), while the package/command name stays lowercase. **Re-apply on every upstream `cli.js` bump** — a bundle refresh wipes all branding.
+
 ## Environment Variables
 
 | Variable | Purpose |
@@ -108,6 +119,7 @@ When modifying the client: never break the violet identity. The diamond characte
 | `ANYMODEL_CLIENT` | Explicit path to client binary |
 | `ANYMODEL_MODEL` | Model name displayed in client UI |
 | `ANYMODEL_TOKEN` | Auth token for remote proxy mode |
+| `ANYMODEL_SKILL_ROOTS` | Colon-separated extra/override skill discovery roots (absolute paths; relative resolved against cwd) for the universal skill loader |
 | `PROXY_PORT` | Default port override (default: 9090) |
 | `OLLAMA_NUM_CTX` | Ollama context size (default: 8192) |
 | `LOCAL_NUM_CTX` | LMStudio / llama.cpp context size (default: 32768) |
@@ -125,6 +137,16 @@ When `npx anymodel` connects, it finds the client in this order:
 4. Sibling repos (`../claude-code/cli.js`, `../claude-code-anymodel/cli.js`)
 5. Home directory (`~/claude-code-anymodel/cli.js`)
 6. Global `claude` binary (last resort fallback)
+
+## Universal Skill Loader (`providers/skill-bridge.mjs`)
+
+`SKILL.md` is ONE shared open standard — Claude Code, OpenAI/Codex, Gemini/Antigravity, Cursor and Copilot all read the same `<name>/SKILL.md` format (YAML frontmatter + Markdown body). Only the discovery path differs. The bundled client only scans `.claude/skills`, so instead of patching its minified loader, AnyModel bridges at launch time: it discovers foreign-ecosystem skills, symlinks each into a per-session temp `.claude/skills` shadow, and passes that shadow via `--add-dir`. Zero format translation — the client's native SKILL.md reader handles everything.
+
+- **Roots scanned** (under both project cwd AND `$HOME`, in precedence order): `.agents/skills`, `.codex/skills`, `.gemini/skills`, `.agent/skills` (Antigravity, singular). The project's own `.claude/skills` is read for collision precedence.
+- **`ANYMODEL_SKILL_ROOTS`** (colon-separated) appends/overrides extra discovery roots; relative entries resolve against cwd (a bare relative root would otherwise produce a broken symlink).
+- **Collision rules**: a project-local `.claude/skills/<name>` wins (foreign same-name is shadowed); among foreign roots the first occurrence of a name wins. Names are compared case-insensitively (macOS/Windows FS). Shadowed duplicates and unlinkable skills are logged, not silently dropped.
+- **Safety**: symlinked skill entries that resolve outside their scanned root are skipped (no exposing `~/.ssh` via an untrusted repo's `.codex/skills/x` link).
+- A project-scoped local skill index for context economy lives in `providers/skill-catalog.mjs` (increment 0016).
 
 ## Deployment Pipeline (MANDATORY)
 
@@ -250,6 +272,12 @@ anymodel/
     lmstudio.mjs       # LMStudio alias (:1234/v1)
     llamacpp.mjs       # llama.cpp alias (:8080/v1)
     prefix-cache.mjs   # Prefix-aware caching (increment 0004)
+    skill-bridge.mjs   # Universal skill loader — foreign skills → temp .claude/skills shadow + --add-dir
+    skill-catalog.mjs  # Project-scoped local skill index for context economy (increment 0016)
+  scripts/
+    brand-patch.mjs    # Idempotent, verifiable cli.js brand applier (--check CI gate)
+    brand-patches.json # Declarative brand-patch manifest
+    gen-brand-manifest.py # Regenerates the manifest from a pristine bundle
   site/
     index.html         # anymodel.dev homepage
     styles.css / script.js / sitemap.xml / robots.txt

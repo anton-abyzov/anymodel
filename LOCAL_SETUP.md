@@ -122,6 +122,7 @@ Or, if your project has `./.claude/.mcp.json`:
 | Project `./.claude/.mcp.json` MCP servers | ✅ loaded |
 | Global MCP servers (15+ from `~/.claude/settings.json`) | ❌ suppressed |
 | Project `./.claude/skills/*/SKILL.md` | ✅ loaded |
+| Foreign skill roots (`.agents` / `.codex` / `.gemini` / `.agent`, cwd + `$HOME`) | ✅ bridged ([see below](#universal-skill-discovery)) |
 | Project `./.claude/agents/*.md` | ✅ loaded |
 | Project `CLAUDE.md` | ✅ loaded |
 | Global `~/.claude/CLAUDE.md` | ⚠️ still loads (small, ~1 K tokens — acceptable) |
@@ -194,6 +195,52 @@ your-project/
   }
 }
 ```
+
+## Universal skill discovery
+
+SKILL.md is one shared open standard — Claude Code, OpenAI/Codex, Gemini/Antigravity,
+Cursor, and Copilot all write the same `<name>/SKILL.md` format. Since `anymodel@1.16.0`,
+AnyModel auto-discovers skills from the **other ecosystems'** roots and bridges them into
+the bundled client with **zero format translation**. No flags needed.
+
+It scans these foreign roots, in precedence order, under **both** the project cwd **and**
+`$HOME`:
+
+| Root | Ecosystem |
+|---|---|
+| `.agents/skills/` | cross-tool interop (Codex, Cursor, Copilot, Goose, Gemini CLI) |
+| `.codex/skills/` | OpenAI Codex |
+| `.gemini/skills/` | Gemini CLI |
+| `.agent/skills/` | Google Antigravity (singular) |
+
+Each discovered `<root>/<name>/SKILL.md` is symlinked into a per-session temp
+`.claude/skills` shadow that AnyModel passes to the client via `--add-dir`, so the
+client's native SKILL.md reader picks it up. You'll see a launch line like:
+
+```
+[anymodel] Bridged 3 skill(s) from .agents/.codex/.gemini: my-skill, codex-skill, gem-skill
+```
+
+**Rules:**
+- Project `./.claude/skills/<name>` **wins** on a name collision (case-insensitive);
+  among foreign roots the first one wins, and shadowed duplicates are logged.
+- Symlinked skill entries must resolve *inside* their scanned root (an untrusted repo
+  can't point a "skill" at `~/.ssh`); escapers are skipped.
+- Unlinkable skills (e.g. Windows without symlink privilege) are logged, never silently
+  dropped.
+
+### `ANYMODEL_SKILL_ROOTS` — add or override discovery roots
+
+Colon-separated paths add extra skill-discovery roots beyond the conventional ones:
+
+```bash
+# absolute roots used as-is; relative roots resolve against cwd
+ANYMODEL_SKILL_ROOTS="$HOME/work/shared-skills:./vendor/skills" anymodel
+```
+
+Use it to share one skill library across projects, or to point at a non-standard layout.
+Roots are de-duped (order preserved) and the project's own `.claude/skills` still wins on
+any name collision.
 
 ## Troubleshooting
 
