@@ -2,19 +2,7 @@
 // Shared logic for both CF Workers and local testing
 // Uses fetch() API — no Node.js http/https modules
 
-export const FREE_MODELS = [
-  'openrouter/free',
-  'qwen/qwen3-coder:free',
-  'qwen/qwen3.6-plus:free',
-  'openai/gpt-oss-120b:free',
-  'nvidia/nemotron-3-super-120b-a12b:free',
-  'meta-llama/llama-3.3-70b-instruct:free',
-  'google/gemma-3-27b-it:free',
-  'qwen/qwen3-next-80b-a3b-instruct:free',
-  'nousresearch/hermes-3-llama-3.1-405b:free',
-  'stepfun/step-3.5-flash:free',
-  'minimax/minimax-m2.5:free',
-];
+export const DEFAULT_FREE_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
 
 export function checkAuth(headers, token) {
   if (!token) return true;
@@ -27,7 +15,7 @@ export function checkAuth(headers, token) {
 export function isFreeTierModel(modelId, freeOnly) {
   if (!freeOnly) return true;
   if (!modelId) return false;
-  return modelId.endsWith(':free') || FREE_MODELS.includes(modelId);
+  return modelId === 'openrouter/free' || modelId.endsWith(':free');
 }
 
 // Rate limiter factory — returns a stateful checker
@@ -202,7 +190,7 @@ export async function handleRequest(request, env) {
   if (model) body.model = model;
 
   // Free-only: auto-replace paid models with best free model
-  const defaultFreeModel = env.DEFAULT_FREE_MODEL || FREE_MODELS[0];
+  const defaultFreeModel = env.DEFAULT_FREE_MODEL || DEFAULT_FREE_MODEL;
   if (freeOnly && !isFreeTierModel(body.model, true)) {
     const originalModel = body.model;
     body.model = defaultFreeModel;

@@ -10,7 +10,7 @@
 - **Package**: `anymodel` on npm
 - **Website**: https://anymodel.dev
 - **GitHub (proxy)**: https://github.com/anton-abyzov/anymodel
-- **GitHub (client)**: https://github.com/antonoly/claude-code-anymodel (expendable account — DMCA risk)
+- **Client bundle**: `cli.js` in this repo/package is the shipped Claude Code-compatible TUI
 - **Author**: Anton Abyzov (@aabyzov on X, @AntonAbyzov on YouTube)
 - **YouTube channel**: Anton Abyzov: AI Power — https://youtube.com/@AntonAbyzov
 - **License**: MIT
@@ -65,12 +65,12 @@ npx anymodel claude                 # run with native Claude (no proxy)
 
 What the proxy does to every request:
 
-1. **Strips**: `betas`, `metadata`, `speed`, `output_config`, `context_management`
+1. **Strips**: `betas`, `metadata`, `speed`, raw `output_config`, `context_management`; preserves `output_config.effort` internally for compatible OpenAI forwarding
 2. **Preserves**: `thinking` (for reasoning models like DeepSeek R1)
 3. **cache_control**: Preserved for OpenRouter, stripped for Ollama/OpenAI
 4. **max_tokens**: Clamped to minimum 16 (GPT requires ≥16, Claude Code sends 1 for probes)
 5. **max_output_tokens**: Also clamped to minimum 16
-6. **Tool schemas**: Fixes empty `properties: {}`, missing `properties`, missing `input_schema`, recursive nested schemas. Adds `_unused` placeholder, strips it from responses.
+6. **Tool schemas**: Fixes empty `properties: {}`, missing `properties`, missing `input_schema`, and recursive nested schemas using `{ additionalProperties:false }` for empty object schemas. No `_unused` placeholder injection or stripping.
 7. **tool_choice**: Normalizes string to object format
 8. **Local-provider tool handling** (Ollama, LMStudio, llama.cpp): since v1.12.0, **capability-aware passthrough instead of blanket strip**. Controlled by `OLLAMA_TOOLS` env var — `auto` (default, try + cache per-model), `on` (always pass), `off` (legacy, always strip). Tools are then compressed and budget-trimmed via `providers/tool-compressor.mjs` so schemas fit local context windows. Core tools (Bash, Read, Write, Edit) are always retained. `tool_choice` is always removed for Ollama.
 9. **Auto-retry without tools**: When provider returns "No endpoints found that support tool use" / "does not support tools", proxy retries with tools removed AND caches the model as no-tool-support (skips retry on subsequent calls)
@@ -90,9 +90,7 @@ When `npx anymodel` connects, it finds the client in this order:
 1. `ANYMODEL_CLIENT` env var (explicit path)
 2. `cli.js` next to `cli.mjs` (bundled in npm package)
 3. `cli.js` in current directory
-4. Sibling repos (`../claude-code/cli.js`, `../claude-code-anymodel/cli.js`)
-5. Home directory (`~/claude-code-anymodel/cli.js`)
-6. Global `claude` binary (last resort fallback)
+4. Global `claude` binary (last resort fallback)
 
 ## connectToProxy() Flow
 
@@ -101,6 +99,7 @@ When `npx anymodel` connects, it finds the client in this order:
 3. Query model name from health response
 4. Find client via `findClient()`
 5. Launch client with `ANTHROPIC_BASE_URL=http://localhost:{port}` and `ANYMODEL_MODEL={model}`
+6. Forward `--effort` as OpenAI `reasoning_effort` only for compatible OpenAI reasoning/codex models; local providers opt out by default.
 
 ## Ollama-Specific Behavior
 
@@ -299,7 +298,7 @@ Claude Code sends `max_tokens: 1` for initial probe requests. OpenAI/GPT rejects
 - **AnyModel website**: https://anymodel.dev
 - **AnyModel npm**: https://npmjs.com/package/anymodel
 - **AnyModel GitHub**: https://github.com/anton-abyzov/anymodel
-- **Client GitHub**: https://github.com/antonoly/claude-code-anymodel
+- **Client bundle**: `cli.js` in this repo/package
 - **SpecWeave**: https://spec-weave.com
 - **Verified Skills**: https://verified-skill.com
 - **OpenRouter**: https://openrouter.ai/keys
@@ -314,11 +313,10 @@ Claude Code sends `max_tokens: 1` for initial probe requests. OpenAI/GPT rejects
 ## Deployment Checklist
 
 Every change MUST:
-1. `node --test test/*.test.mjs` — all 93 tests pass
+1. `npm test` — root + Worker tests pass
 2. `git add && git commit && git push` — to GitHub
 3. `npm version patch && npm run sync-version && npm publish` — to npm (syncs cli.js version)
 4. `vercel --prod` — deploys anymodel.dev (if site/ changed)
-5. Sync cli.js to claude-code-anymodel repo if changed
 
 ## File Structure
 

@@ -20,7 +20,7 @@ npm i -g anymodel
 npm update -g anymodel
 ```
 
-From here on this guide uses plain `anymodel` instead of `anymodel`. If you prefer `npx`, substitute `anymodel` anywhere you see `anymodel`.
+From here on this guide uses plain `anymodel` instead of `npx anymodel`. If you prefer `npx`, substitute `npx anymodel` anywhere you see `anymodel`.
 
 ## Prerequisites
 
@@ -29,9 +29,9 @@ From here on this guide uses plain `anymodel` instead of `anymodel`. If you pref
 | Apple Silicon Mac, ≥32 GB RAM | `sysctl -n hw.memsize` → at least `34359738368` |
 | LMStudio installed | `open /Applications/LM\ Studio.app` |
 | `lms` CLI on PATH | `which lms` (see [setup](#step-0) below) |
-| Claude Code installed | `which claude` |
+| Claude-compatible client | bundled `cli.js` ships with AnyModel; `which claude` is only the fallback |
 | Node ≥ 20 | `node --version` |
-| `anymodel@1.11.1+` | `anymodel --help` should list `--full-mcp` |
+| `anymodel@1.16.0+` | `anymodel --help` should list `--local-fidelity` |
 
 ## Step 0 — Make `lms` globally available (one-time)
 
@@ -272,6 +272,17 @@ Set any of these env vars on the `npx anymodel proxy lmstudio` command (Terminal
 | `LOCAL_PROJECT_DIR` | cwd | Where the proxy reads `.claude/skills/` for project scope |
 | `LOCAL_SKILL_SCOPE` | derived | `project` \| `all` — override scope independent of tier |
 | `LOCAL_SKILL_ALWAYS` | sw:* essentials | Comma list of skills always kept in project scope |
+| `ANYMODEL_FORWARD_EFFORT` | auto | Force `--effort` forwarding to OpenAI-compatible Chat as `reasoning_effort` (`1`/`0`) |
+
+## Effort and thinking
+
+Claude Code still owns the UI for `--effort` and `/effort`. AnyModel preserves that field internally, strips raw `output_config` before provider egress, and forwards effort only where it is safe:
+
+- OpenAI provider + compatible OpenAI reasoning/codex model: forwarded as `reasoning_effort`
+- LMStudio / llama.cpp / Ollama: not forwarded by default, because many local servers reject unknown request fields
+- OpenRouter Anthropic-wire mode: raw `output_config` is stripped for compatibility
+
+Use `ANYMODEL_FORWARD_EFFORT=1` only for an OpenAI-compatible endpoint you know accepts `reasoning_effort`.
 
 ## Skill auto-trigger on local models (`--local-fidelity`)
 

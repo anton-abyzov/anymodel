@@ -140,6 +140,8 @@ npx anymodel
 
 Bidirectional translation: Anthropic Messages API ↔ OpenAI Chat Completions.
 
+Claude Code `--effort` / `/effort` is forwarded as OpenAI `reasoning_effort` for compatible OpenAI reasoning/codex models on the official OpenAI API. Local OpenAI-compatible servers do not receive it by default; set `ANYMODEL_FORWARD_EFFORT=1` only if your endpoint accepts that field.
+
 ## CLI Reference
 
 ```
@@ -182,9 +184,10 @@ When proxying to Ollama, AnyModel automatically applies several optimizations to
 | `LMSTUDIO_BASE_URL` | `http://localhost:1234/v1` | LMStudio endpoint override |
 | `LLAMACPP_BASE_URL` | `http://localhost:8080/v1` | llama.cpp (`llama-server`) endpoint override |
 | `PROXY_PORT` | `9090` | Proxy port |
-| `ANYMODEL_CLIENT` | — | Path to custom client cli.js |
+| `ANYMODEL_CLIENT` | — | Path to custom Claude-compatible client; otherwise AnyModel uses bundled `cli.js`, cwd `cli.js`, then global `claude` |
 | `ANYMODEL_TOKEN` | — | Auth token for remote mode |
 | `ANYMODEL_SKILL_ROOTS` | — | Colon-separated absolute paths added to skill discovery roots |
+| `ANYMODEL_FORWARD_EFFORT` | auto | `1`/`0` override for forwarding Claude effort as OpenAI `reasoning_effort` |
 | `OLLAMA_NUM_CTX` | `8192` | Ollama context window size |
 | `OLLAMA_KEEP_ALIVE` | `30m` | How long Ollama keeps model in GPU memory |
 | `OLLAMA_MAX_SYSTEM_CHARS` | `4000` | System prompt condensing threshold |

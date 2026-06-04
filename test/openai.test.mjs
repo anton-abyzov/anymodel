@@ -4,6 +4,9 @@ import {
   translateRequest,
   translateResponse,
   createStreamTranslator,
+  INTERNAL_EFFORT_FIELD,
+  normalizeReasoningEffort,
+  shouldForwardReasoningEffort,
 } from '../providers/openai.mjs';
 
 // ── translateRequest ────────────────────────────────────
@@ -206,6 +209,53 @@ describe('translateRequest', () => {
   it('omits temperature when not set', () => {
     const result = translateRequest({ model: 'x' });
     assert.equal(result.temperature, undefined);
+  });
+
+  it('maps preserved Claude effort to OpenAI reasoning_effort when enabled', () => {
+    const body = { model: 'gpt-5.4', messages: [] };
+    Object.defineProperty(body, INTERNAL_EFFORT_FIELD, {
+      value: 'medium',
+      enumerable: false,
+    });
+    const result = translateRequest(body, { effortCapable: true });
+    assert.equal(result.reasoning_effort, 'medium');
+  });
+
+  it('downgrades max effort to high for OpenAI Chat compatibility', () => {
+    const body = { model: 'gpt-5.4', messages: [] };
+    Object.defineProperty(body, INTERNAL_EFFORT_FIELD, {
+      value: 'max',
+      enumerable: false,
+    });
+    const result = translateRequest(body, { effortCapable: true });
+    assert.equal(result.reasoning_effort, 'high');
+  });
+
+  it('does not forward preserved effort unless the provider opts in', () => {
+    const body = { model: 'qwen3-coder', messages: [] };
+    Object.defineProperty(body, INTERNAL_EFFORT_FIELD, {
+      value: 'high',
+      enumerable: false,
+    });
+    const result = translateRequest(body);
+    assert.equal(result.reasoning_effort, undefined);
+  });
+
+  it('recognizes only string effort levels that OpenAI Chat accepts', () => {
+    assert.equal(normalizeReasoningEffort('low'), 'low');
+    assert.equal(normalizeReasoningEffort('medium'), 'medium');
+    assert.equal(normalizeReasoningEffort('high'), 'high');
+    assert.equal(normalizeReasoningEffort('max'), 'high');
+    assert.equal(normalizeReasoningEffort(100), null);
+    assert.equal(normalizeReasoningEffort('ultra'), null);
+  });
+
+  it('auto-forwards effort only for OpenAI reasoning/codex models on OpenAI API', () => {
+    assert.equal(shouldForwardReasoningEffort('gpt-5.4', { baseUrl: 'https://api.openai.com/v1', env: {} }), true);
+    assert.equal(shouldForwardReasoningEffort('openai/gpt-5.3-codex', { baseUrl: 'https://api.openai.com/v1', env: {} }), true);
+    assert.equal(shouldForwardReasoningEffort('gpt-4o', { baseUrl: 'https://api.openai.com/v1', env: {} }), false);
+    assert.equal(shouldForwardReasoningEffort('gpt-5.4', { baseUrl: 'http://127.0.0.1:1234/v1', env: {} }), false);
+    assert.equal(shouldForwardReasoningEffort('anything', { baseUrl: 'http://127.0.0.1:1234/v1', env: { ANYMODEL_FORWARD_EFFORT: '1' } }), true);
   });
 
   it('handles empty messages array', () => {

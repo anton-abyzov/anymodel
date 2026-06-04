@@ -4,6 +4,35 @@
 
 // ── Request translation (Anthropic → OpenAI) ────────────
 
+export const INTERNAL_EFFORT_FIELD = '__anymodel_effort';
+
+export function normalizeReasoningEffort(effort) {
+  if (typeof effort !== 'string') return null;
+  const normalized = effort.toLowerCase();
+  if (normalized === 'low' || normalized === 'medium' || normalized === 'high') return normalized;
+  if (normalized === 'max') return 'high';
+  return null;
+}
+
+export function shouldForwardReasoningEffort(model, {
+  env = process.env,
+  baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+} = {}) {
+  const mode = String(env.ANYMODEL_FORWARD_EFFORT || '').toLowerCase();
+  if (['1', 'true', 'on', 'yes'].includes(mode)) return true;
+  if (['0', 'false', 'off', 'no'].includes(mode)) return false;
+
+  try {
+    const host = new URL(baseUrl).hostname;
+    if (!/(^|\.)api\.openai\.com$/i.test(host)) return false;
+  } catch {
+    return false;
+  }
+
+  const m = String(model || '').toLowerCase();
+  return /(^|[/_-])(gpt-5|o[1-9])/.test(m) || m.includes('codex');
+}
+
 // P1.2: resolve an Anthropic image block to an OpenAI `image_url` data/URL string.
 // base64 → data: URI; url source → the URL verbatim. Returns null for an
 // unknown/undefined source so the caller can substitute a visible marker instead
@@ -119,7 +148,7 @@ export function extractToolResultParts(block, { visionCapable = true } = {}) {
   return { text, imageUrls };
 }
 
-export function translateRequest(anthropicBody, { visionCapable = true } = {}) {
+export function translateRequest(anthropicBody, { visionCapable = true, effortCapable = false } = {}) {
   const openaiBody = {
     model: anthropicBody.model,
     // P1.4: fall back to the newer `max_output_tokens` when `max_tokens` is absent.
@@ -240,6 +269,9 @@ export function translateRequest(anthropicBody, { visionCapable = true } = {}) {
 
   // Temperature
   if (anthropicBody.temperature !== undefined) openaiBody.temperature = anthropicBody.temperature;
+
+  const effort = effortCapable ? normalizeReasoningEffort(anthropicBody[INTERNAL_EFFORT_FIELD]) : null;
+  if (effort) openaiBody.reasoning_effort = effort;
 
   // P1.4: sampling parity. The real-world bite is `stop_sequences` — a local Qwen
   // loop relying on stop tokens over-generates without it. OpenRouter (native
@@ -866,7 +898,10 @@ export default {
 
   // Transform the body before sending (Anthropic → OpenAI)
   transformRequest(body) {
-    return translateRequest(body);
+    const baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
+    return translateRequest(body, {
+      effortCapable: shouldForwardReasoningEffort(body?.model, { baseUrl }),
+    });
   },
 
   // Transform response back (OpenAI → Anthropic)

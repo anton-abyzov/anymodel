@@ -25,6 +25,21 @@ const C = {
   bold: s => `\x1b[1m${s}\x1b[0m`,
 };
 
+// Internal, non-enumerable bridge from Claude Code's `output_config.effort` to
+// provider-specific request knobs. JSON.stringify will not leak it.
+export const INTERNAL_EFFORT_FIELD = '__anymodel_effort';
+
+export function copyInternalEffort(source, target) {
+  if (source?.[INTERNAL_EFFORT_FIELD] === undefined || !target) return target;
+  Object.defineProperty(target, INTERNAL_EFFORT_FIELD, {
+    value: source[INTERNAL_EFFORT_FIELD],
+    enumerable: false,
+    configurable: true,
+    writable: true,
+  });
+  return target;
+}
+
 // P1.6: canonical Anthropic error envelope. Claude Code keys its error handling
 // — especially retry/backoff on 429/5xx — off the Anthropic shape
 // `{type:"error", error:{type,message}}` and a recognized `error.type`. Flat
@@ -156,6 +171,10 @@ export function sanitizeToolUseResponse(respObj) {
 // Strip Anthropic-specific fields that break non-Anthropic providers
 // keepCache=true preserves cache_control for providers that support it (OpenRouter → Anthropic models)
 export function sanitizeBody(body, { keepCache = false } = {}) {
+  const effort = body.output_config?.effort;
+  if (effort !== undefined) {
+    copyInternalEffort({ [INTERNAL_EFFORT_FIELD]: effort }, body);
+  }
   delete body.betas;
   delete body.metadata;
   delete body.speed;
@@ -798,7 +817,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
             cacheResult(parsed.model, false);
             console.log(`${C.yellow(`[${provider.name.toUpperCase()}]`)} Cached: ${parsed.model} does not support tools`);
           }
-          const noToolsBody = { ...parsed };
+          const noToolsBody = copyInternalEffort(parsed, { ...parsed });
           delete noToolsBody.tools;
           delete noToolsBody.tool_choice;
           const noToolsRequest = provider.transformRequest ? provider.transformRequest(noToolsBody) : noToolsBody;

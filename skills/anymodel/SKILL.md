@@ -20,7 +20,7 @@ This skill contains everything you need: architecture, conventions, deployment r
 - **Package**: `anymodel` on npm
 - **Website**: https://anymodel.dev
 - **GitHub (proxy)**: https://github.com/anton-abyzov/anymodel
-- **GitHub (client)**: https://github.com/antonoly/claude-code-anymodel
+- **Client bundle**: `cli.js` in this repo/package is the shipped Claude Code-compatible TUI
 - **Author**: Anton Abyzov (@aabyzov on X, @AntonAbyzov on YouTube)
 - **License**: MIT
 
@@ -35,13 +35,15 @@ Three components:
 2. **CLI** (`cli.mjs`) — entry point for starting proxy, connecting, managing presets
 3. **Bundled client** (`cli.js`) — modified Claude Code client with violet diamond character and AnyModel branding
 
-### Three Providers
+### Providers
 
 | Provider | File | API Format | Key Behavior |
 |----------|------|-----------|--------------|
 | **OpenRouter** | `providers/openrouter.mjs` | Anthropic passthrough | Preserves `cache_control`, 300+ cloud models |
-| **Ollama** | `providers/ollama.mjs` | OpenAI `/v1/chat/completions` | Injects `num_ctx=8192`, strips all 86 tools |
+| **Ollama** | `providers/ollama.mjs` | OpenAI `/v1/chat/completions` | Injects `num_ctx=8192`, capability-aware tool passthrough (v1.12.0+) |
 | **OpenAI** | `providers/openai.mjs` | OpenAI format | Full bidirectional Anthropic <-> OpenAI translation |
+| **LMStudio** | `providers/lmstudio.mjs` | OpenAI (via local factory) | Delegates to OpenAI translator, `:1234/v1` default |
+| **llama.cpp** | `providers/llamacpp.mjs` | OpenAI (via local factory) | Delegates to OpenAI translator, `:8080/v1` default |
 
 ### Presets (update version in KNOWLEDGE-BASE.md when changing)
 
@@ -65,24 +67,27 @@ The `sanitizeBody()` function is the heart of AnyModel. It makes any model work 
 
 ### What it does (in order):
 
-1. **Strips Anthropic-only fields**: `betas`, `metadata`, `speed`, `output_config`, `context_management`
+1. **Strips Anthropic-only fields**: `betas`, `metadata`, `speed`, raw `output_config`, `context_management`; preserves `output_config.effort` internally for compatible OpenAI forwarding
 2. **Preserves `thinking`** — reasoning models (DeepSeek R1) need this for chain-of-thought
 3. **Preserves `cache_control`** for OpenRouter (Anthropic models support it), strips for Ollama/OpenAI
 4. **Clamps `max_tokens`** to minimum 16 — Claude Code sends `max_tokens: 1` for probes, OpenAI/GPT rejects anything below 16
 5. **Fixes tool schemas**:
-   - Missing `input_schema` entirely -> adds minimal valid schema with `_unused` placeholder
-   - Empty `properties: {}` -> adds `_unused` placeholder (OpenAI rejects empty properties)
+   - Missing `input_schema` entirely -> adds a minimal object schema
+   - Empty `properties: {}` -> keeps it empty and adds `additionalProperties:false`
    - Missing `type` field -> adds `"type": "object"`
    - Recursively fixes nested schemas (`anyOf`, `oneOf`, `allOf`, `items`)
-   - Strips `_unused` from tool_use responses so the client never sees it
+   - Never injects or strips `_unused`; real `_unused` params must round-trip
 6. **Strips Anthropic-only tool fields**: `cache_control`, `defer_loading`, `eager_input_streaming`, `strict`
 7. **Normalizes `tool_choice`**: converts string format to object format
-8. **Ollama: strips all 86 tools** — local models can't use MCP tools, and 50K tokens of schemas adds 30-60s overhead
-9. **Auto-retry without tools** — when model returns "No endpoints found that support tool use", retries with tools removed
+8. **Local providers (Ollama, LMStudio, llama.cpp): capability-aware tool passthrough** — since v1.12.0 the proxy no longer blanket-strips tools. Behavior is controlled by `OLLAMA_TOOLS` env var (`auto` default, `on`, `off`). In `auto` mode, the proxy tries tools and caches per-model capability; on "does not support tools" errors it retries without tools and remembers that model as no-tool-support. Tools are then compressed and budget-trimmed via `providers/tool-compressor.mjs` to fit local context windows (core tools Bash/Read/Write/Edit always kept). Translation: Anthropic tool definitions -> OpenAI function format -> Ollama `message.tool_calls[]` -> translated back to Anthropic `tool_use` content blocks with `stop_reason: "tool_use"`. Streaming supported.
+9. **`tool_choice` always stripped for Ollama** — Ollama doesn't support `tool_choice`; proxy removes it unconditionally.
+10. **Auto-retry without tools** — if a provider returns "No endpoints found that support tool use" / "does not support tools", proxy retries with tools removed AND caches model as no-tool-support.
 
 ### Why this matters
 
-Without sanitization, MCP tools break on non-Anthropic models. Claude Code sends 86 tool definitions including MCP servers (Slack, Figma, Gmail, etc.) with every request. The proxy ensures these schemas are valid for the target model, so MCP works seamlessly through any provider.
+Without sanitization, MCP tools break on non-Anthropic models. Claude Code sends 80+ tool definitions including MCP servers (Slack, Figma, Gmail, etc.) with every request. The proxy ensures these schemas are valid for the target model, so MCP works seamlessly through any provider — including local Ollama/LMStudio/llama.cpp models that support function calling (Qwen 3/Coder, Llama 3.1+, Mistral, DeepSeek R1, Gemma 4).
+
+**Regression guard:** `test/ollama-tool-passthrough.test.mjs` asserts that in `auto` mode with an uncached model, tools are forwarded (not stripped). See also `test/ollama-tools.test.mjs` for the capability-cache logic.
 
 ## Client Identity
 
@@ -104,6 +109,7 @@ When modifying the client: never break the violet identity. The diamond characte
 | `ANYMODEL_CLIENT` | Explicit path to client binary |
 | `ANYMODEL_MODEL` | Model name displayed in client UI |
 | `ANYMODEL_TOKEN` | Auth token for remote proxy mode |
+| `ANYMODEL_FORWARD_EFFORT` | Force `--effort` forwarding as OpenAI `reasoning_effort` (`1`/`0`; auto by default) |
 | `PROXY_PORT` | Default port override (default: 9090) |
 | `OLLAMA_NUM_CTX` | Ollama context size (default: 8192) |
 
@@ -113,9 +119,7 @@ When `npx anymodel` connects, it finds the client in this order:
 1. `ANYMODEL_CLIENT` env var (explicit path)
 2. `cli.js` next to `cli.mjs` (bundled in npm package)
 3. `cli.js` in current directory
-4. Sibling repos (`../claude-code/cli.js`, `../claude-code-anymodel/cli.js`)
-5. Home directory (`~/claude-code-anymodel/cli.js`)
-6. Global `claude` binary (last resort fallback)
+4. Global `claude` binary (last resort fallback)
 
 ## Deployment Pipeline (MANDATORY)
 
@@ -123,7 +127,7 @@ Every change MUST follow this pipeline. Never skip steps, never publish without 
 
 ```bash
 # 1. Run all tests
-node --test test/*.test.mjs
+npm test
 
 # 2. Commit and push
 git add <changed-files>
@@ -138,8 +142,6 @@ npm publish
 # 4. Deploy website (only if site/ changed)
 vercel --prod
 
-# 5. Sync client repo (only if cli.js changed)
-# Copy cli.js to claude-code-anymodel repo
 ```
 
 The `prepublishOnly` script in package.json handles version syncing. After `npm version patch`, run `npm run sync-version` to update the version in the bundled client, then `npm publish`.
@@ -171,8 +173,8 @@ The `prepublishOnly` script in package.json handles version syncing. After `npm 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `max_tokens` error | Claude Code sends `max_tokens: 1` for probes | Proxy clamps to 16 — check `sanitizeBody()` |
-| Tool use fails on GPT | Empty `properties: {}` in tool schema | Proxy adds `_unused` placeholder — check tool sanitization |
-| Ollama extremely slow | 86 tool schemas adding 50K tokens | Proxy strips tools — check Ollama provider |
+| Tool use fails on GPT | Invalid or missing tool schema fields | Proxy normalizes schemas without placeholder hacks — check `sanitizeBody()` |
+| Ollama extremely slow | Default 8K context overflowed by big system prompts/tools | Bump `OLLAMA_NUM_CTX=32768`; tool compressor trims schemas to ~30% of ctx |
 | "No endpoints found" | Model doesn't support tool use | Proxy auto-retries without tools |
 | Streaming breaks | Response format mismatch | Check provider's `transformResponse` — Anthropic SSE vs OpenAI SSE |
 | `cache_control` errors | Non-Anthropic model rejecting cache hints | Check `keepCache` flag in `sanitizeBody()` |
@@ -209,7 +211,7 @@ Claude subscriptions no longer cover third-party tools. AnyModel proxy mode is N
 | AnyModel website | https://anymodel.dev |
 | AnyModel npm | https://npmjs.com/package/anymodel |
 | AnyModel GitHub | https://github.com/anton-abyzov/anymodel |
-| Client GitHub | https://github.com/antonoly/claude-code-anymodel |
+| Client bundle | `cli.js` in this repo/package |
 | SpecWeave | https://spec-weave.com |
 | Verified Skills | https://verified-skill.com |
 | OpenRouter keys | https://openrouter.ai/keys |
@@ -243,7 +245,7 @@ anymodel/
 Run all tests before any commit:
 
 ```bash
-node --test test/*.test.mjs
+npm test
 ```
 
 Tests cover: sanitization, tool schema fixing, provider translation, preset resolution, max_tokens clamping, streaming, error handling. When adding features, add corresponding tests. The test count should only go up.

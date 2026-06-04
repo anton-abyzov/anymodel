@@ -19,7 +19,7 @@ This skill contains everything you need: architecture, conventions, deployment r
 - **Package**: `anymodel` on npm
 - **Website**: https://anymodel.dev
 - **GitHub (proxy)**: https://github.com/anton-abyzov/anymodel
-- **GitHub (client)**: https://github.com/antonoly/claude-code-anymodel
+- **Client bundle**: `cli.js` in this repo/package is the shipped Claude Code-compatible TUI
 - **Author**: Anton Abyzov (@aabyzov on X, @AntonAbyzov on YouTube)
 - **License**: MIT
 
@@ -66,16 +66,16 @@ The `sanitizeBody()` function is the heart of AnyModel. It makes any model work 
 
 ### What it does (in order):
 
-1. **Strips Anthropic-only fields**: `betas`, `metadata`, `speed`, `output_config`, `context_management`
+1. **Strips Anthropic-only fields**: `betas`, `metadata`, `speed`, raw `output_config`, `context_management`; preserves `output_config.effort` internally for compatible OpenAI forwarding
 2. **Preserves `thinking`** — reasoning models (DeepSeek R1) need this for chain-of-thought
 3. **Preserves `cache_control`** for OpenRouter (Anthropic models support it), strips for Ollama/OpenAI
 4. **Clamps `max_tokens`** to minimum 16 — Claude Code sends `max_tokens: 1` for probes, OpenAI/GPT rejects anything below 16
 5. **Fixes tool schemas**:
-   - Missing `input_schema` entirely -> adds minimal valid schema with `_unused` placeholder
-   - Empty `properties: {}` -> adds `_unused` placeholder (OpenAI rejects empty properties)
+   - Missing `input_schema` entirely -> adds a minimal object schema
+   - Empty `properties: {}` -> keeps it empty and adds `additionalProperties:false`
    - Missing `type` field -> adds `"type": "object"`
    - Recursively fixes nested schemas (`anyOf`, `oneOf`, `allOf`, `items`)
-   - Strips `_unused` from tool_use responses so the client never sees it
+   - Never injects or strips `_unused`; real `_unused` params must round-trip
 6. **Strips Anthropic-only tool fields**: `cache_control`, `defer_loading`, `eager_input_streaming`, `strict`
 7. **Normalizes `tool_choice`**: converts string format to object format
 8. **Local providers (Ollama, LMStudio, llama.cpp): capability-aware tool passthrough** — since v1.12.0 the proxy no longer blanket-strips tools. Behavior is controlled by `OLLAMA_TOOLS` env var (`auto` default, `on`, `off`). In `auto` mode, the proxy tries tools and caches per-model capability; on "does not support tools" errors it retries without tools and remembers that model as no-tool-support. Tools are then compressed and budget-trimmed via `providers/tool-compressor.mjs` to fit local context windows (core tools Bash/Read/Write/Edit always kept). Translation: Anthropic tool definitions → OpenAI function format → Ollama `message.tool_calls[]` → translated back to Anthropic `tool_use` content blocks with `stop_reason: "tool_use"`. Streaming supported.
@@ -120,6 +120,7 @@ User-facing UI text reads "AnyModel" (capital), while the package/command name s
 | `ANYMODEL_MODEL` | Model name displayed in client UI |
 | `ANYMODEL_TOKEN` | Auth token for remote proxy mode |
 | `ANYMODEL_SKILL_ROOTS` | Colon-separated extra/override skill discovery roots (absolute paths; relative resolved against cwd) for the universal skill loader |
+| `ANYMODEL_FORWARD_EFFORT` | Force `--effort` forwarding as OpenAI `reasoning_effort` (`1`/`0`; auto by default) |
 | `PROXY_PORT` | Default port override (default: 9090) |
 | `OLLAMA_NUM_CTX` | Ollama context size (default: 8192) |
 | `LOCAL_NUM_CTX` | LMStudio / llama.cpp context size (default: 32768) |
@@ -134,9 +135,7 @@ When `npx anymodel` connects, it finds the client in this order:
 1. `ANYMODEL_CLIENT` env var (explicit path)
 2. `cli.js` next to `cli.mjs` (bundled in npm package)
 3. `cli.js` in current directory
-4. Sibling repos (`../claude-code/cli.js`, `../claude-code-anymodel/cli.js`)
-5. Home directory (`~/claude-code-anymodel/cli.js`)
-6. Global `claude` binary (last resort fallback)
+4. Global `claude` binary (last resort fallback)
 
 ## Universal Skill Loader (`providers/skill-bridge.mjs`)
 
@@ -154,7 +153,7 @@ Every change MUST follow this pipeline. Never skip steps, never publish without 
 
 ```bash
 # 1. Run all tests
-node --test test/*.test.mjs
+npm test
 
 # 2. Commit and push
 git add <changed-files>
@@ -169,8 +168,6 @@ npm publish
 # 4. Deploy website (only if site/ changed)
 vercel --prod
 
-# 5. Sync client repo (only if cli.js changed)
-# Copy cli.js to claude-code-anymodel repo
 ```
 
 The `prepublishOnly` script in package.json handles version syncing. After `npm version patch`, run `npm run sync-version` to update the version in the bundled client, then `npm publish`.
@@ -202,7 +199,7 @@ The `prepublishOnly` script in package.json handles version syncing. After `npm 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `max_tokens` error | Claude Code sends `max_tokens: 1` for probes | Proxy clamps to 16 — check `sanitizeBody()` |
-| Tool use fails on GPT | Empty `properties: {}` in tool schema | Proxy adds `_unused` placeholder — check tool sanitization |
+| Tool use fails on GPT | Invalid or missing tool schema fields | Proxy normalizes schemas without placeholder hacks — check `sanitizeBody()` |
 | Ollama extremely slow | Default 8K context overflowed by big system prompts | Bump `OLLAMA_NUM_CTX=32768`; tool compressor trims schemas to ~30% of ctx |
 | Local model prints JSON instead of calling tools | Model doesn't support function calling, OR `OLLAMA_TOOLS=off`, OR model cached as no-tool-support | Use a tool-capable model (Qwen 3 / Qwen-Coder, Llama 3.1+, Mistral, DeepSeek R1, Gemma 4); ensure `OLLAMA_TOOLS=auto`; restart proxy to clear per-model cache |
 | Slash commands (`/openspec`, etc.) return JSON text | Same as above — the command emits prompts expecting `tool_use` blocks; only tool-capable models will emit them | See row above |
@@ -244,7 +241,7 @@ Claude subscriptions no longer cover third-party tools. AnyModel proxy mode is N
 | AnyModel website | https://anymodel.dev |
 | AnyModel npm | https://npmjs.com/package/anymodel |
 | AnyModel GitHub | https://github.com/anton-abyzov/anymodel |
-| Client GitHub | https://github.com/antonoly/claude-code-anymodel |
+| Client bundle | `cli.js` in this repo/package |
 | SpecWeave | https://spec-weave.com |
 | Verified Skills | https://verified-skill.com |
 | OpenRouter keys | https://openrouter.ai/keys |
@@ -290,7 +287,7 @@ anymodel/
 Run all tests before any commit:
 
 ```bash
-node --test test/*.test.mjs
+npm test
 ```
 
 Tests cover: sanitization, tool schema fixing, provider translation, preset resolution, max_tokens clamping, streaming, error handling. When adding features, add corresponding tests. The test count should only go up.

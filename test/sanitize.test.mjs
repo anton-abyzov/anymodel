@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { sanitizeBody, sanitizeToolUseResponse, injectPlatformHints } from '../proxy.mjs';
+import { sanitizeBody, sanitizeToolUseResponse, injectPlatformHints, INTERNAL_EFFORT_FIELD } from '../proxy.mjs';
 
 describe('sanitizeBody', () => {
   it('strips top-level Anthropic-specific fields', () => {
@@ -19,12 +19,26 @@ describe('sanitizeBody', () => {
     assert.equal(result.metadata, undefined);
     assert.equal(result.speed, undefined);
     assert.equal(result.output_config, undefined);
+    assert.equal(result[INTERNAL_EFFORT_FIELD], undefined);
     assert.equal(result.context_management, undefined);
     // thinking is preserved for reasoning models (DeepSeek R1, etc.)
     assert.deepEqual(result.thinking, { type: 'enabled', budget_tokens: 5000 });
     // Preserves non-Anthropic fields
     assert.equal(result.model, 'claude-3-opus');
     assert.deepEqual(result.messages, []);
+  });
+
+  it('preserves output_config.effort internally without serializing output_config', () => {
+    const body = {
+      model: 'gpt-5.4',
+      messages: [],
+      output_config: { effort: 'high', format: { type: 'json_schema' } },
+    };
+    const result = sanitizeBody(body);
+    assert.equal(result.output_config, undefined);
+    assert.equal(result[INTERNAL_EFFORT_FIELD], 'high');
+    assert.equal(Object.keys(result).includes(INTERNAL_EFFORT_FIELD), false);
+    assert.equal(JSON.stringify(result).includes(INTERNAL_EFFORT_FIELD), false);
   });
 
   it('strips cache_control from system blocks', () => {

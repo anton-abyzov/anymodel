@@ -9,7 +9,7 @@
     {
       "id": 2,
       "prompt": "The proxy is returning 400 errors when I use GPT-5.4 with MCP tools. The error says something about empty properties in the tool schema.",
-      "expected_output": "Should identify this as the empty properties issue in sanitizeBody(), explain the _unused placeholder fix, check the tool schema sanitization code in proxy.mjs around line 77-116"
+      "expected_output": "Should identify this as the empty properties issue in sanitizeBody(), explain that AnyModel normalizes empty object schemas without injecting placeholder params, and check the tool schema sanitization code in proxy.mjs"
     },
     {
       "id": 3,

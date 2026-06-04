@@ -1,11 +1,8 @@
 import { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-// Import shared sanitize logic from parent
-import { sanitizeBody } from '../../proxy.mjs';
-
 // Import worker functions
-import { checkAuth, isFreeTierModel, checkRateLimit, buildOpenRouterRequest, FREE_MODELS } from '../handler.mjs';
+import { checkAuth, isFreeTierModel, checkRateLimit, buildOpenRouterRequest, sanitizeBody, DEFAULT_FREE_MODEL } from '../handler.mjs';
 
 describe('Worker Auth', () => {
   it('rejects requests without token when token is set', () => {
@@ -35,8 +32,13 @@ describe('Free Model Enforcement', () => {
     assert.equal(isFreeTierModel('qwen/qwen3-coder:free', true), true);
   });
 
-  it('allows known free models from list', () => {
-    assert.equal(isFreeTierModel(FREE_MODELS[0], true), true);
+  it('allows openrouter/free auto-router', () => {
+    assert.equal(isFreeTierModel('openrouter/free', true), true);
+  });
+
+  it('does not require a hardcoded free-model allowlist', () => {
+    assert.equal(isFreeTierModel('some/new-model:free', true), true);
+    assert.equal(DEFAULT_FREE_MODEL.endsWith(':free'), true);
   });
 
   it('blocks paid models when freeOnly is true', () => {
@@ -97,7 +99,7 @@ describe('Sanitize Body (shared)', () => {
     sanitizeBody(body);
     assert.equal(body.betas, undefined);
     assert.equal(body.metadata, undefined);
-    assert.equal(body.thinking, undefined);
+    assert.deepEqual(body.thinking, {});
   });
 
   it('normalizes tool_choice string to object', () => {
