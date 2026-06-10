@@ -281,14 +281,29 @@ describe('createOllamaStreamTranslator — tool calls', () => {
     assert.ok(output.includes('message_stop'), 'should emit message_stop');
   });
 
-  it('emits text content normally (regression)', () => {
-    const translator = ollamaProvider.createStreamTranslator();
-    const output = translator.transform('{"model":"qwen3","message":{"content":"Hello"},"done":false}\n');
+  it('emits text content normally (regression) — live mode (recovery off)', () => {
+    process.env.ANYMODEL_PARSE_TEXT_TOOLCALLS = 'off';
+    try {
+      const translator = ollamaProvider.createStreamTranslator();
+      const output = translator.transform('{"model":"qwen3","message":{"content":"Hello"},"done":false}\n');
 
-    assert.ok(output.includes('message_start'), 'should emit message_start');
-    assert.ok(output.includes('content_block_start'), 'should emit content_block_start');
-    assert.ok(output.includes('text_delta'), 'should emit text_delta');
-    assert.ok(output.includes('Hello'), 'should include text content');
+      assert.ok(output.includes('message_start'), 'should emit message_start');
+      assert.ok(output.includes('content_block_start'), 'should emit content_block_start');
+      assert.ok(output.includes('text_delta'), 'should emit text_delta');
+      assert.ok(output.includes('Hello'), 'should include text content');
+    } finally {
+      delete process.env.ANYMODEL_PARSE_TEXT_TOOLCALLS;
+    }
+  });
+
+  it('buffers text until done under default recovery mode (0018)', () => {
+    const translator = ollamaProvider.createStreamTranslator();
+    const mid = translator.transform('{"model":"qwen3","message":{"content":"Hello"},"done":false}\n');
+    assert.ok(!mid.includes('text_delta'), 'text is buffered, not streamed mid-message');
+    const end = translator.transform('{"model":"qwen3","message":{"content":""},"done":true,"done_reason":"stop"}\n');
+    assert.ok(end.includes('text_delta'), 'buffered text emitted at done');
+    assert.ok(end.includes('Hello'), 'buffered text content intact');
+    assert.ok(end.includes('message_stop'), 'message finalized');
   });
 
   it('PRESERVES _unused in streamed tool arguments (US-004, 1.12.0+)', () => {
@@ -303,19 +318,24 @@ describe('createOllamaStreamTranslator — tool calls', () => {
     assert.ok(output.includes('city'), 'should keep real arguments');
   });
 
-  it('closes text block before starting tool blocks', () => {
-    const translator = ollamaProvider.createStreamTranslator();
-    // Text chunk
-    translator.transform('{"model":"qwen3","message":{"content":"thinking..."},"done":false}\n');
-    // Tool chunk — should close text block first
-    const output = translator.transform('{"model":"qwen3","message":{"tool_calls":[{"function":{"name":"Bash","arguments":"{\\"cmd\\":\\"ls\\"}"}}]},"done":false}\n');
+  it('closes text block before starting tool blocks — live mode (recovery off)', () => {
+    process.env.ANYMODEL_PARSE_TEXT_TOOLCALLS = 'off';
+    try {
+      const translator = ollamaProvider.createStreamTranslator();
+      // Text chunk
+      translator.transform('{"model":"qwen3","message":{"content":"thinking..."},"done":false}\n');
+      // Tool chunk — should close text block first
+      const output = translator.transform('{"model":"qwen3","message":{"tool_calls":[{"function":{"name":"Bash","arguments":"{\\"cmd\\":\\"ls\\"}"}}]},"done":false}\n');
 
-    // Find positions: text block stop should come before tool block start
-    const textStopIdx = output.indexOf('"content_block_stop"');
-    const toolStartIdx = output.indexOf('"tool_use"');
-    assert.ok(textStopIdx !== -1, 'should emit content_block_stop for text');
-    assert.ok(toolStartIdx !== -1, 'should emit tool_use content_block_start');
-    assert.ok(textStopIdx < toolStartIdx, 'text block should close before tool block starts');
+      // Find positions: text block stop should come before tool block start
+      const textStopIdx = output.indexOf('"content_block_stop"');
+      const toolStartIdx = output.indexOf('"tool_use"');
+      assert.ok(textStopIdx !== -1, 'should emit content_block_stop for text');
+      assert.ok(toolStartIdx !== -1, 'should emit tool_use content_block_start');
+      assert.ok(textStopIdx < toolStartIdx, 'text block should close before tool block starts');
+    } finally {
+      delete process.env.ANYMODEL_PARSE_TEXT_TOOLCALLS;
+    }
   });
 
   it('handles multiple tool calls in a single streaming chunk', () => {

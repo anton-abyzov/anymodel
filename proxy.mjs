@@ -615,6 +615,12 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     if (fidelityAddition) {
       console.log(`${C.yellow(localTag)} [FIDELITY] tier=${fidelity} re-injected ${injectedSkillCount} skills (~${Math.ceil(fidelityAddition.length / 4)} tok)`);
     }
+  } else if (isLocal && fidelityAddition) {
+    // 0018: a request with NO system field used to build the fidelity addition and
+    // then drop it (injection only ran inside `if (parsed.system)`), silently losing
+    // skill re-injection for that turn. Create the system prompt from it instead.
+    parsed.system = fidelityAddition;
+    console.log(`${C.yellow(localTag)} [FIDELITY] tier=${fidelity} re-injected ${injectedSkillCount} skills (~${Math.ceil(fidelityAddition.length / 4)} tok) — request had no system field`);
   }
 
   // Strip Claude Code boilerplate from messages for local models.
