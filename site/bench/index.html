@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>AnyModel vs OpenCode — Local Coding Agent Benchmark</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background:#0b0b10; color:#e8e8ee; font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; padding:40px 24px 80px; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 26px; margin-bottom: 4px; }
+  .meta { color:#9a9aa8; margin-bottom: 28px; font-size: 13px; }
+  .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap:16px; margin-bottom: 36px; }
+  .card { background:#15151d; border:1px solid #26262f; border-radius:14px; padding:20px; }
+  .card h2 { font-size:18px; } .card h2 small { color:#9a9aa8; font-weight:400; font-size:12px; }
+  .sub { color:#9a9aa8; font-size:12px; margin-bottom:10px; }
+  .big { font-size:44px; font-weight:700; } .big.g { color:#4ade80; } .big.y { color:#facc15; } .big.r { color:#f87171; }
+  .lbl { color:#9a9aa8; font-size:12px; margin-bottom:12px; }
+  .card ul { list-style:none; font-size:13px; } .card li { padding:3px 0; border-top:1px solid #1f1f28; }
+  h3 { margin:34px 0 12px; font-size:17px; }
+  table { width:100%; border-collapse:collapse; background:#15151d; border-radius:12px; overflow:hidden; font-size:13px; }
+  th, td { padding:10px 12px; text-align:left; border-bottom:1px solid #20202a; }
+  thead th { background:#1b1b25; font-size:12px; color:#b8b8c8; }
+  td.ok { color:#4ade80; } td.bad { color:#f87171; } td.mid { color:#facc15; }
+  td small { display:block; color:#9a9aa8; font-size:11px; }
+  .bar { position:relative; background:#1f1f28; border-radius:6px; height:22px; flex:1; }
+  .fill { height:100%; border-radius:6px; }
+  .bar span { position:absolute; right:8px; top:1px; font-size:12px; }
+  .row { display:flex; align-items:center; gap:10px; margin:6px 0; }
+  .rowlbl { width:150px; font-size:13px; color:#b8b8c8; }
+  code { background:#1b1b25; padding:1px 5px; border-radius:4px; font-size:11px; }
+  .note { background:#15151d; border-left:3px solid #7c5cff; border-radius:8px; padding:14px 16px; font-size:13px; color:#c8c8d4; margin:18px 0; }
+</style></head><body><div class="wrap">
+<h1>AnyModel vs OpenCode — local coding agent benchmark</h1>
+<p class="meta">Model: <b>qwen3-coder:30b</b> on Ollama (M1 Max 32GB, 100% GPU) · Wed, 10 Jun 2026 21:17:50 GMT · 54 runs · identical seeded tasks, artifact-verified, fresh workspace per run</p>
+<div class="cards"><div class="card" style="border-top:3px solid #7c5cff">
+    <h2>AnyModel <small>v1.16.2</small></h2>
+    <p class="sub">Claude Code → anymodel proxy → Ollama</p>
+    <div class="big r">0%</div>
+    <p class="lbl">task success (0/18 runs)</p>
+    <ul>
+      <li>median turn-around: <b>3.7s</b></li>
+      <li>tool calls executed: <b>9</b> (bash 3 · edit 0 · read 4)</li>
+      <li>timeouts: <b>0</b> · zero-tool turns: <b>9</b></li>
+      <li>skill invocations observed: <b>2</b></li>
+    </ul>
+  </div>
+<div class="card" style="border-top:3px solid #00b8a9">
+    <h2>OpenCode <small>v1.16.2</small></h2>
+    <p class="sub">OpenCode → Ollama direct</p>
+    <div class="big y">78%</div>
+    <p class="lbl">task success (14/18 runs)</p>
+    <ul>
+      <li>median turn-around: <b>118.4s</b></li>
+      <li>tool calls executed: <b>17</b> (bash 0 · edit 17 · read 0)</li>
+      <li>timeouts: <b>0</b> · zero-tool turns: <b>3</b></li>
+      <li>skill invocations observed: <b>0</b></li>
+    </ul>
+  </div>
+<div class="card" style="border-top:3px solid #7c5cff">
+    <h2>AnyModel (fixed) <small>v1.17.0</small></h2>
+    <p class="sub">Claude Code → anymodel proxy → Ollama</p>
+    <div class="big g">94%</div>
+    <p class="lbl">task success (17/18 runs)</p>
+    <ul>
+      <li>median turn-around: <b>10.2s</b></li>
+      <li>tool calls executed: <b>55</b> (bash 11 · edit 18 · read 10)</li>
+      <li>timeouts: <b>1</b> · zero-tool turns: <b>0</b></li>
+      <li>skill invocations observed: <b>6</b></li>
+    </ul>
+  </div></div>
+<h3>Median wall time per task (seconds — lower is better)</h3>
+<div class="row"><span class="rowlbl">AnyModel</span><div class="bar"><div class="fill" style="width:3%;background:#7c5cff"></div><span>3.7</span></div></div>
+<div class="row"><span class="rowlbl">OpenCode</span><div class="bar"><div class="fill" style="width:100%;background:#00b8a9"></div><span>118.4</span></div></div>
+<div class="row"><span class="rowlbl">AnyModel (fixed)</span><div class="bar"><div class="fill" style="width:9%;background:#7c5cff"></div><span>10.2</span></div></div>
+<h3>Per-task results (pass / runs · median time · tool calls)</h3>
+<table><thead><tr><th>task</th><th>AnyModel</th><th>OpenCode</th><th>AnyModel (fixed)</th></tr></thead><tbody>
+<tr><th>write-file</th><td class="bad"><b>0/3</b><small>3.0s · 0 calls</small></td><td class="mid"><b>2/3</b><small>105.4s · 2 calls</small></td><td class="ok"><b>3/3</b><small>4.3s · 3 calls</small></td></tr>
+<tr><th>bash-count</th><td class="bad"><b>0/3</b><small>3.3s · 1 calls</small></td><td class="mid"><b>2/3</b><small>112.0s · 2 calls</small></td><td class="ok"><b>3/3</b><small>8.6s · 5 calls</small></td></tr>
+<tr><th>fix-bug</th><td class="bad"><b>0/3</b><small>3.8s · 3 calls</small></td><td class="ok"><b>3/3</b><small>130.6s · 3 calls</small></td><td class="ok"><b>3/3</b><small>283.7s · 29 calls</small></td></tr>
+<tr><th>multi-file</th><td class="bad"><b>0/3</b><small>3.7s · 0 calls</small></td><td class="ok"><b>3/3</b><small>119.6s · 6 calls</small></td><td class="ok"><b>3/3</b><small>11.3s · 6 calls</small></td></tr>
+<tr><th>edit-json</th><td class="bad"><b>0/3</b><small>3.6s · 3 calls</small></td><td class="ok"><b>3/3</b><small>120.4s · 3 calls</small></td><td class="ok"><b>3/3</b><small>10.3s · 6 calls</small></td></tr>
+<tr><th>skill-stamp</th><td class="bad"><b>0/3</b><small>4.8s · 2 calls</small></td><td class="mid"><b>1/3</b><small>101.1s · 1 calls</small></td><td class="mid"><b>2/3</b><small>7.2s · 6 calls</small></td></tr>
+</tbody></table>
+<h3>Failures</h3>
+<table><thead><tr><th>arm</th><th>run</th><th>class</th><th>time</th><th>workspace (logs)</th></tr></thead><tbody>
+<tr><td>AnyModel</td><td>write-file #1</td><td>zero-tool-execution</td><td>4.4s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/write-file/rep1</code></td></tr>
+<tr><td>AnyModel</td><td>write-file #2</td><td>zero-tool-execution</td><td>3.0s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/write-file/rep2</code></td></tr>
+<tr><td>AnyModel</td><td>write-file #3</td><td>zero-tool-execution</td><td>2.9s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/write-file/rep3</code></td></tr>
+<tr><td>OpenCode</td><td>write-file #3</td><td>zero-tool-execution</td><td>103.5s</td><td><code>/tmp/bench-runs/baseline-1.16.2/opencode/write-file/rep3</code></td></tr>
+<tr><td>AnyModel</td><td>bash-count #1</td><td>zero-tool-execution</td><td>8.0s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/bash-count/rep1</code></td></tr>
+<tr><td>AnyModel</td><td>bash-count #2</td><td>wrong-artifact</td><td>3.3s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/bash-count/rep2</code></td></tr>
+<tr><td>AnyModel</td><td>bash-count #3</td><td>zero-tool-execution</td><td>2.9s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/bash-count/rep3</code></td></tr>
+<tr><td>OpenCode</td><td>bash-count #1</td><td>wrong-artifact</td><td>111.5s</td><td><code>/tmp/bench-runs/baseline-1.16.2/opencode/bash-count/rep1</code></td></tr>
+<tr><td>AnyModel</td><td>fix-bug #1</td><td>wrong-artifact</td><td>5.6s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/fix-bug/rep1</code></td></tr>
+<tr><td>AnyModel</td><td>fix-bug #2</td><td>wrong-artifact</td><td>3.8s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/fix-bug/rep2</code></td></tr>
+<tr><td>AnyModel</td><td>fix-bug #3</td><td>wrong-artifact</td><td>3.2s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/fix-bug/rep3</code></td></tr>
+<tr><td>AnyModel</td><td>multi-file #1</td><td>zero-tool-execution</td><td>6.8s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/multi-file/rep1</code></td></tr>
+<tr><td>AnyModel</td><td>multi-file #2</td><td>zero-tool-execution</td><td>3.7s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/multi-file/rep2</code></td></tr>
+<tr><td>AnyModel</td><td>multi-file #3</td><td>zero-tool-execution</td><td>3.7s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/multi-file/rep3</code></td></tr>
+<tr><td>AnyModel</td><td>edit-json #1</td><td>wrong-artifact</td><td>4.9s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/edit-json/rep1</code></td></tr>
+<tr><td>AnyModel</td><td>edit-json #2</td><td>wrong-artifact</td><td>3.6s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/edit-json/rep2</code></td></tr>
+<tr><td>AnyModel</td><td>edit-json #3</td><td>wrong-artifact</td><td>3.5s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/edit-json/rep3</code></td></tr>
+<tr><td>AnyModel</td><td>skill-stamp #1</td><td>zero-tool-execution</td><td>4.8s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/skill-stamp/rep1</code></td></tr>
+<tr><td>AnyModel</td><td>skill-stamp #2</td><td>wrong-artifact</td><td>5.5s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/skill-stamp/rep2</code></td></tr>
+<tr><td>AnyModel</td><td>skill-stamp #3</td><td>wrong-artifact</td><td>3.7s</td><td><code>/tmp/bench-runs/baseline-1.16.2/anymodel/skill-stamp/rep3</code></td></tr>
+<tr><td>OpenCode</td><td>skill-stamp #1</td><td>zero-tool-execution</td><td>101.0s</td><td><code>/tmp/bench-runs/baseline-1.16.2/opencode/skill-stamp/rep1</code></td></tr>
+<tr><td>OpenCode</td><td>skill-stamp #3</td><td>zero-tool-execution</td><td>101.1s</td><td><code>/tmp/bench-runs/baseline-1.16.2/opencode/skill-stamp/rep3</code></td></tr>
+<tr><td>AnyModel (fixed)</td><td>skill-stamp #1</td><td>wrong-artifact</td><td>9.8s</td><td><code>/tmp/bench-runs/fixed-1.17.0/anymodel/skill-stamp/rep1</code></td></tr>
+</tbody></table>
+<div class="note"><b>Methodology.</b> Each run: fresh temp workspace, seeded fixtures, one prompt, 300s timeout. Success = artifact verifier only (file contents / passing test), never model self-report. AnyModel arm: <code>claude -p</code> → anymodel proxy → Ollama native API; tool calls counted from Claude Code stream-json events; proxy log sliced per run. OpenCode arm: <code>opencode run</code> → Ollama /v1; tool calls parsed from its execution trace. Same Ollama server, same context length (32768), flash attention + q8_0 KV cache. Skill task seeds the same SKILL.md into <code>.claude/skills</code>, <code>.opencode/skill</code>, and <code>.opencode/skills</code>.</div>
+</div></body></html>

@@ -1,0 +1,938 @@
+{
+  "label": "baseline-1.16.2",
+  "model": "qwen3-coder:30b",
+  "date": "2026-06-10T21:17:50.646Z",
+  "results": [
+    {
+      "arm": "anymodel",
+      "task": "write-file",
+      "rep": 1,
+      "success": false,
+      "wallMs": 4363,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": 1,
+      "toolCallCount": 0,
+      "toolNames": [],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4193,
+        "output": 35,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 1,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 1
+      },
+      "errorClass": "zero-tool-execution",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/write-file/rep1"
+    },
+    {
+      "arm": "anymodel",
+      "task": "write-file",
+      "rep": 2,
+      "success": false,
+      "wallMs": 2990,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": 1,
+      "toolCallCount": 0,
+      "toolNames": [],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4193,
+        "output": 35,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 1,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 1
+      },
+      "errorClass": "zero-tool-execution",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/write-file/rep2"
+    },
+    {
+      "arm": "anymodel",
+      "task": "write-file",
+      "rep": 3,
+      "success": false,
+      "wallMs": 2936,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": 1,
+      "toolCallCount": 0,
+      "toolNames": [],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4193,
+        "output": 35,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 1,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 1
+      },
+      "errorClass": "zero-tool-execution",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/write-file/rep3"
+    },
+    {
+      "arm": "opencode",
+      "task": "write-file",
+      "rep": 1,
+      "success": true,
+      "wallMs": 106491,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Write"
+      ],
+      "bashCalls": 0,
+      "editCalls": 1,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/write-file/rep1"
+    },
+    {
+      "arm": "opencode",
+      "task": "write-file",
+      "rep": 2,
+      "success": true,
+      "wallMs": 105423,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Write"
+      ],
+      "bashCalls": 0,
+      "editCalls": 1,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/write-file/rep2"
+    },
+    {
+      "arm": "opencode",
+      "task": "write-file",
+      "rep": 3,
+      "success": false,
+      "wallMs": 103500,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 0,
+      "toolNames": [],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": "zero-tool-execution",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/write-file/rep3"
+    },
+    {
+      "arm": "anymodel",
+      "task": "bash-count",
+      "rep": 1,
+      "success": false,
+      "wallMs": 8045,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": 1,
+      "toolCallCount": 0,
+      "toolNames": [],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4205,
+        "output": 62,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 1,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 1
+      },
+      "errorClass": "zero-tool-execution",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/bash-count/rep1"
+    },
+    {
+      "arm": "anymodel",
+      "task": "bash-count",
+      "rep": 2,
+      "success": false,
+      "wallMs": 3270,
+      "timedOut": false,
+      "exitCode": 1,
+      "turns": 2,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Bash"
+      ],
+      "bashCalls": 1,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4205,
+        "output": 54,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 3,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 3
+      },
+      "errorClass": "wrong-artifact",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/bash-count/rep2"
+    },
+    {
+      "arm": "anymodel",
+      "task": "bash-count",
+      "rep": 3,
+      "success": false,
+      "wallMs": 2947,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": 1,
+      "toolCallCount": 0,
+      "toolNames": [],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4205,
+        "output": 35,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 1,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 1
+      },
+      "errorClass": "zero-tool-execution",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/bash-count/rep3"
+    },
+    {
+      "arm": "opencode",
+      "task": "bash-count",
+      "rep": 1,
+      "success": false,
+      "wallMs": 111540,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Write"
+      ],
+      "bashCalls": 0,
+      "editCalls": 1,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": "wrong-artifact",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/bash-count/rep1"
+    },
+    {
+      "arm": "opencode",
+      "task": "bash-count",
+      "rep": 2,
+      "success": true,
+      "wallMs": 112018,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 0,
+      "toolNames": [],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/bash-count/rep2"
+    },
+    {
+      "arm": "opencode",
+      "task": "bash-count",
+      "rep": 3,
+      "success": true,
+      "wallMs": 113555,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Write"
+      ],
+      "bashCalls": 0,
+      "editCalls": 1,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/bash-count/rep3"
+    },
+    {
+      "arm": "anymodel",
+      "task": "fix-bug",
+      "rep": 1,
+      "success": false,
+      "wallMs": 5633,
+      "timedOut": false,
+      "exitCode": 1,
+      "turns": 2,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Bash"
+      ],
+      "bashCalls": 1,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4214,
+        "output": 53,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 3,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 3
+      },
+      "errorClass": "wrong-artifact",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/fix-bug/rep1"
+    },
+    {
+      "arm": "anymodel",
+      "task": "fix-bug",
+      "rep": 2,
+      "success": false,
+      "wallMs": 3808,
+      "timedOut": false,
+      "exitCode": 1,
+      "turns": 2,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Bash"
+      ],
+      "bashCalls": 1,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4214,
+        "output": 53,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 3,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 3
+      },
+      "errorClass": "wrong-artifact",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/fix-bug/rep2"
+    },
+    {
+      "arm": "anymodel",
+      "task": "fix-bug",
+      "rep": 3,
+      "success": false,
+      "wallMs": 3176,
+      "timedOut": false,
+      "exitCode": 1,
+      "turns": 2,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Read"
+      ],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 1,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4214,
+        "output": 59,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 3,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 3
+      },
+      "errorClass": "wrong-artifact",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/fix-bug/rep3"
+    },
+    {
+      "arm": "opencode",
+      "task": "fix-bug",
+      "rep": 1,
+      "success": true,
+      "wallMs": 130553,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Edit"
+      ],
+      "bashCalls": 0,
+      "editCalls": 1,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/fix-bug/rep1"
+    },
+    {
+      "arm": "opencode",
+      "task": "fix-bug",
+      "rep": 2,
+      "success": true,
+      "wallMs": 133580,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Edit"
+      ],
+      "bashCalls": 0,
+      "editCalls": 1,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/fix-bug/rep2"
+    },
+    {
+      "arm": "opencode",
+      "task": "fix-bug",
+      "rep": 3,
+      "success": true,
+      "wallMs": 127548,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Edit"
+      ],
+      "bashCalls": 0,
+      "editCalls": 1,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/fix-bug/rep3"
+    },
+    {
+      "arm": "anymodel",
+      "task": "multi-file",
+      "rep": 1,
+      "success": false,
+      "wallMs": 6795,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": 1,
+      "toolCallCount": 0,
+      "toolNames": [],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4210,
+        "output": 70,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 1,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 1
+      },
+      "errorClass": "zero-tool-execution",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/multi-file/rep1"
+    },
+    {
+      "arm": "anymodel",
+      "task": "multi-file",
+      "rep": 2,
+      "success": false,
+      "wallMs": 3729,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": 1,
+      "toolCallCount": 0,
+      "toolNames": [],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4210,
+        "output": 70,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 1,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 1
+      },
+      "errorClass": "zero-tool-execution",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/multi-file/rep2"
+    },
+    {
+      "arm": "anymodel",
+      "task": "multi-file",
+      "rep": 3,
+      "success": false,
+      "wallMs": 3737,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": 1,
+      "toolCallCount": 0,
+      "toolNames": [],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4210,
+        "output": 70,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 1,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 1
+      },
+      "errorClass": "zero-tool-execution",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/multi-file/rep3"
+    },
+    {
+      "arm": "opencode",
+      "task": "multi-file",
+      "rep": 1,
+      "success": true,
+      "wallMs": 118409,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 2,
+      "toolNames": [
+        "Write",
+        "Write"
+      ],
+      "bashCalls": 0,
+      "editCalls": 2,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/multi-file/rep1"
+    },
+    {
+      "arm": "opencode",
+      "task": "multi-file",
+      "rep": 2,
+      "success": true,
+      "wallMs": 121484,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 2,
+      "toolNames": [
+        "Write",
+        "Write"
+      ],
+      "bashCalls": 0,
+      "editCalls": 2,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/multi-file/rep2"
+    },
+    {
+      "arm": "opencode",
+      "task": "multi-file",
+      "rep": 3,
+      "success": true,
+      "wallMs": 119597,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 2,
+      "toolNames": [
+        "Write",
+        "Write"
+      ],
+      "bashCalls": 0,
+      "editCalls": 2,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/multi-file/rep3"
+    },
+    {
+      "arm": "anymodel",
+      "task": "edit-json",
+      "rep": 1,
+      "success": false,
+      "wallMs": 4943,
+      "timedOut": false,
+      "exitCode": 1,
+      "turns": 2,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Read"
+      ],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 1,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4204,
+        "output": 71,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 3,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 3
+      },
+      "errorClass": "wrong-artifact",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/edit-json/rep1"
+    },
+    {
+      "arm": "anymodel",
+      "task": "edit-json",
+      "rep": 2,
+      "success": false,
+      "wallMs": 3584,
+      "timedOut": false,
+      "exitCode": 1,
+      "turns": 2,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Read"
+      ],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 1,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4204,
+        "output": 71,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 3,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 3
+      },
+      "errorClass": "wrong-artifact",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/edit-json/rep2"
+    },
+    {
+      "arm": "anymodel",
+      "task": "edit-json",
+      "rep": 3,
+      "success": false,
+      "wallMs": 3550,
+      "timedOut": false,
+      "exitCode": 1,
+      "turns": 2,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Read"
+      ],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 1,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4204,
+        "output": 71,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 3,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 3
+      },
+      "errorClass": "wrong-artifact",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/edit-json/rep3"
+    },
+    {
+      "arm": "opencode",
+      "task": "edit-json",
+      "rep": 1,
+      "success": true,
+      "wallMs": 120288,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Edit"
+      ],
+      "bashCalls": 0,
+      "editCalls": 1,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/edit-json/rep1"
+    },
+    {
+      "arm": "opencode",
+      "task": "edit-json",
+      "rep": 2,
+      "success": true,
+      "wallMs": 132908,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Edit"
+      ],
+      "bashCalls": 0,
+      "editCalls": 1,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/edit-json/rep2"
+    },
+    {
+      "arm": "opencode",
+      "task": "edit-json",
+      "rep": 3,
+      "success": true,
+      "wallMs": 120433,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Edit"
+      ],
+      "bashCalls": 0,
+      "editCalls": 1,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/edit-json/rep3"
+    },
+    {
+      "arm": "anymodel",
+      "task": "skill-stamp",
+      "rep": 1,
+      "success": false,
+      "wallMs": 4815,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": 1,
+      "toolCallCount": 0,
+      "toolNames": [],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": {
+        "input": 4187,
+        "output": 42,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 1,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 1
+      },
+      "errorClass": "zero-tool-execution",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/skill-stamp/rep1"
+    },
+    {
+      "arm": "anymodel",
+      "task": "skill-stamp",
+      "rep": 2,
+      "success": false,
+      "wallMs": 5470,
+      "timedOut": false,
+      "exitCode": 1,
+      "turns": 2,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Skill"
+      ],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": true,
+      "tokens": {
+        "input": 4187,
+        "output": 145,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 3,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 3
+      },
+      "errorClass": "wrong-artifact",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/skill-stamp/rep2"
+    },
+    {
+      "arm": "anymodel",
+      "task": "skill-stamp",
+      "rep": 3,
+      "success": false,
+      "wallMs": 3653,
+      "timedOut": false,
+      "exitCode": 1,
+      "turns": 2,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Skill"
+      ],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": true,
+      "tokens": {
+        "input": 4187,
+        "output": 78,
+        "cache_read": 2866
+      },
+      "proxyEvents": {
+        "fidelity": 3,
+        "recovered": 0,
+        "retries": 0,
+        "requests": 3
+      },
+      "errorClass": "wrong-artifact",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/anymodel/skill-stamp/rep3"
+    },
+    {
+      "arm": "opencode",
+      "task": "skill-stamp",
+      "rep": 1,
+      "success": false,
+      "wallMs": 100996,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 0,
+      "toolNames": [],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": "zero-tool-execution",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/skill-stamp/rep1"
+    },
+    {
+      "arm": "opencode",
+      "task": "skill-stamp",
+      "rep": 2,
+      "success": true,
+      "wallMs": 111696,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 1,
+      "toolNames": [
+        "Write"
+      ],
+      "bashCalls": 0,
+      "editCalls": 1,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": null,
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/skill-stamp/rep2"
+    },
+    {
+      "arm": "opencode",
+      "task": "skill-stamp",
+      "rep": 3,
+      "success": false,
+      "wallMs": 101104,
+      "timedOut": false,
+      "exitCode": 0,
+      "turns": null,
+      "toolCallCount": 0,
+      "toolNames": [],
+      "bashCalls": 0,
+      "editCalls": 0,
+      "readCalls": 0,
+      "skillInvoked": false,
+      "tokens": null,
+      "proxyEvents": null,
+      "errorClass": "zero-tool-execution",
+      "workspace": "/tmp/bench-runs/baseline-1.16.2/opencode/skill-stamp/rep3"
+    }
+  ]
+}
