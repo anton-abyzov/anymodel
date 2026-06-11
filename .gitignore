@@ -9,3 +9,4 @@ dist/
 
 # brand-patch working backup (regenerate from upstream, do not commit)
 cli.js.prebrand-backup
+.env*.local
