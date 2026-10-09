@@ -572,6 +572,9 @@ export function createStreamTranslator(opts) {
   const recoverText = textChannelParsingEnabled(localProvider);
 
   let buffer = '';
+  let eventData = [];
+  let eventName = '';
+  let skipLeadingLF = false;
   let blockIndex = 0;
   let started = false;
   // `stopEmitted` — have we already emitted message_delta + message_stop? Used to
@@ -678,8 +681,21 @@ export function createStreamTranslator(opts) {
     toolPending.clear();
   }
 
-  function emitStop(output) {
+  function emitError(output, message) {
     if (stopEmitted) return;
+    stopEmitted = true;
+    output.push(formatSSE('error', { type: 'error', error: { type: 'api_error', message } }));
+  }
+
+  function emitStop(output, terminal = false) {
+    if (stopEmitted) return;
+    // Hosted streams must contain an assistant message and an explicit terminal
+    // signal. A clean HTTP EOF can still truncate a generation. Local providers
+    // retain their established EOF compatibility behavior.
+    if (!localProvider && (!started || (!terminal && !accumulatedStopReason))) {
+      emitError(output, 'Upstream stream ended before a completion signal');
+      return;
+    }
     stopEmitted = true;
     emitBufferedText(output, true); // US-1: recover a text-channel tool call if no structured one came
     flushPendingTools(output);
@@ -699,27 +715,45 @@ export function createStreamTranslator(opts) {
 
   return {
     transform(chunk) {
-      if (stopEmitted) return '';
+      if (stopEmitted || !chunk.length) return '';
+      if (skipLeadingLF && chunk.startsWith('\n')) chunk = chunk.slice(1);
+      skipLeadingLF = false;
       buffer += chunk;
-      const lines = buffer.split('\n');
+      skipLeadingLF = buffer.endsWith('\r');
+      const lines = buffer.split(/\r\n|\r|\n/);
       buffer = lines.pop(); // keep incomplete line
       const output = [];
+      const events = [];
 
+      // SSE permits an optional single space after the colon and joins repeated
+      // data fields with newlines. Dispatch only at an event boundary, including
+      // when fields or CRLF separators cross transport chunks.
       for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6).trim();
+        if (line === '') {
+          if (eventData.length) events.push({ data: eventData.join('\n'), name: eventName });
+          eventData = []; eventName = '';
+          continue;
+        }
+        if (line.startsWith(':')) continue;
+        const colon = line.indexOf(':');
+        const field = colon < 0 ? line : line.slice(0, colon);
+        let value = colon < 0 ? '' : line.slice(colon + 1);
+        if (value.startsWith(' ')) value = value.slice(1);
+        if (field === 'data') eventData.push(value);
+        else if (field === 'event') eventName = value;
+      }
+
+      for (const { data, name } of events) {
+        if (stopEmitted) break;
         if (data === '[DONE]') {
-          emitStop(output);
+          emitStop(output, true);
           continue;
         }
 
         try {
           const parsed = JSON.parse(data);
-          if (parsed.error || parsed.choices?.[0]?.finish_reason === 'error') {
-            stopEmitted = true;
-            output.push(formatSSE('error', { type: 'error', error: {
-              type: 'api_error', message: parsed.error?.message || 'Upstream stream failed',
-            } }));
+          if (name === 'error' || parsed.error || parsed.choices?.[0]?.finish_reason === 'error') {
+            emitError(output, parsed.error?.message || parsed.message || 'Upstream stream failed');
             break;
           }
 
@@ -865,18 +899,20 @@ export function createStreamTranslator(opts) {
           }
         } catch (e) {
           console.warn(`[SSE PARSE] Dropped chunk: ${e.message}`);
+          if (!localProvider) emitError(output, 'Upstream stream contained an invalid event');
         }
       }
 
       return output.join('');
     },
 
-    // Flush any pending stop event if the stream ends without an explicit
-    // [DONE] sentinel. Callers that know the stream closed cleanly should
-    // invoke this to ensure the proxy emits message_delta + message_stop.
+    // A hosted EOF is successful only after a parsed finish_reason. Local
+    // compatibility still permits servers that omit both terminal conventions.
     flush() {
       const output = [];
-      emitStop(output);
+      if (!localProvider && (eventData.length || buffer.trim())) {
+        emitError(output, 'Upstream stream ended during an incomplete event');
+      } else emitStop(output);
       return output.join('');
     },
   };
