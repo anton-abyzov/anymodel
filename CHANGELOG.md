@@ -15,6 +15,7 @@ AnyModel is an optional API compatibility adapter. SpecWeave Studio keeps native
 - Provider credentials stay within their configured provider boundary. Proxy routes consistently enforce configured authentication, rate limits and body limits; unsupported cloud routes fail explicitly.
 - Hosted reasoning controls, tool dictionaries, streaming failures and usage accounting retain their supported protocol semantics.
 - Worker funding and authentication policies distinguish user-supplied API keys from the deployment's server key.
+- Hosted free-only policy validates the whole request: alternate routing, presets, paid plugins and server tools fail before upstream. OpenRouter receives zero price ceilings and disabled fallback; other hosted adapters reject free-only requests because their cost policy cannot be verified.
 - Proxy-connected clients receive the proxy token and selected model without inherited native account routing overrides.
 - `anymodel models` and `anymodel check` read the public OpenRouter catalog without inference, credentials or local discovery. Catalog listings do not prove account access, endpoint health, coding quality or native subscription entitlement.
 
