@@ -18,6 +18,12 @@ AnyModel is an optional API compatibility adapter. SpecWeave Studio keeps native
 - Proxy-connected clients receive the proxy token and selected model without inherited native account routing overrides.
 - `anymodel models` and `anymodel check` read the public OpenRouter catalog without inference, credentials or local discovery. Catalog listings do not prove account access, endpoint health, coding quality or native subscription entitlement.
 
+### Hosted protocol checks on 2026-10-09
+
+- `openai/gpt-6.1-sol` completed streamed tool/result loops through the Chat Completions and Messages routes. `qwen/qwen3-coder-next` completed the Chat Completions loop.
+- Qwen's Messages endpoint returned `end_turn` alongside a tool call, both directly from OpenRouter and through AnyModel. That Messages route is not validated for native tool-loop clients; use its supported Chat route through an existing agent. These small checks do not establish general coding quality or parity.
+- Invalid upstream credentials remain HTTP 401 errors on both routes. No local model was used in this release verification.
+
 ### Distribution and evidence
 
 - The legacy client and branding manifest remain frozen in source. Bundle-mutating prepublish scripts and brand-patch release checks are removed. `NOTICE.md` describes the original-code license and third-party boundary without claiming additional redistribution rights.
