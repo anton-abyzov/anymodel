@@ -6,15 +6,15 @@ export const DEFAULT_FREE_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
 
 export function checkAuth(headers, token) {
   if (!token) return true;
-  const auth = headers.authorization || headers['x-api-key'] || '';
-  // Exact token match (x-api-key or Bearer prefix)
-  if (auth === `Bearer ${token}` || auth === token) return true;
-  return false;
+  // Either slot may hold the gateway token; the other may carry a BYOK key.
+  return [headers.authorization, headers['x-api-key']].some(
+    auth => auth === `Bearer ${token}` || auth === token,
+  );
 }
 
 export function isFreeTierModel(modelId, freeOnly) {
   if (!freeOnly) return true;
-  if (!modelId) return false;
+  if (typeof modelId !== 'string' || !modelId) return false;
   return modelId === 'openrouter/free' || modelId.endsWith(':free');
 }
 
@@ -45,7 +45,7 @@ export function checkRateLimit(ip, rpm, state) {
   return state[key] <= rpm;
 }
 
-export function buildOpenRouterRequest(path, apiKey, model) {
+export function buildOpenRouterRequest(path, apiKey) {
   return {
     url: `https://openrouter.ai/api${path}`,
     headers: {
@@ -63,7 +63,8 @@ export function sanitizeBody(body) {
   delete body.betas;
   delete body.metadata;
   delete body.speed;
-  delete body.output_config;
+  // OpenRouter's native Messages API accepts output_config.effort and thinking.
+  // Preserve them; dropping effort silently changes the requested reasoning level.
   delete body.context_management;
   // Preserve body.thinking — reasoning models (DeepSeek R1) need it for chain-of-thought
 
@@ -111,134 +112,156 @@ function calcDelay(attempt) {
   return Math.min(1000 * Math.pow(2, attempt - 1), 8000);
 }
 
-// Main request handler — works with fetch() API (CF Workers + Node 18+)
-export async function handleRequest(request, env) {
+const CORS_HEADERS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET, POST, OPTIONS',
+  'access-control-allow-headers': 'content-type, authorization, x-api-key, anthropic-version',
+};
+const MESSAGE_PATHS = new Set(['/v1/messages', '/v1/messages/count_tokens']);
+const DEFAULT_BODY_BYTES = 4 * 1024 * 1024;
+const MAX_BODY_BYTES = 16 * 1024 * 1024;
+
+function jsonResponse(status, value, headers = {}) {
+  return new Response(JSON.stringify(value), {
+    status, headers: { ...CORS_HEADERS, 'content-type': 'application/json', ...headers },
+  });
+}
+function errorResponse(status, type, message, headers) {
+  return jsonResponse(status, { type: 'error', error: { type, message } }, headers);
+}
+export function bodyLimit(env = {}) {
+  const value = Number(env.ANYMODEL_MAX_BODY_BYTES);
+  return Number.isSafeInteger(value) && value > 0 ? Math.min(value, MAX_BODY_BYTES) : DEFAULT_BODY_BYTES;
+}
+
+// Limit bytes before decoding/parsing JSON. The Worker memory limit makes an
+// unbounded request.json() unsafe even when the gateway token is configured.
+export async function readRequestBody(request, limit) {
+  const tooLarge = () => Object.assign(new Error('Request body exceeds limit'), { code: 'BODY_TOO_LARGE' });
+  const declared = Number(request.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > limit) {
+    if (request.body) await request.body.cancel().catch(() => {});
+    throw tooLarge();
+  }
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) {
+        await reader.cancel().catch(() => {});
+        throw tooLarge();
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const buffer = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.byteLength; }
+  return new TextDecoder().decode(buffer);
+}
+
+function callerOpenRouterKey(headers, token) {
+  for (const raw of [headers['x-api-key'], headers.authorization]) {
+    const key = (raw || '').replace(/^Bearer\s+/i, '');
+    if (key !== token && key.startsWith('sk-or-')) return key;
+  }
+  return '';
+}
+
+// Policy: public BYOK never uses a server key. A configured gateway token gates
+// every non-public route, including BYOK. Server funding additionally requires
+// that configured token, so forgetting ANYMODEL_TOKEN cannot expose server spend.
+// context.clientIp is supplied by the local HTTP adapter from its socket, never
+// a request header. On Cloudflare, cf-connecting-ip is populated by the edge.
+export async function handleRequest(request, env = {}, context = {}) {
   const url = new URL(request.url);
   const token = env.ANYMODEL_TOKEN || '';
   const apiKey = env.OPENROUTER_API_KEY || '';
-  const freeOnly = env.FREE_ONLY === 'true'; // default false — set FREE_ONLY=true to restrict to free models
-  const rpm = parseInt(env.RPM || '60', 10);
+  const freeOnly = env.FREE_ONLY !== 'false';
+  const configuredRpm = Number(env.RPM);
+  const rpm = Number.isSafeInteger(configuredRpm) && configuredRpm > 0 ? configuredRpm : 60;
   const model = env.MODEL || '';
 
-  // Health endpoint
+  // These public endpoints do not read a body, expose keys, or contact upstream.
   if (request.method === 'GET' && url.pathname.replace(/\/+$/, '') === '/health') {
-    return new Response(JSON.stringify({
-      status: 'ok',
-      provider: 'openrouter',
-      model: model || null,
-      freeOnly,
+    return jsonResponse(200, {
+      status: 'ok', provider: 'openrouter', model: model || null, freeOnly,
+      fundingPolicy: token ? 'authenticated' : 'byok-only',
       timestamp: new Date().toISOString(),
-    }), { headers: { 'content-type': 'application/json' } });
+    });
+  }
+  if (request.method === 'OPTIONS' && MESSAGE_PATHS.has(url.pathname)) {
+    return new Response(null, { status: 204, headers: { ...CORS_HEADERS, 'access-control-max-age': '86400' } });
   }
 
-  // Passthrough non-message requests to api.anthropic.com (auth, bootstrap, feature flags)
-  if (!url.pathname.startsWith('/v1/messages')) {
-    const anthropicUrl = `https://api.anthropic.com${url.pathname}${url.search}`;
-    const passthroughHeaders = new Headers(request.headers);
-    passthroughHeaders.set('host', 'api.anthropic.com');
-    passthroughHeaders.delete('cf-connecting-ip');
-    passthroughHeaders.delete('cf-ray');
-    passthroughHeaders.delete('cf-ipcountry');
-    try {
-      const upstream = await fetch(anthropicUrl, {
-        method: request.method,
-        headers: passthroughHeaders,
-        body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
-      });
-      return new Response(upstream.body, {
-        status: upstream.status,
-        headers: upstream.headers,
-      });
-    } catch (e) {
-      return new Response(JSON.stringify({
-        error: { type: 'proxy_error', message: `Passthrough to Anthropic failed: ${e.message}` }
-      }), { status: 502, headers: { 'content-type': 'application/json' } });
-    }
-  }
-
-  // BYOK: Use the user's key from the request header, fall back to server key
   const headers = Object.fromEntries(request.headers.entries());
-  const userKey = headers['x-api-key'] || headers['authorization']?.replace('Bearer ', '') || '';
-  const effectiveKey = (userKey && userKey.startsWith('sk-or-')) ? userKey : apiKey;
-
-  if (!effectiveKey) {
-    return new Response(JSON.stringify({
-      error: { type: 'auth_error', message: 'OpenRouter API key required. Set ANTHROPIC_API_KEY to your OpenRouter key (starts with sk-or-).' }
-    }), { status: 401, headers: { 'content-type': 'application/json' } });
+  if (!checkAuth(headers, token)) {
+    return errorResponse(401, 'authentication_error', 'Invalid or missing AnyModel gateway token.');
   }
 
-  // Rate limit (using global state for Workers)
-  const clientIp = headers['cf-connecting-ip'] || headers['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown';
+  // X-Forwarded-For is caller-controlled unless a trusted ingress validates it.
+  const clientIp = context.clientIp || headers['cf-connecting-ip'] || 'unknown';
   if (!handleRequest._rateState) handleRequest._rateState = {};
   if (!checkRateLimit(clientIp, rpm, handleRequest._rateState)) {
-    return new Response(JSON.stringify({
-      error: { type: 'rate_limit', message: `Rate limit: ${rpm} requests/minute exceeded` }
-    }), { status: 429, headers: { 'content-type': 'application/json' } });
+    return errorResponse(429, 'rate_limit_error', `Rate limit: ${rpm} requests/minute exceeded`);
+  }
+  if (!MESSAGE_PATHS.has(url.pathname)) {
+    return errorResponse(404, 'not_found_error', 'Unsupported route. This worker supports POST /v1/messages and /v1/messages/count_tokens.');
+  }
+  if (request.method !== 'POST') {
+    return errorResponse(405, 'invalid_request_error', 'This route requires POST.', { allow: 'POST' });
   }
 
-  // Parse body
+  const callerKey = callerOpenRouterKey(headers, token);
+  const effectiveKey = callerKey || (token ? apiKey : '');
+  if (!effectiveKey) {
+    return errorResponse(401, 'authentication_error', 'An OpenRouter API key is required. Send your key in x-api-key (or Authorization when no gateway token is configured). Server funding requires ANYMODEL_TOKEN.');
+  }
+
   let body;
+  const limit = bodyLimit(env);
   try {
-    body = await request.json();
-  } catch {
-    return new Response(JSON.stringify({
-      error: { type: 'invalid_request', message: 'Invalid JSON' }
-    }), { status: 400, headers: { 'content-type': 'application/json' } });
+    body = JSON.parse(await readRequestBody(request, limit));
+  } catch (e) {
+    if (e.code === 'BODY_TOO_LARGE') return errorResponse(413, 'invalid_request_error', `Request body exceeds ${limit} bytes.`);
+    return errorResponse(400, 'invalid_request_error', 'Invalid JSON request body.');
   }
-
-  // Model override
+  if (!body || typeof body !== 'object' || Array.isArray(body) ||
+      !Array.isArray(body.messages) || (!model && (typeof body.model !== 'string' || !body.model.trim()))) {
+    return errorResponse(400, 'invalid_request_error', 'Request body must be an object with a model string and messages array.');
+  }
   if (model) body.model = model;
-
-  // Free-only: auto-replace paid models with best free model
-  const defaultFreeModel = env.DEFAULT_FREE_MODEL || DEFAULT_FREE_MODEL;
   if (freeOnly && !isFreeTierModel(body.model, true)) {
-    const originalModel = body.model;
-    body.model = defaultFreeModel;
-    // Add a header so client knows model was swapped
-    console.log(`[FREE-ONLY] Swapped ${originalModel} → ${body.model}`);
+    return errorResponse(403, 'permission_error', 'Free-only policy requires an explicit :free model or openrouter/free. No replacement model was selected.');
   }
 
-  // Sanitize
   sanitizeBody(body);
   const payload = JSON.stringify(body);
-
-  // Forward to OpenRouter with retries (using user's key or server fallback)
-  const orReq = buildOpenRouterRequest(url.pathname, effectiveKey);
-
+  const orReq = buildOpenRouterRequest(url.pathname + url.search, effectiveKey);
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const response = await fetch(orReq.url, {
-        method: 'POST',
-        headers: { ...orReq.headers, 'content-length': new TextEncoder().encode(payload).length.toString() },
-        body: payload,
+        method: 'POST', headers: orReq.headers, body: payload, redirect: 'error',
       });
-
-      if (response.status === 429 || response.status >= 500) {
-        if (attempt === MAX_RETRIES) {
-          return new Response(await response.text(), {
-            status: response.status,
-            headers: { 'content-type': response.headers.get('content-type') || 'application/json' },
-          });
-        }
+      if ((response.status === 429 || response.status >= 500) && attempt < MAX_RETRIES) {
+        // Release failed upstream bodies without buffering an unbounded error page.
+        if (response.body) await response.body.cancel().catch(() => {});
         await new Promise(r => setTimeout(r, calcDelay(attempt)));
         continue;
       }
-
-      // Stream response back
       return new Response(response.body, {
         status: response.status,
-        headers: {
-          'content-type': response.headers.get('content-type') || 'application/json',
-          'access-control-allow-origin': '*',
-        },
+        headers: { ...CORS_HEADERS, 'content-type': response.headers.get('content-type') || 'application/json' },
       });
-
-    } catch (e) {
-      if (attempt === MAX_RETRIES) {
-        return new Response(JSON.stringify({
-          error: { type: 'proxy_error', message: e.message }
-        }), { status: 502, headers: { 'content-type': 'application/json' } });
-      }
+    } catch {
+      if (attempt === MAX_RETRIES) return errorResponse(502, 'api_error', 'OpenRouter request failed.');
       await new Promise(r => setTimeout(r, calcDelay(attempt)));
     }
   }

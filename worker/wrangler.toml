@@ -10,8 +10,8 @@ routes = [
 [vars]
 FREE_ONLY = "true"
 RPM = "60"
-DEFAULT_FREE_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
+ANYMODEL_MAX_BODY_BYTES = "4194304"
 
 # Secrets (set via `wrangler secret put`):
-# OPENROUTER_API_KEY
-# ANYMODEL_TOKEN
+# OPENROUTER_API_KEY (optional; disabled unless ANYMODEL_TOKEN is also set)
+# ANYMODEL_TOKEN (required for server-funded requests; also gates BYOK when set)
