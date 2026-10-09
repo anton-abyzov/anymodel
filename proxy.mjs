@@ -1,10 +1,9 @@
 // Core proxy server for anymodel
-// Routes /v1/messages → provider, everything else → api.anthropic.com
+// Routes supported Messages/OpenAI requests only to the configured provider.
 
 import http from 'http';
 import https from 'https';
 import { readFileSync } from 'fs';
-import { randomUUID } from 'crypto';
 
 const pkg = JSON.parse(readFileSync(new URL('package.json', import.meta.url), 'utf8'));
 
@@ -25,261 +24,10 @@ const C = {
   bold: s => `\x1b[1m${s}\x1b[0m`,
 };
 
-// Internal, non-enumerable bridge from Claude Code's `output_config.effort` to
-// provider-specific request knobs. JSON.stringify will not leak it.
-export const INTERNAL_EFFORT_FIELD = '__anymodel_effort';
-
-export function copyInternalEffort(source, target) {
-  if (source?.[INTERNAL_EFFORT_FIELD] === undefined || !target) return target;
-  Object.defineProperty(target, INTERNAL_EFFORT_FIELD, {
-    value: source[INTERNAL_EFFORT_FIELD],
-    enumerable: false,
-    configurable: true,
-    writable: true,
-  });
-  return target;
-}
-
-// P1.6: canonical Anthropic error envelope. Claude Code keys its error handling
-// — especially retry/backoff on 429/5xx — off the Anthropic shape
-// `{type:"error", error:{type,message}}` and a recognized `error.type`. Flat
-// `{error:{...}}` shapes or non-canonical type strings (`rate_limit` vs
-// `rate_limit_error`, `proxy_error` vs `api_error`) degrade client recovery.
-// Canonical inner types: invalid_request_error, authentication_error,
-// permission_error, not_found_error, rate_limit_error, api_error, overloaded_error.
-export function sendError(res, status, type, message, extraHeaders = {}) {
-  if (res.writableEnded) return;
-  // If the response already streamed headers (e.g. a streaming turn threw after
-  // writeHead 200), we cannot change the status — just close cleanly rather than
-  // crash with ERR_HTTP_HEADERS_SENT.
-  if (res.headersSent) { res.end(); return; }
-  res.writeHead(status, { 'content-type': 'application/json', ...extraHeaders });
-  res.end(JSON.stringify({ type: 'error', error: { type, message } }));
-}
-
-// P1.6: pull a short human-readable message out of an upstream error body so the
-// canonical envelope keeps the upstream detail without leaking the foreign shape.
-// Handles OpenAI flat `{error:{message}}`, string `{error:"..."}` (LM Studio),
-// and bare-string bodies. Returns '' when nothing useful is found.
-export function extractUpstreamErrorMessage(errBody) {
-  if (!errBody) return '';
-  try {
-    const o = JSON.parse(errBody);
-    const m = (o && o.error && (o.error.message || (typeof o.error === 'string' ? o.error : null))) || o?.message;
-    if (typeof m === 'string' && m.trim()) return m.trim().slice(0, 300);
-  } catch {
-    const s = String(errBody).trim();
-    if (s && !s.startsWith('<')) return s.slice(0, 300);
-  }
-  return '';
-}
-
-// P1.7: default to loopback. `server.listen(port, cb)` with no host binds all
-// interfaces (0.0.0.0), so with the default no-token config the proxy was
-// reachable from the LAN with no auth — anyone could POST /v1/messages to spend
-// the user's cloud credits or drive the local GPU. Exposing now requires an
-// explicit ANYMODEL_HOST / --host opt-in.
-export function resolveBindHost(host) {
-  return host || process.env.ANYMODEL_HOST || '127.0.0.1';
-}
-export function isLoopbackHost(host) {
-  return host === '127.0.0.1' || host === '::1' || host === 'localhost';
-}
-
-// P1.8: when fronting a LOCAL provider, never forward the client's real Anthropic
-// credentials to api.anthropic.com on passthrough housekeeping routes. cli.mjs
-// injects a dummy key by default, but a user with a real ANTHROPIC_API_KEY
-// exported (or launching Claude Code independently) would otherwise egress it.
-export function stripAuthHeaders(headers) {
-  const out = { ...headers };
-  delete out['x-api-key'];
-  delete out['authorization'];
-  return out;
-}
-
-// P1.9: cap buffered bodies. Every buffered read was unbounded `chunks.push` +
-// `Buffer.concat`; a large body OOMs the proxy (a trivial LAN DoS once exposed).
-// Default 64MB, override via ANYMODEL_MAX_BODY_BYTES.
-export function maxBodyBytes() {
-  return Number(process.env.ANYMODEL_MAX_BODY_BYTES) || 64 * 1024 * 1024;
-}
-
-// Read a request/response stream into a Buffer, enforcing a byte cap. Fails fast
-// on a Content-Length already over the cap, and aborts mid-stream if the running
-// size exceeds it. Rejects with an error whose `.code` is 'BODY_TOO_LARGE'.
-export function readCappedBody(stream, limit = maxBodyBytes()) {
-  return new Promise((resolve, reject) => {
-    const declared = Number(stream.headers?.['content-length']);
-    if (Number.isFinite(declared) && declared > limit) {
-      const e = new Error(`body exceeds ${limit} bytes (content-length ${declared})`);
-      e.code = 'BODY_TOO_LARGE';
-      stream.resume(); // drain so the socket can close cleanly
-      return reject(e);
-    }
-    const chunks = [];
-    let size = 0;
-    stream.on('data', c => {
-      size += c.length;
-      if (size > limit) {
-        const e = new Error(`body exceeds ${limit} bytes`);
-        e.code = 'BODY_TOO_LARGE';
-        stream.destroy();
-        return reject(e);
-      }
-      chunks.push(c);
-    });
-    stream.on('end', () => resolve(Buffer.concat(chunks)));
-    stream.on('error', reject);
-  });
-}
-
-// P1.9: guard a JSON.parse over an upstream body. On failure returns null (callers
-// surface an Anthropic api_error) instead of throwing into the retry loop, which
-// masked the real content as a generic 502 + spurious retry.
-export function safeJsonParse(str) {
-  try { return { ok: true, value: JSON.parse(str) }; }
-  catch (e) { return { ok: false, error: e }; }
-}
-
-// Sanitize tool_use blocks in responses from non-Anthropic models.
-// Fixes structural issues that cause "Invalid tool parameters" in Claude Code.
-//
-// NOTE: Since 1.12.0 we no longer inject `_unused`/`_placeholder` placeholder
-// properties in requests (see `sanitizeBody` — empty schemas use the canonical
-// `{type:"object", properties:{}, additionalProperties:false}` form instead).
-// Consequently this function no longer strips those fields — real tools with
-// params named `_unused` now round-trip cleanly.
-export function sanitizeToolUseResponse(respObj) {
-  if (!respObj?.content || !Array.isArray(respObj.content)) return respObj;
-
-  respObj.content = respObj.content.filter(block => {
-    if (block.type !== 'tool_use') return true;
-
-    // Ensure required fields exist. P2.7: randomUUID avoids the Date.now()+Math.random
-    // collisions that two parallel tool calls in the same ms could hit, which would
-    // break tool_use/tool_result id correlation.
-    if (!block.id) block.id = `toolu_${randomUUID()}`;
-    if (!block.name) return false; // drop tool_use with no name — invalid
-    if (!block.input || typeof block.input !== 'object') block.input = {};
-
-    return true;
-  });
-
-  return respObj;
-}
-
-// Strip Anthropic-specific fields that break non-Anthropic providers
-// keepCache=true preserves cache_control for providers that support it (OpenRouter → Anthropic models)
-export function sanitizeBody(body, { keepCache = false } = {}) {
-  const effort = body.output_config?.effort;
-  if (effort !== undefined) {
-    copyInternalEffort({ [INTERNAL_EFFORT_FIELD]: effort }, body);
-  }
-  delete body.betas;
-  delete body.metadata;
-  delete body.speed;
-  delete body.output_config;
-  delete body.context_management;
-  // Keep body.thinking — OpenRouter passes it to reasoning models (DeepSeek R1, etc.)
-  // to enable visible chain-of-thought. Only strip for providers that reject it.
-
-  // Clamp max_tokens / max_output_tokens: OpenAI/GPT require >= 16
-  // OpenRouter translates max_tokens → max_output_tokens for GPT models
-  if (body.max_tokens != null && body.max_tokens < 16) {
-    body.max_tokens = 16;
-  }
-  if (body.max_output_tokens != null && body.max_output_tokens < 16) {
-    body.max_output_tokens = 16;
-  }
-
-  // Strip cache_control from system/message/tool blocks (only for providers that don't support it)
-  if (!keepCache) {
-    if (Array.isArray(body.system)) {
-      body.system = body.system.map(block => {
-        if (block && typeof block === 'object' && block.cache_control) {
-          const { cache_control, ...rest } = block;
-          return rest;
-        }
-        return block;
-      });
-    }
-    if (Array.isArray(body.messages)) {
-      for (const msg of body.messages) {
-        if (Array.isArray(msg.content)) {
-          msg.content = msg.content.map(block => {
-            if (block && typeof block === 'object' && block.cache_control) {
-              const { cache_control, ...rest } = block;
-              return rest;
-            }
-            return block;
-          });
-        }
-      }
-    }
-  }
-
-  // Strip Anthropic-only tool fields and fix empty input_schema.properties
-  if (Array.isArray(body.tools)) {
-    body.tools = body.tools.map(tool => {
-      const stripFields = keepCache
-        ? { defer_loading: true, eager_input_streaming: true, strict: true }
-        : { cache_control: true, defer_loading: true, eager_input_streaming: true, strict: true };
-      const rest = { ...tool };
-      for (const key of Object.keys(stripFields)) delete rest[key];
-
-      // Fix schemas that OpenAI/strict-mode parsers reject:
-      // 1. Missing input_schema entirely
-      // 2. Missing or empty properties
-      // Use the standard JSON-Schema "empty object" form — {type:"object", properties:{}, additionalProperties:false}
-      // This is accepted by OpenAI, Groq, Together, vLLM, LMStudio, Ollama, and real
-      // tool params named `_unused` are preserved end-to-end (US-004 fix, 1.12.0).
-      const emptyObjectSchema = () => ({ type: 'object', properties: {}, additionalProperties: false });
-      if (!rest.input_schema || typeof rest.input_schema !== 'object') {
-        rest.input_schema = emptyObjectSchema();
-      } else {
-        if (!rest.input_schema.type) {
-          rest.input_schema.type = 'object';
-        }
-        if (rest.input_schema.type === 'object') {
-          const props = rest.input_schema.properties;
-          if (!props || (typeof props === 'object' && Object.keys(props).length === 0)) {
-            rest.input_schema.properties = {};
-            rest.input_schema.additionalProperties = false;
-            if (!Array.isArray(rest.input_schema.required)) rest.input_schema.required = [];
-          }
-        }
-      }
-
-      // Recursively fix nested schemas (anyOf, oneOf, allOf, items)
-      const fixNested = (schema) => {
-        if (!schema || typeof schema !== 'object') return;
-        for (const key of ['anyOf', 'oneOf', 'allOf']) {
-          if (Array.isArray(schema[key])) {
-            schema[key].forEach(fixNested);
-          }
-        }
-        if (schema.items) fixNested(schema.items);
-        if (schema.type === 'object' && schema.properties) {
-          if (Object.keys(schema.properties).length === 0) {
-            schema.additionalProperties = false;
-            if (!Array.isArray(schema.required)) schema.required = [];
-          }
-          for (const v of Object.values(schema.properties)) fixNested(v);
-        }
-      };
-      fixNested(rest.input_schema);
-
-      return rest;
-    });
-  }
-
-  // Normalize tool_choice: providers expect object, clients may send string
-  if (typeof body.tool_choice === 'string') {
-    body.tool_choice = { type: body.tool_choice };
-  }
-
-  return body;
-}
+import { INTERNAL_EFFORT_FIELD, copyInternalEffort, sendError, extractUpstreamErrorMessage, resolveBindHost, isLoopbackHost, stripAuthHeaders, maxBodyBytes, readCappedBody, safeJsonParse, sanitizeToolUseResponse, sanitizeBody } from './providers/message-utils.mjs';
+export { INTERNAL_EFFORT_FIELD, copyInternalEffort, sendError, extractUpstreamErrorMessage, resolveBindHost, isLoopbackHost, stripAuthHeaders, maxBodyBytes, readCappedBody, safeJsonParse, sanitizeToolUseResponse, sanitizeBody } from './providers/message-utils.mjs';
+import { handleCloudWire } from './providers/cloud-wire.mjs';
+import { applyFreeRequestPolicy, isExplicitFreeModel } from './providers/request-policy.mjs';
 
 // Calculate exponential backoff delay, capped at 8s
 export function calcDelay(attempt) {
@@ -288,13 +36,13 @@ export function calcDelay(attempt) {
 
 // Check if a URL path should be routed to the provider
 export function isProviderRoute(url) {
-  return url.startsWith('/v1/messages');
+  const path = url.split('?')[0].replace(/\/+$/, '');
+  return path === '/v1/messages' || path === '/v1/messages/count_tokens';
 }
 
 // OpenAI-wire routes served locally (Codex CLI etc.). Only matched when the active
 // provider is LOCAL — see the dispatcher's `isLocalProvider && isOpenAIRoute` guard.
-// Cloud providers (openai/openrouter) keep passing these paths through unchanged,
-// and api.anthropic.com passthrough stays the fallback for everything else. Exact
+// Cloud providers forward these paths using their native wire endpoint. Exact
 // match (after stripping query + trailing slashes) so we never shadow /v1/messages.
 //
 // Covers BOTH OpenAI wire dialects local clients use:
@@ -382,7 +130,11 @@ export function upstreamTimeoutMs() {
 }
 
 function sendRequest(provider, url, payload) {
-  const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
+  const apiKey = provider.name === 'openrouter' ? process.env.OPENROUTER_API_KEY
+    : provider.name === 'openai' ? process.env.OPENAI_API_KEY : undefined;
+  if ((provider.name === 'openrouter' || provider.name === 'openai') && !apiKey) {
+    throw Object.assign(new Error(`Missing ${provider.name === 'openrouter' ? 'OPENROUTER_API_KEY' : 'OPENAI_API_KEY'} for ${provider.name}`), { status: 401 });
+  }
   const opts = provider.buildRequest(url, payload, apiKey);
   const timeoutMs = upstreamTimeoutMs();
 
@@ -410,7 +162,7 @@ function sendRequest(provider, url, payload) {
   });
 }
 
-async function handleMessages(req, res, provider, model, isFreeTierModel) {
+async function handleMessages(req, res, provider, model, isFreeTierModel, freeOnly = false) {
   let raw;
   try {
     raw = await readCappedBody(req);
@@ -430,6 +182,10 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     return;
   }
   const parsed = jp.value;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    sendError(res, 400, 'invalid_request_error', 'Expected a JSON request object');
+    return;
+  }
 
   const originalModel = parsed.model;
   if (model) parsed.model = model;
@@ -440,11 +196,16 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     sendError(res, 403, 'permission_error', `Model "${parsed.model}" is not free. Use --model with a :free model or disable --free-only.`);
     return;
   }
+  const policyError = applyFreeRequestPolicy(parsed, { freeOnly, provider: provider.name });
+  if (policyError) {
+    sendError(res, 403, 'permission_error', policyError);
+    return;
+  }
 
   // Preserve cache_control for OpenRouter (supports Anthropic prompt caching)
   // Strip it for Ollama/OpenAI providers that reject it
   const keepCache = provider.name === 'openrouter';
-  sanitizeBody(parsed, { keepCache });
+  sanitizeBody(parsed, { keepCache, preserveNative: provider.name === 'openrouter' });
 
   // Inject Windows path hint — LLMs default to Unix-style paths
   injectPlatformHints(parsed, process.platform);
@@ -735,10 +496,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
       const upstream = await sendRequest(provider, req.url, payload);
 
       if (upstream.statusCode === 429 || upstream.statusCode >= 500) {
-        const errChunks = [];
-        upstream.on('data', c => errChunks.push(c));
-        await new Promise(r => upstream.on('end', r));
-        const errBody = Buffer.concat(errChunks).toString();
+        const errBody = (await readCappedBody(upstream)).toString();
 
         // Extract rate limit headers from upstream response
         const retryAfter = upstream.headers['retry-after'];
@@ -808,10 +566,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
       }
 
       if (upstream.statusCode !== 200) {
-        const errChunks = [];
-        upstream.on('data', c => errChunks.push(c));
-        await new Promise(r => upstream.on('end', r));
-        const errBody = Buffer.concat(errChunks).toString();
+        const errBody = (await readCappedBody(upstream)).toString();
 
         // Auto-retry without tools if model doesn't support tool use
         const { isToolError: checkToolErr, cacheToolResult: cacheResult } = await import('./providers/ollama-tools.mjs');
@@ -832,10 +587,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
           if (retryUpstream.statusCode === 200) {
             console.log(`${C.green(`[${provider.name.toUpperCase()}]`)} 200 ← response (no tools mode)`);
             if (!isStreaming) {
-              const respChunks = [];
-              retryUpstream.on('data', c => respChunks.push(c));
-              await new Promise(r => retryUpstream.on('end', r));
-              let respStr = Buffer.concat(respChunks).toString();
+              let respStr = (await readCappedBody(retryUpstream)).toString();
               res.writeHead(200, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(respStr) });
               res.end(respStr);
             } else {
@@ -845,9 +597,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
             return;
           }
           // If retry also fails, fall through to error
-          const retryErr = [];
-          retryUpstream.on('data', c => retryErr.push(c));
-          await new Promise(r => retryUpstream.on('end', r));
+          await readCappedBody(retryUpstream);
           console.log(`${C.red(`[${provider.name.toUpperCase()}]`)} Retry without tools also failed: ${retryUpstream.statusCode}`);
         }
 
@@ -870,56 +620,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
           }
 
           console.log(`${tag} ${isToS ? 'ToS rejection' : 'Auth error'}: ${isFreeModel ? '(free model) ' : ''}${errBody.slice(0, 200)}`);
-          sendError(res, 400, 'invalid_request_error', userMessage);
-          return;
-        }
-
-        // Auto-fallback to :free model on 402 (insufficient credits)
-        if (upstream.statusCode === 402 && parsed.model && !parsed.model.endsWith(':free')) {
-          const freeModel = parsed.model + ':free';
-          console.log(`${C.yellow(`[${provider.name.toUpperCase()}]`)} No credits — trying free variant: ${C.bold(freeModel)}`);
-          const freeBody = { ...requestBody, model: freeModel };
-          const freePayload = JSON.stringify(freeBody);
-          try {
-            const freeUpstream = await sendRequest(provider, req.url, freePayload);
-            if (freeUpstream.statusCode === 200) {
-              console.log(`${C.green(`[${provider.name.toUpperCase()}]`)} ${C.bold(':free')} fallback succeeded — using ${freeModel}`);
-              if (!isStreaming) {
-                const respChunks = [];
-                freeUpstream.on('data', c => respChunks.push(c));
-                await new Promise(r => freeUpstream.on('end', r));
-                let respStr = Buffer.concat(respChunks).toString();
-                if (provider.transformResponse) {
-                  // P1.9: guard the upstream parse — a malformed free response was
-                  // previously mis-reported as "no free variant".
-                  const parsedFree = safeJsonParse(respStr);
-                  if (!parsedFree.ok) {
-                    console.error(`${C.red(`[${provider.name.toUpperCase()}]`)} :free upstream returned non-JSON body: ${respStr.slice(0, 120)}`);
-                    sendError(res, 502, 'api_error', 'Upstream returned a non-JSON response body');
-                    return;
-                  }
-                  const translated = provider.transformResponse(parsedFree.value);
-                  sanitizeToolUseResponse(translated);
-                  respStr = JSON.stringify(translated);
-                }
-                res.writeHead(200, { 'content-type': 'application/json' });
-                res.end(respStr);
-              } else {
-                res.writeHead(200, freeUpstream.headers);
-                freeUpstream.pipe(res);
-              }
-              return;
-            }
-            // Drain failed free response
-            const freeErr = [];
-            freeUpstream.on('data', c => freeErr.push(c));
-            await new Promise(r => freeUpstream.on('end', r));
-            console.log(`${C.yellow(`[${provider.name.toUpperCase()}]`)} :free fallback also failed (${freeUpstream.statusCode})`);
-          } catch (e) {
-            console.log(`${C.red(`[${provider.name.toUpperCase()}]`)} :free fallback error: ${e.message}`);
-          }
-          // Free fallback failed — return helpful error
-          sendError(res, 400, 'invalid_request_error', `[anymodel] No credits on OpenRouter and no free variant available for ${parsed.model}. Add credits at https://openrouter.ai/settings/credits or use a free model: npx anymodel proxy --model qwen/qwen3-coder:free`);
+          sendError(res, upstream.statusCode, 'authentication_error', userMessage);
           return;
         }
 
@@ -950,10 +651,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
       // If provider needs response translation (e.g., openai)
       if (provider.transformResponse && !isStreaming) {
         // Non-streaming: read full body, translate, send as Anthropic format
-        const respChunks = [];
-        upstream.on('data', c => respChunks.push(c));
-        await new Promise(r => upstream.on('end', r));
-        const respStr = Buffer.concat(respChunks).toString();
+        const respStr = (await readCappedBody(upstream)).toString();
         // P1.9: a local server can return a truncated/non-JSON 200 (HTML error
         // page, partial body on reset). Surface a clear api_error instead of
         // letting an unhandled throw bubble to the retry catch → generic 502.
@@ -982,10 +680,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
             const retryReq = { ...requestBody, messages: [nudge, ...(requestBody.messages || [])] };
             const retryUpstream = await sendRequest(provider, req.url, JSON.stringify(retryReq));
             if (retryUpstream.statusCode === 200) {
-              const rc = [];
-              retryUpstream.on('data', c => rc.push(c));
-              await new Promise(r => retryUpstream.on('end', r));
-              const rp = safeJsonParse(Buffer.concat(rc).toString());
+              const rp = safeJsonParse((await readCappedBody(retryUpstream)).toString());
               if (rp.ok) translated = provider.transformResponse(rp.value, prefixCacheResult);
             } else if (retryUpstream.resume) {
               retryUpstream.resume(); // drain the failed retry body
@@ -993,6 +688,10 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
           }
         }
 
+        if (translated.type === 'error') {
+          sendError(res, 502, translated.error?.type || 'api_error', translated.error?.message || 'Upstream response error');
+          return;
+        }
         sanitizeToolUseResponse(translated);
         const translatedPayload = JSON.stringify(translated);
         res.writeHead(200, { 'content-type': 'application/json' });
@@ -1017,8 +716,9 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         if (pingTimer.unref) pingTimer.unref();
         const clearPing = () => clearInterval(pingTimer);
 
+        upstream.setEncoding('utf8');
         upstream.on('data', chunk => {
-          const translated = translator.transform(chunk.toString());
+          const translated = translator.transform(chunk);
           if (translated) {
             firstWrite = true;
             clearPing();
@@ -1041,6 +741,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
               if (tail && !res.writableEnded) res.write(tail);
             } catch (e) {
               console.error(`${C.red('[STREAM]')} flush error: ${e.message}`);
+              if (!res.writableEnded) res.write(`event: error\ndata: ${JSON.stringify({ type: 'error', error: { type: 'api_error', message: 'Upstream stream could not be finalized' } })}\n\n`);
             }
           }
           if (!res.writableEnded) res.end();
@@ -1048,7 +749,10 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
         upstream.on('error', (e) => {
           clearPing();
           console.error(`${C.red('[STREAM]')} Upstream error: ${e.message}`);
-          if (!res.writableEnded) res.end();
+          if (!res.writableEnded) {
+            res.write(`event: error\ndata: ${JSON.stringify({ type: 'error', error: { type: 'api_error', message: e.message } })}\n\n`);
+            res.end();
+          }
         });
         res.on('close', () => { clearPing(); upstream.destroy(); });
         return;
@@ -1057,10 +761,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
       // Default: pipe through with _unused stripping (openrouter, ollama)
       // For non-streaming: parse, strip, send
       if (!isStreaming) {
-        const respChunks = [];
-        upstream.on('data', c => respChunks.push(c));
-        await new Promise(r => upstream.on('end', r));
-        let respStr = Buffer.concat(respChunks).toString();
+        let respStr = (await readCappedBody(upstream)).toString();
         // Sanitize tool_use blocks: strip placeholders, fix structure
         try {
           const respObj = JSON.parse(respStr);
@@ -1084,13 +785,15 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
       upstream.on('end', () => res.end());
       upstream.on('error', (e) => {
         console.error(`${C.red('[STREAM]')} Upstream error: ${e.message}`);
-        if (!res.writableEnded) res.end();
+        if (!res.writableEnded) res.destroy(e);
       });
+      upstream.on('aborted', () => { if (!res.writableEnded) res.destroy(new Error('Upstream stream aborted')); });
       res.on('close', () => upstream.destroy());
       return;
 
     } catch (e) {
       console.error(`${C.red(`[${provider.name.toUpperCase()}]`)} Connection error on attempt ${attempt}: ${e.message}`);
+      if (e.status === 401) { sendError(res, 401, 'authentication_error', e.message); return; }
       if (attempt === MAX_RETRIES) {
         sendError(res, 502, 'api_error', e.message);
         return;
@@ -1191,10 +894,7 @@ async function handleOpenAIChat(req, res, provider, model, isFreeTierModel) {
 
       // 429 / 5xx → backoff + retry, then OpenAI error envelope.
       if (upstream.statusCode === 429 || upstream.statusCode >= 500) {
-        const errChunks = [];
-        upstream.on('data', c => errChunks.push(c));
-        await new Promise(r => upstream.on('end', r));
-        const errBody = Buffer.concat(errChunks).toString();
+        const errBody = (await readCappedBody(upstream)).toString();
         const tag = C.red(localTag);
         console.log(`${tag} ${upstream.statusCode} on attempt ${attempt}/${MAX_RETRIES}: ${errBody.slice(0, 200)}`);
         if (attempt === MAX_RETRIES) {
@@ -1212,10 +912,7 @@ async function handleOpenAIChat(req, res, provider, model, isFreeTierModel) {
 
       // Other non-200 (400/401/403/404/422) — emit OpenAI envelope; no retry.
       if (upstream.statusCode !== 200) {
-        const errChunks = [];
-        upstream.on('data', c => errChunks.push(c));
-        await new Promise(r => upstream.on('end', r));
-        const errBody = Buffer.concat(errChunks).toString();
+        const errBody = (await readCappedBody(upstream)).toString();
 
         // no-tools fallback: if the local model rejects tool use, retry once without tools.
         const { isToolError: checkToolErr } = await import('./providers/ollama-tools.mjs');
@@ -1266,10 +963,7 @@ async function handleOpenAIChat(req, res, provider, model, isFreeTierModel) {
 // server closes without one (LM Studio/MLX/llama.cpp frequently do).
 async function finalizeOpenAIResponse(upstream, res, provider, isStreaming, reqStartTime) {
   if (!isStreaming) {
-    const respChunks = [];
-    upstream.on('data', c => respChunks.push(c));
-    await new Promise(r => upstream.on('end', r));
-    const respStr = Buffer.concat(respChunks).toString();
+    const respStr = (await readCappedBody(upstream)).toString();
     const parsedResp = safeJsonParse(respStr);
     if (!parsedResp.ok) {
       console.error(`${C.red(`[${provider.name.toUpperCase()}]`)} Upstream returned non-JSON 200 body: ${respStr.slice(0, 120)}`);
@@ -1378,10 +1072,7 @@ async function handleResponses(req, res, provider, model, isFreeTierModel) {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const upstream = await sendRequest(provider, '/v1/chat/completions', payload);
-      const chunks = [];
-      upstream.on('data', c => chunks.push(c));
-      await new Promise((resolve, reject) => { upstream.on('end', resolve); upstream.on('error', reject); });
-      const respStr = Buffer.concat(chunks).toString();
+      const respStr = (await readCappedBody(upstream)).toString();
 
       if (upstream.statusCode === 429 || upstream.statusCode >= 500) {
         console.log(`${C.red(localTag)} ${upstream.statusCode} on attempt ${attempt}/${MAX_RETRIES}: ${respStr.slice(0, 200)}`);
@@ -1417,53 +1108,6 @@ async function handleResponses(req, res, provider, model, isFreeTierModel) {
   }
 }
 
-function proxyToAnthropic(req, res, { stripAuth = false } = {}) {
-  // Mock known Claude Code internal endpoints that don't need Anthropic auth.
-  // Without this, Claude Code's auth/capability checks hit api.anthropic.com
-  // and fail with 401/403, causing misleading "Please run /login" errors.
-  if (req.url === '/api/auth/session' || req.url === '/api/auth') {
-    res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ authenticated: true }));
-    return;
-  }
-
-  const body = [];
-  req.on('data', c => body.push(c));
-  req.on('error', e => {
-    console.error(`${C.red('[PASSTHROUGH]')} Client error: ${e.message}`);
-    if (!res.writableEnded) { res.writeHead(502); res.end(); }
-  });
-  req.on('end', () => {
-    // P1.8: for local providers, strip the client's Anthropic credentials before
-    // forwarding housekeeping routes — don't egress a real key to api.anthropic.com.
-    const fwdHeaders = stripAuth
-      ? { ...stripAuthHeaders(req.headers), host: 'api.anthropic.com' }
-      : { ...req.headers, host: 'api.anthropic.com' };
-    const opts = {
-      hostname: 'api.anthropic.com',
-      port: 443,
-      path: req.url,
-      method: req.method,
-      headers: fwdHeaders,
-    };
-    const pr = https.request(opts, upstream => {
-      // If Anthropic returns auth error on passthrough, don't forward it raw —
-      // it confuses Claude Code into showing "Please run /login"
-      if (upstream.statusCode === 401 || upstream.statusCode === 403) {
-        console.log(`${C.yellow('[PASSTHROUGH]')} ${req.url} → ${upstream.statusCode} (suppressed — proxy mode)`);
-        res.writeHead(200, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ type: 'message', content: [] }));
-        return;
-      }
-      res.writeHead(upstream.statusCode, upstream.headers);
-      upstream.pipe(res);
-    });
-    pr.on('error', e => { res.writeHead(502); res.end(e.message); });
-    if (body.length) pr.write(Buffer.concat(body));
-    pr.end();
-  });
-}
-
 export function createProxy(provider, { port = 9090, host = null, model, maxPortRetries = 10, freeOnly = false, token = null, rpm = 60 } = {}) {
   // Rate limiting state
   const rateWindow = {};
@@ -1494,9 +1138,7 @@ export function createProxy(provider, { port = 9090, host = null, model, maxPort
   // duplicated locally to avoid a cross-module import in this hot path.
   function isFreeTierModel(modelId) {
     if (!freeOnly) return true;
-    if (!modelId) return !!model; // using default model which was already validated
-    if (modelId === 'openrouter/free') return true;
-    return modelId.endsWith(':free');
+    return isExplicitFreeModel(modelId);
   }
 
   const server = http.createServer((req, res) => {
@@ -1513,22 +1155,47 @@ export function createProxy(provider, { port = 9090, host = null, model, maxPort
       return;
     }
 
+    const wire = isOpenAIRoute(req.url);
+    const fail = (status, type, message) => wire
+      ? openaiError(res, status, message, type)
+      : sendError(res, status, type, message);
+    if (!checkAuth(req)) {
+      req.resume();
+      fail(401, 'authentication_error', 'Invalid or missing token. Set Authorization: Bearer <token>');
+      return;
+    }
+    // Forwarded headers are caller-controlled. Only the direct peer owns its quota.
+    if (!checkRateLimit(req.socket.remoteAddress)) {
+      req.resume();
+      fail(429, 'rate_limit_error', `Rate limit: ${rpm} requests/minute exceeded`);
+      return;
+    }
+    if (Number(req.headers['content-length']) > maxBodyBytes()) {
+      req.resume();
+      fail(413, 'invalid_request_error', `Request body exceeds ${maxBodyBytes()} bytes`);
+      return;
+    }
+    const route = req.url.split('?')[0].replace(/\/+$/, '');
+    const expectedMethod = route === '/v1/models' ? 'GET' : 'POST';
+    if ((wire || isProviderRoute(req.url)) && req.method !== expectedMethod) {
+      req.resume();
+      fail(405, 'invalid_request_error', `Use ${expectedMethod} for ${route}`);
+      return;
+    }
+    if (wire && !isLocalProvider) {
+      handleCloudWire(req, res, provider, { model, freeOnly, isFreeTierModel, sendRequest }).catch(e => {
+        if (res.headersSent) res.destroy(e);
+        else openaiError(res, e.status || (e.code === 'BODY_TOO_LARGE' ? 413 : 502), e.message);
+      });
+      return;
+    }
+
     // OpenAI-wire route for LOCAL providers (Codex CLI etc.). Sits BEFORE the
     // Anthropic /v1/messages branch and is gated by `isLocalProvider && isOpenAIRoute`,
     // so Claude Code (/v1/messages) and cloud providers are provably unaffected — they
     // never enter this branch. Auth + rate-limit are applied exactly like the messages
     // branch; failures use the OpenAI envelope Codex understands.
     if (isLocalProvider && isOpenAIRoute(req.url)) {
-      if (!checkAuth(req)) {
-        openaiError(res, 401, 'Invalid or missing token. Set Authorization: Bearer <token>', 'authentication_error');
-        return;
-      }
-      const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
-      if (!checkRateLimit(clientIp)) {
-        console.log(`${C.red('[RATE]')} Limit exceeded for ${clientIp}`);
-        openaiError(res, 429, `Rate limit: ${rpm} requests/minute exceeded`, 'rate_limit_error');
-        return;
-      }
       if (req.method === 'GET') {
         handleOpenAIModels(req, res, provider).catch(e => {
           console.error(`${C.red('[PROXY]')} Unhandled error: ${e.message}`);
@@ -1546,19 +1213,6 @@ export function createProxy(provider, { port = 9090, host = null, model, maxPort
     }
 
     if (isProviderRoute(req.url)) {
-      // Auth check
-      if (!checkAuth(req)) {
-        sendError(res, 401, 'authentication_error', 'Invalid or missing token. Set Authorization: Bearer <token>');
-        return;
-      }
-      // Rate limit check
-      const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
-      if (!checkRateLimit(clientIp)) {
-        console.log(`${C.red('[RATE]')} Limit exceeded for ${clientIp}`);
-        sendError(res, 429, 'rate_limit_error', `Rate limit: ${rpm} requests/minute exceeded`);
-        return;
-      }
-
       // Mock /v1/messages/count_tokens for providers that don't support it.
       // Claude Code calls this endpoint frequently. Ollama and OpenAI-compatible
       // providers don't implement it, causing cascading 500 errors and server
@@ -1580,13 +1234,13 @@ export function createProxy(provider, { port = 9090, host = null, model, maxPort
         return;
       }
 
-      handleMessages(req, res, provider, model, isFreeTierModel).catch(e => {
+      handleMessages(req, res, provider, model, isFreeTierModel, freeOnly).catch(e => {
         console.error(`${C.red('[PROXY]')} Unhandled error: ${e.message}`);
         sendError(res, 502, 'api_error', 'Internal proxy error');
       });
     } else {
-      console.log(`${C.yellow('[PASSTHROUGH]')} ${req.method} ${req.url}`);
-      proxyToAnthropic(req, res, { stripAuth: isLocalProvider });
+      req.resume();
+      fail(404, 'not_found_error', `Unsupported route ${route}; use /v1/messages, /v1/chat/completions, /v1/responses, or /v1/models`);
     }
   });
 
@@ -1599,7 +1253,7 @@ export function createProxy(provider, { port = 9090, host = null, model, maxPort
     if (isLocalProvider) {
       console.log(`     /v1/chat/completions + /v1/responses + /v1/models \u2192 ${C.bold(provider.name)} (local OpenAI wire)`);
     }
-    console.log(`     everything else \u2192 passthrough`);
+    console.log(`     unsupported routes → explicit errors`);
     console.log(`     Retries: ${MAX_RETRIES} with exponential backoff`);
     if (model) {
       console.log(`     Model override: ${C.cyan(model)}`);

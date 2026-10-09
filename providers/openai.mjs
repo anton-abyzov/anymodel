@@ -9,8 +9,7 @@ export const INTERNAL_EFFORT_FIELD = '__anymodel_effort';
 export function normalizeReasoningEffort(effort) {
   if (typeof effort !== 'string') return null;
   const normalized = effort.toLowerCase();
-  if (normalized === 'low' || normalized === 'medium' || normalized === 'high') return normalized;
-  if (normalized === 'max') return 'high';
+  if (['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].includes(normalized)) return normalized;
   return null;
 }
 
@@ -30,7 +29,7 @@ export function shouldForwardReasoningEffort(model, {
   }
 
   const m = String(model || '').toLowerCase();
-  return /(^|[/_-])(gpt-5|o[1-9])/.test(m) || m.includes('codex');
+  return /(^|[/_-])(?:gpt-(?:[5-9]|[1-9]\d)(?:[.\-/]|$)|o[1-9])/.test(m) || m.includes('codex');
 }
 
 // P1.2: resolve an Anthropic image block to an OpenAI `image_url` data/URL string.
@@ -148,17 +147,19 @@ export function extractToolResultParts(block, { visionCapable = true } = {}) {
   return { text, imageUrls };
 }
 
-export function translateRequest(anthropicBody, { visionCapable = true, effortCapable = false } = {}) {
+export function translateRequest(anthropicBody, { visionCapable = true, effortCapable = false, completionTokenLimit = false, streamUsage = false } = {}) {
   const openaiBody = {
     model: anthropicBody.model,
     // P1.4: fall back to the newer `max_output_tokens` when `max_tokens` is absent.
     // sanitizeBody clamps each to >=16 independently but never bridges the two, so
     // a client sending only `max_output_tokens` would otherwise get `max_tokens:
     // undefined` and over-generate.
-    max_tokens: anthropicBody.max_tokens ?? anthropicBody.max_output_tokens,
+    [completionTokenLimit ? 'max_completion_tokens' : 'max_tokens']: anthropicBody.max_tokens ?? anthropicBody.max_output_tokens,
     stream: anthropicBody.stream || false,
     messages: [],
   };
+
+  if (openaiBody.stream && streamUsage) openaiBody.stream_options = { include_usage: true };
 
   // System messages: Anthropic array → OpenAI system message
   if (anthropicBody.system) {
@@ -231,17 +232,14 @@ export function translateRequest(anthropicBody, { visionCapable = true, effortCa
       const params = t.input_schema ? { ...t.input_schema } : { type: 'object', properties: {} };
       // Ensure type is set
       if (!params.type) params.type = 'object';
-      // Fix empty properties: use the canonical "no-params object" JSON Schema.
-      // Since 1.12.0 we use `additionalProperties: false` instead of injecting a
-      // `_unused` placeholder — accepted by OpenAI, Groq, Together, vLLM, LMStudio,
-      // Ollama, and preserves real tool params named `_unused` end-to-end (US-004).
+      // Empty properties do not imply a closed object. Keep additionalProperties
+      // and its default-open semantics; never inject placeholder arguments.
       if (
         params.type === 'object' &&
         params.properties &&
         typeof params.properties === 'object' &&
         Object.keys(params.properties).length === 0
       ) {
-        params.additionalProperties = false;
         if (!Array.isArray(params.required)) params.required = [];
       }
       return {
@@ -444,7 +442,9 @@ export function mapFinishReason(fr) {
 // ── Response translation (OpenAI → Anthropic) for non-streaming ──
 
 export function translateResponse(openaiResponse, { localProvider = false } = {}) {
+  if (openaiResponse.error) return { type: 'error', error: { type: 'api_error', message: openaiResponse.error.message || 'Upstream returned an error' } };
   const choice = openaiResponse.choices?.[0];
+  if (choice?.finish_reason === 'error') return { type: 'error', error: { type: 'api_error', message: 'Upstream completion failed' } };
   if (!choice) {
     return { type: 'error', error: { type: 'api_error', message: 'No choices in response' } };
   }
@@ -514,8 +514,8 @@ export function translateResponse(openaiResponse, { localProvider = false } = {}
     stop_reason: recoveredToolCall ? 'tool_use' : mappedStop,
     stop_sequence: null,
     usage: {
-      input_tokens: openaiResponse.usage?.prompt_tokens || 0,
-      output_tokens: openaiResponse.usage?.completion_tokens || 0,
+      input_tokens: openaiResponse.usage?.prompt_tokens ?? null,
+      output_tokens: openaiResponse.usage?.completion_tokens ?? null,
     },
   };
 }
@@ -572,6 +572,9 @@ export function createStreamTranslator(opts) {
   const recoverText = textChannelParsingEnabled(localProvider);
 
   let buffer = '';
+  let eventData = [];
+  let eventName = '';
+  let skipLeadingLF = false;
   let blockIndex = 0;
   let started = false;
   // `stopEmitted` — have we already emitted message_delta + message_stop? Used to
@@ -599,10 +602,10 @@ export function createStreamTranslator(opts) {
   // emit `completion_tokens` in a dedicated usage-only chunk AFTER the
   // finish_reason chunk, so we can't read usage on finish_reason alone.
   let accumulatedStopReason = null;
-  let accumulatedOutputTokens = 0;
+  let accumulatedOutputTokens = null;
   // P2.1: streaming previously reported input_tokens:0, under-counting prompt
   // tokens for every streamed turn (the default mode) → unreliable /context budgets.
-  let accumulatedInputTokens = 0;
+  let accumulatedInputTokens = null;
   // US-1 (0009): buffered text channel for end-of-message tool-call recovery (local).
   let bufferedText = '';
   let bufferConsumed = false;
@@ -678,8 +681,21 @@ export function createStreamTranslator(opts) {
     toolPending.clear();
   }
 
-  function emitStop(output) {
+  function emitError(output, message) {
     if (stopEmitted) return;
+    stopEmitted = true;
+    output.push(formatSSE('error', { type: 'error', error: { type: 'api_error', message } }));
+  }
+
+  function emitStop(output, terminal = false) {
+    if (stopEmitted) return;
+    // Hosted streams must contain an assistant message and an explicit terminal
+    // signal. A clean HTTP EOF can still truncate a generation. Local providers
+    // retain their established EOF compatibility behavior.
+    if (!localProvider && (!started || (!terminal && !accumulatedStopReason))) {
+      emitError(output, 'Upstream stream ended before a completion signal');
+      return;
+    }
     stopEmitted = true;
     emitBufferedText(output, true); // US-1: recover a text-channel tool call if no structured one came
     flushPendingTools(output);
@@ -699,21 +715,47 @@ export function createStreamTranslator(opts) {
 
   return {
     transform(chunk) {
+      if (stopEmitted || !chunk.length) return '';
+      if (skipLeadingLF && chunk.startsWith('\n')) chunk = chunk.slice(1);
+      skipLeadingLF = false;
       buffer += chunk;
-      const lines = buffer.split('\n');
+      skipLeadingLF = buffer.endsWith('\r');
+      const lines = buffer.split(/\r\n|\r|\n/);
       buffer = lines.pop(); // keep incomplete line
       const output = [];
+      const events = [];
 
+      // SSE permits an optional single space after the colon and joins repeated
+      // data fields with newlines. Dispatch only at an event boundary, including
+      // when fields or CRLF separators cross transport chunks.
       for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const data = line.slice(6).trim();
+        if (line === '') {
+          if (eventData.length) events.push({ data: eventData.join('\n'), name: eventName });
+          eventData = []; eventName = '';
+          continue;
+        }
+        if (line.startsWith(':')) continue;
+        const colon = line.indexOf(':');
+        const field = colon < 0 ? line : line.slice(0, colon);
+        let value = colon < 0 ? '' : line.slice(colon + 1);
+        if (value.startsWith(' ')) value = value.slice(1);
+        if (field === 'data') eventData.push(value);
+        else if (field === 'event') eventName = value;
+      }
+
+      for (const { data, name } of events) {
+        if (stopEmitted) break;
         if (data === '[DONE]') {
-          emitStop(output);
+          emitStop(output, true);
           continue;
         }
 
         try {
           const parsed = JSON.parse(data);
+          if (name === 'error' || parsed.error || parsed.choices?.[0]?.finish_reason === 'error') {
+            emitError(output, parsed.error?.message || parsed.message || 'Upstream stream failed');
+            break;
+          }
 
           // US-006: accumulate usage from any chunk that carries it — OpenAI-compat
           // streams may emit a dedicated usage-only chunk after finish_reason.
@@ -748,7 +790,7 @@ export function createStreamTranslator(opts) {
                 content: [],
                 model: parsed.model,
                 stop_reason: null,
-                usage: { input_tokens: 0, output_tokens: 0 },
+                usage: { input_tokens: null, output_tokens: null },
               },
             }));
             started = true;
@@ -857,18 +899,20 @@ export function createStreamTranslator(opts) {
           }
         } catch (e) {
           console.warn(`[SSE PARSE] Dropped chunk: ${e.message}`);
+          if (!localProvider) emitError(output, 'Upstream stream contained an invalid event');
         }
       }
 
       return output.join('');
     },
 
-    // Flush any pending stop event if the stream ends without an explicit
-    // [DONE] sentinel. Callers that know the stream closed cleanly should
-    // invoke this to ensure the proxy emits message_delta + message_stop.
+    // A hosted EOF is successful only after a parsed finish_reason. Local
+    // compatibility still permits servers that omit both terminal conventions.
     flush() {
       const output = [];
-      emitStop(output);
+      if (!localProvider && (eventData.length || buffer.trim())) {
+        emitError(output, 'Upstream stream ended during an incomplete event');
+      } else emitStop(output);
       return output.join('');
     },
   };
@@ -896,11 +940,20 @@ export default {
     };
   },
 
+  buildWireRequest(url, payload, apiKey, method = 'POST') {
+    const options = this.buildRequest(url, payload, apiKey);
+    const base = new URL(process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1');
+    const path = url.replace(/^\/v1(?=\/)/, '');
+    return { ...options, path: `${base.pathname.replace(/\/+$/, '')}${path}`, method };
+  },
+
   // Transform the body before sending (Anthropic → OpenAI)
   transformRequest(body) {
     const baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
     return translateRequest(body, {
       effortCapable: shouldForwardReasoningEffort(body?.model, { baseUrl }),
+      completionTokenLimit: /(^|[\/_-])(?:gpt-(?:[5-9]|[1-9]\d)(?:[.\-/]|$)|o[1-9])/.test(String(body?.model || '').toLowerCase()),
+      streamUsage: new URL(baseUrl).hostname === 'api.openai.com' || process.env.ANYMODEL_STREAM_USAGE === '1',
     });
   },
 

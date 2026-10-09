@@ -1,210 +1,101 @@
 # AnyModel
 
-**Universal AI coding tool — use GPT-5.4, Gemini 3.1, DeepSeek R1, Codex, Llama, and 300+ models through one interface.**
+**An optional API compatibility adapter for coding tools.**
 
-[![npm version](https://img.shields.io/npm/v/anymodel)](https://www.npmjs.com/package/anymodel)
-[![license](https://img.shields.io/npm/l/anymodel)](https://github.com/anton-abyzov/anymodel/blob/main/LICENSE)
-[![node](https://img.shields.io/node/v/anymodel)](https://nodejs.org)
+Use your maintained coding agent and provider directly when they already work together. AnyModel is useful when a particular endpoint needs request, tool-schema or response adaptation. It does not make models equally capable, supply subscription access, or replace an agent's planning, permissions and session history.
 
-AnyModel is an AI coding assistant that works with any model. It includes a proxy that routes requests to OpenRouter (300+ cloud models), local backends (Ollama, LMStudio, llama.cpp), or any OpenAI-compatible API — with smart retries, format translation, and zero dependencies.
+[Website](https://anymodel.dev) · [2.0 migration](docs/migration-2.md) · [Studio boundary](docs/studio-boundary.md) · [License and legacy notices](NOTICE.md)
 
-**[anymodel.dev](https://anymodel.dev)** — full docs, presets, and FAQ.
+## Choose the simplest supported route
 
-### Watch the Demo
+| Your task | Recommended route |
+|---|---|
+| Frontier coding in SpecWeave Studio | Studio → official native Codex/Claude runtime → your selected provider account |
+| Hosted models through OpenRouter | Existing OpenCode or Pi integration → OpenRouter; evaluate the model on your actual tasks |
+| Claude Code with OpenRouter | Use [OpenRouter's direct integration](https://openrouter.ai/docs/cookbook/coding-agents/claude-code-integration) where compatible |
+| A demonstrated protocol mismatch | Maintained client → AnyModel proxy → explicitly selected API provider/model |
 
-[![Watch the demo](https://img.youtube.com/vi/k0RI_M6lIsg/maxresdefault.jpg)](https://youtu.be/k0RI_M6lIsg)
+OpenRouter documents its Claude Code compatibility guarantee for Anthropic first-party only. Non-Anthropic models need their own validation. [OpenCode supports OpenRouter directly](https://opencode.ai/docs/providers/#openrouter), without this proxy.
 
----
+SpecWeave owns portable specs, task claims and acceptance evidence. Studio owns native execution, approvals, workspaces and sessions. AnyModel belongs outside Studio's default native path. **API billing and native subscription capacity are separate.**
 
-## Quick Start
+## Check current hosted availability
+
+These commands read OpenRouter's public model catalog. They need no API key, send no inference request and do not discover or warm up local models.
 
 ```bash
-# Terminal 1 — start AnyModel proxy with a model:
-OPENROUTER_API_KEY=sk-or-v1-your-key npx anymodel proxy deepseek
+npx anymodel models --search coder --tools
+npx anymodel models --free --json
+npx anymodel check qwen
+npx anymodel check provider/model-id --json
+```
 
-# Terminal 2 — launch AnyModel:
+The result includes the source and check time. “Listed” means present in the public API catalog, not authenticated account access, endpoint health, coding quality or native subscription entitlement. `--tools` filters advertised tool support; it does not prove correct tool execution.
+
+Legacy presets (`gpt`, `codex`, `gemini`, `deepseek`, `mistral`, `gemma`, `qwen`, `nemotron`, `llama`) retain their original exact model IDs. They are not “latest model” selectors. Before an OpenRouter proxy starts, the CLI checks the selected ID against the live catalog. Missing entries fail with an actionable error. **Former free presets never silently become paid models.** Free aliases and `--free-only` also require observed zero pricing. If catalog verification is unavailable, startup stops; retry when the catalog is reachable.
+
+## Use the adapter when needed
+
+AnyModel 2.0 supports Node.js 22 or newer. Release checks run on Node.js 22.
+
+Install and maintain your client separately. Version 2.0 no longer distributes or automatically discovers the legacy bundled client. The launcher uses `claude` on your PATH, or an explicit `ANYMODEL_CLIENT` path you are authorized to use. See [migration](docs/migration-2.md).
+
+```bash
+# First inspect the catalog and choose a supported exact model ID.
+npx anymodel models --tools
+
+# Terminal 1: OPENROUTER_API_KEY is already set in your environment.
+# Replace provider/model-id with your deliberate choice.
+npx anymodel proxy openrouter --model provider/model-id
+
+# Terminal 2: launch your separately installed Claude Code through the proxy.
 npx anymodel
 ```
 
-The model is set on the proxy via preset or `--model`. Connecting is always just `npx anymodel`.
-
-Get your free OpenRouter key at [openrouter.ai/keys](https://openrouter.ai/keys) — no credit card for free models.
-
----
-
-## Presets
+For an authenticated proxy, use the same proxy token on both sides:
 
 ```bash
-# Paid models:
-npx anymodel proxy gpt        # → openai/gpt-5.4                       (paid)
-npx anymodel proxy codex      # → openai/gpt-5.3-codex                 (paid, coding)
-npx anymodel proxy gemini     # → google/gemini-3.1-flash-lite-preview  (paid)
-npx anymodel proxy deepseek   # → deepseek/deepseek-r1-0528            (paid)
-npx anymodel proxy mistral    # → mistralai/devstral-2512               (paid, coding)
-npx anymodel proxy gemma      # → google/gemma-4-31b-it                (paid, coding)
-
-# Free models:
-npx anymodel proxy qwen       # → qwen/qwen3-coder:free                (free)
-npx anymodel proxy nemotron   # → nvidia/nemotron-3-super-120b-a12b:free (free)
-npx anymodel proxy llama      # → meta-llama/llama-3.3-70b-instruct:free (free)
+# Terminal 1
+npx anymodel proxy openrouter --model provider/model-id --token "$ANYMODEL_TOKEN"
+# Terminal 2
+npx anymodel --token "$ANYMODEL_TOKEN"
 ```
 
-Or any of 300+ models: `npx anymodel proxy --model mistralai/codestral-2508`
+The proxy token is not your provider API key. Credentials for the upstream provider stay with the proxy. Keep separate client account configuration for API routing so a cached native login cannot select another billing path. Check the provider's usage dashboard after an authorized test.
 
-## How It Works
-
-```
-AnyModel client → anymodel proxy (:9090) → OpenRouter / Ollama / LMStudio / llama.cpp
-```
-
-The proxy intercepts requests, strips provider-specific fields, handles retries with exponential backoff, and streams responses back.
-
-### Multiple Models at Once
-
-Run separate instances on different ports:
+You can also connect a maintained client without the launcher:
 
 ```bash
-npx anymodel proxy --port 9090 --model openai/gpt-5.4
-npx anymodel proxy --port 9091 --model deepseek/deepseek-r1-0528
-npx anymodel proxy --port 9092 --model google/gemini-3.1-flash-lite-preview
+# Scope these values to this invocation, not your shared shell profile.
+ANTHROPIC_BASE_URL=http://127.0.0.1:9090 \
+ANTHROPIC_AUTH_TOKEN="$ANYMODEL_TOKEN" ANTHROPIC_API_KEY= claude
 ```
 
-### Local Backends
+For an unauthenticated loopback proxy, use a non-secret placeholder token. An exposed proxy must require authentication. Default binding is loopback (`127.0.0.1`).
 
-No internet, no API key — run everything on your machine. AnyModel treats Ollama, LMStudio, and llama.cpp as first-class backends, each with its own preset:
+## OpenAI-compatible endpoints
 
 ```bash
-npx anymodel proxy ollama --model gemma3n            # Ollama    (:11434)
-npx anymodel proxy lmstudio --model qwen3-coder      # LMStudio  (:1234/v1)
-npx anymodel proxy llamacpp --model my-model         # llama.cpp (:8080/v1)
+# OPENAI_API_KEY is set separately. Select an ID supported by this endpoint.
+npx anymodel proxy openai --model your-model-id
 ```
 
-| Backend | Port | API | Best for |
-|---------|------|-----|----------|
-| **Ollama** | `11434` | Native (`think:false` suppresses reasoning-token waste on qwen3/deepseek) | One-line model pulls, managed model library |
-| **LMStudio** | `1234/v1` | OpenAI-compatible | GUI model browser, easy swapping between loaded models |
-| **llama.cpp** | `8080/v1` | OpenAI-compatible | Rawest/smallest footprint, max control (context, GPU layers, batch, quantization) |
+Set `OPENAI_BASE_URL` for a custom compatible endpoint. OpenRouter catalog checks apply only to OpenRouter, not this separate provider. Compatibility depends on the request format and backend; unsupported routes fail explicitly. Provider errors and incomplete streams are errors, not successful completed turns.
 
-**GGUF portability**: The same GGUF model file runs across all three — only the wrapper UX differs. Download once, use anywhere. llama.cpp is the inference engine under Ollama and LMStudio.
+## Scope and controls
 
-Override endpoints via env:
+Run `anymodel --help` for exact flags. `--model` pins the proxy model, `--port` selects its port, `--token` protects it, and `--rpm` sets its request limit. Client arguments go after `--`, for example `anymodel -- --bare`.
 
-```bash
-LMSTUDIO_BASE_URL=http://192.168.1.50:1234/v1 npx anymodel proxy lmstudio
-LLAMACPP_BASE_URL=http://localhost:9000/v1    npx anymodel proxy llamacpp
-```
+Existing explicit local provider commands and settings remain for existing users; see [LOCAL_SETUP.md](LOCAL_SETUP.md). They are not the default recommendation for frontier coding, and no local-model evaluation was performed for this release. The shared skill-discovery bridge remains in the launcher; the legacy client bytes and branding manifest are frozen.
 
-Auto-detection priority when no preset is given: OpenRouter key → OpenAI key → Ollama → LMStudio → llama.cpp.
+## Evidence, not parity claims
 
-### Local-provider smart defaults (1.11.0+)
+The [historical June 2026 benchmark](https://anymodel.dev/bench) used one local Qwen3-Coder 30B model, six small tasks and three repetitions per arm. Fixed AnyModel produced passing artifacts in **17/18 runs**; **16/18** also exited successfully without timing out. One artifact pass timed out. This is a bounded historical compatibility result, not frontier parity or a current hosted-model ranking. Raw results remain available with the report.
 
-When you connect to a local provider, AnyModel automatically suppresses your globally-configured MCP servers — which are usually the single biggest cause of slow first-response times (50–60 K tokens of tool schemas that local models can't handle).
+For a new route, measure accepted tasks, time to an accepted result, incremental API cost including repairs, and reviewer effort. A cheaper token price alone is not lower cost per completed task, especially when native subscription capacity is already paid for.
 
-- `npx anymodel` on a local provider → loads project `./.claude/.mcp.json` if present, else no MCP
-- Keeps project skills, agents, CLAUDE.md
-- Remote providers (openrouter, openai) unchanged
-- Opt out: `--full-mcp` flag or `ANYMODEL_FULL_MCP=1`
+## Development and licensing
 
-See [LOCAL_SETUP.md](./LOCAL_SETUP.md) for the full guide, including 32 K context setup and full isolation.
+Use focused offline tests and mock provider endpoints; live model evaluations require an explicit scope and budget. Keep request/response protocol evidence separate from actual native-agent execution and repository acceptance.
 
-### Universal Skills (1.16.0+)
-
-`SKILL.md` is one shared open standard — Claude Code, OpenAI/Codex, Gemini/Antigravity, Cursor, and Copilot all read the same format (a `<name>/SKILL.md` directory with YAML frontmatter + Markdown body). AnyModel auto-discovers your skills no matter which tool's convention you used, with zero format translation.
-
-At launch, AnyModel scans these roots in both the project working directory **and** `$HOME`:
-
-```
-.claude/skills/    .agents/skills/    .codex/skills/    .gemini/skills/    .agent/skills/
-```
-
-Each discovered skill is symlinked into a per-session temp `.claude/skills` shadow that is passed to the client via `--add-dir`, so the client's native SKILL.md reader and progressive disclosure handle everything.
-
-- **Project wins on collision** — a project `.claude/skills/<name>` shadows a foreign-root skill of the same name.
-- **Duplicates and unlinkable skills are logged** — foreign-root name collisions and any skills that can't be symlinked are surfaced, not silently dropped.
-- **Add or override roots** with `ANYMODEL_SKILL_ROOTS` — a colon-separated list of absolute paths merged into discovery.
-
-```bash
-ANYMODEL_SKILL_ROOTS=/opt/shared/skills:/Users/me/extra/skills npx anymodel
-```
-
-### OpenAI-Compatible APIs
-
-Works with OpenAI, Azure, Together, Groq, vLLM, and any OpenAI-compatible endpoint:
-
-```bash
-OPENAI_API_KEY=sk-your-key npx anymodel proxy openai --model gpt-4o
-
-# Terminal 2:
-npx anymodel
-```
-
-Bidirectional translation: Anthropic Messages API ↔ OpenAI Chat Completions.
-
-Claude Code `--effort` / `/effort` is forwarded as OpenAI `reasoning_effort` for compatible OpenAI reasoning/codex models on the official OpenAI API. Local OpenAI-compatible servers do not receive it by default; set `ANYMODEL_FORWARD_EFFORT=1` only if your endpoint accepts that field.
-
-## CLI Reference
-
-```
-anymodel                              # launch AnyModel (connect to proxy)
-anymodel proxy <preset>               # start proxy with preset
-anymodel proxy --model <id>           # start proxy with any model
-anymodel proxy ollama --model <name>  # proxy with local Ollama    (:11434)
-anymodel proxy lmstudio --model <id>  # proxy with LMStudio        (:1234/v1)
-anymodel proxy llamacpp --model <id>  # proxy with llama.cpp       (:8080/v1)
-anymodel claude                       # run with native Claude (no proxy)
-
-Options:
-  --model, -m     Model ID
-  --port, -p      Port (default: 9090)
-  --free-only     Block paid models
-  --token, -t     Require auth token for requests
-  --rpm           Rate limit requests/min (default: 60)
-  --help, -h      Help
-```
-
-## Ollama Performance Optimizations
-
-When proxying to Ollama, AnyModel automatically applies several optimizations to make local models work well with coding tools:
-
-- **System prompt condensing** — AI tool prompts are 50-100KB; AnyModel condenses them to fit Ollama's context window (`OLLAMA_MAX_SYSTEM_CHARS`)
-- **Tool description trimming** — truncates verbose tool descriptions to save context (`OLLAMA_MAX_TOOL_DESC`, default 100 chars)
-- **Tool count limiting** — limits tools sent to the model, always keeping core tools (Bash/Read/Write/Edit/Grep/Glob) (`OLLAMA_MAX_TOOLS`)
-- **Prefix-aware caching** — stabilizes system prompt + tool ordering for Ollama KV cache reuse across requests, with date normalization and description-independent hashing
-- **HTTP keep-alive** — reuses TCP connections to Ollama
-- **count_tokens mock** — responds to `/v1/messages/count_tokens` locally, preventing cascading 500 errors
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OPENROUTER_API_KEY` | — | Your OpenRouter key ([get one free](https://openrouter.ai/keys)) |
-| `OPENROUTER_MODEL` | — | Default model override |
-| `OPENAI_API_KEY` | — | Key for OpenAI-compatible APIs |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Custom endpoint for the `openai` provider |
-| `LMSTUDIO_BASE_URL` | `http://localhost:1234/v1` | LMStudio endpoint override |
-| `LLAMACPP_BASE_URL` | `http://localhost:8080/v1` | llama.cpp (`llama-server`) endpoint override |
-| `PROXY_PORT` | `9090` | Proxy port |
-| `ANYMODEL_CLIENT` | — | Path to custom Claude-compatible client; otherwise AnyModel uses bundled `cli.js`, cwd `cli.js`, then global `claude` |
-| `ANYMODEL_TOKEN` | — | Auth token for remote mode |
-| `ANYMODEL_SKILL_ROOTS` | — | Colon-separated absolute paths added to skill discovery roots |
-| `ANYMODEL_FORWARD_EFFORT` | auto | `1`/`0` override for forwarding Claude effort as OpenAI `reasoning_effort` |
-| `OLLAMA_NUM_CTX` | `8192` | Ollama context window size |
-| `OLLAMA_KEEP_ALIVE` | `30m` | How long Ollama keeps model in GPU memory |
-| `OLLAMA_MAX_SYSTEM_CHARS` | `4000` | System prompt condensing threshold |
-| `OLLAMA_MAX_MSG_CHARS` | `max(4000, num_ctx*3)` | Message history threshold |
-| `OLLAMA_TOOLS` | `auto` | Tool capability: auto/on/off |
-| `OLLAMA_MAX_TOOLS` | `0` (unlimited) | Max tools to send (core tools always kept) |
-| `OLLAMA_MAX_TOOL_DESC` | `100` | Max tool description length in chars |
-
-`OPENROUTER_API_KEY` is only needed when starting the proxy. `OLLAMA_*` variables only apply to the Ollama provider.
-
-## Links
-
-- [anymodel.dev](https://anymodel.dev) — Homepage, docs, FAQ
-- [OpenRouter](https://openrouter.ai/keys) — Get your API key
-- [npm](https://www.npmjs.com/package/anymodel) — Package
-- [YouTube](https://www.youtube.com/@AntonAbyzovAIPower) — Demos and tutorials
-
-## License
-
-MIT — [Anton Abyzov](https://github.com/antonoly)
+The original project license is retained in [LICENSE](LICENSE). Read [NOTICE.md](NOTICE.md) for its scope and the separate third-party legacy-client notice. AnyModel does not grant rights to third-party clients, models, services or accounts.

@@ -1,6 +1,7 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'http';
+import { EventEmitter } from 'node:events';
 import llamacpp from '../providers/llamacpp.mjs';
 
 describe('llamacpp provider — interface', () => {
@@ -136,12 +137,22 @@ describe('llamacpp.detect and listModels — no server', () => {
     }
   });
 
-  it('detect() returns false when nothing listening', async () => {
+  it('detect() returns false when nothing listening', async t => {
+    t.mock.method(http, 'get', () => {
+      const req = new EventEmitter(); req.setTimeout = () => req; req.destroy = () => {};
+      queueMicrotask(() => req.emit('error', Object.assign(new Error('fixture connection refused'), { code: 'ECONNREFUSED' })));
+      return req;
+    });
     const detected = await llamacpp.detect();
     assert.equal(detected, false);
   });
 
-  it('listModels() returns [] when server unreachable', async () => {
+  it('listModels() returns [] when server unreachable', async t => {
+    t.mock.method(http, 'get', () => {
+      const req = new EventEmitter(); req.setTimeout = () => req; req.destroy = () => {};
+      queueMicrotask(() => req.emit('error', Object.assign(new Error('fixture connection refused'), { code: 'ECONNREFUSED' })));
+      return req;
+    });
     const models = await llamacpp.listModels();
     assert.deepEqual(models, []);
   });
