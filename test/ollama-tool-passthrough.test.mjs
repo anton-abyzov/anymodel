@@ -70,6 +70,7 @@ describe('Ollama tool passthrough (proxy integration)', () => {
     // Clone the real Ollama provider but point it at our stub server.
     const testProvider = {
       ...ollamaProvider,
+      warmup: undefined,
       buildRequest: (_url, payload) => ({
         hostname: '127.0.0.1',
         port: stub.port,

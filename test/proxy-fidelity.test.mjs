@@ -57,6 +57,7 @@ function startStub(kind) {
 function pointAt(provider, stubPort, path) {
   return {
     ...provider,
+    warmup: undefined,
     buildRequest: (_url, payload) => ({
       hostname: '127.0.0.1', port: stubPort, path, method: 'POST',
       headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(payload) },
