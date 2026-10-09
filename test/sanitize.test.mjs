@@ -151,7 +151,7 @@ describe('sanitizeBody', () => {
   // US-004 (1.12.0+): empty-schema handling uses additionalProperties:false
   // instead of injecting a _unused placeholder property. Real tool params named
   // `_unused` now survive end-to-end unchanged.
-  it('normalizes empty tool properties to additionalProperties:false', () => {
+  it('preserves implicit dictionary semantics for empty tool properties', () => {
     const body = {
       tools: [{
         name: 'no_params',
@@ -162,7 +162,7 @@ describe('sanitizeBody', () => {
     const schema = result.tools[0].input_schema;
     assert.equal(schema.type, 'object');
     assert.deepEqual(schema.properties, {}, 'properties stays empty — no _unused injection');
-    assert.equal(schema.additionalProperties, false, 'marks schema as closed via additionalProperties:false');
+    assert.equal(schema.additionalProperties, undefined, 'preserves the default-open dictionary');
     assert.deepEqual(schema.required, []);
   });
 
@@ -189,7 +189,7 @@ describe('sanitizeBody', () => {
     const result = sanitizeBody(body);
     const configSchema = result.tools[0].input_schema.properties.config;
     assert.deepEqual(configSchema.properties, {}, 'nested empty properties stays empty');
-    assert.equal(configSchema.additionalProperties, false, 'nested empty schema gets additionalProperties:false');
+    assert.equal(configSchema.additionalProperties, undefined, 'nested dictionary remains open');
   });
 });
 

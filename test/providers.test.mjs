@@ -23,19 +23,23 @@ describe('detectProvider', () => {
     assert.equal(provider, 'openrouter');
   });
 
-  it('returns a local provider or null when only local check available', async () => {
+  it('detects only fixture backends when no cloud key is configured', async t => {
     delete process.env.OPENROUTER_API_KEY;
-    const provider = await detectProvider();
-    // Without API key, should detect one of the local backends (ollama, lmstudio,
-    // llamacpp) if running, or null otherwise. The invariant: we detect SOMETHING
-    // local or nothing — never a cloud provider.
-    assert.ok(
-      provider === 'ollama' ||
-      provider === 'lmstudio' ||
-      provider === 'llamacpp' ||
-      provider === null,
-      `expected a local provider or null, got ${provider}`
-    );
+    const previousOpenAI = process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    const { default: ollama } = await import('../providers/ollama.mjs');
+    const { default: lmstudio } = await import('../providers/lmstudio.mjs');
+    const { default: llamacpp } = await import('../providers/llamacpp.mjs');
+    const calls = [];
+    t.mock.method(ollama, 'detect', async () => { calls.push('ollama'); return false; });
+    t.mock.method(lmstudio, 'detect', async () => { calls.push('lmstudio'); return false; });
+    t.mock.method(llamacpp, 'detect', async () => { calls.push('llamacpp'); return true; });
+    try {
+      assert.equal(await detectProvider(), 'llamacpp');
+      assert.deepEqual(calls, ['ollama', 'lmstudio', 'llamacpp']);
+    } finally {
+      if (previousOpenAI !== undefined) process.env.OPENAI_API_KEY = previousOpenAI;
+    }
   });
 });
 
