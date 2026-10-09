@@ -1,0 +1,42 @@
+[
+  {
+    "id": "dictionary",
+    "source": "https://github.com/anton-abyzov/anymodel/blob/a0fe2077fbc28602c0f0e0d308355daff8b4d1c0/proxy.mjs",
+    "commit": "a0fe2077fbc28602c0f0e0d308355daff8b4d1c0",
+    "lines": [
+      [
+        30,
+        41
+      ],
+      [
+        173,
+        282
+      ]
+    ],
+    "sha256": "0a5f1412c06b3f3d5f036bef093f2119ef9bae674438ed2dc0dfba40ffa1e7af"
+  },
+  {
+    "id": "worker-auth",
+    "source": "https://github.com/anton-abyzov/anymodel/blob/a0fe2077fbc28602c0f0e0d308355daff8b4d1c0/worker/handler.mjs",
+    "commit": "a0fe2077fbc28602c0f0e0d308355daff8b4d1c0",
+    "lines": [
+      [
+        1,
+        245
+      ]
+    ],
+    "sha256": "95e8a1f410c0efedc0708d9d8cb2a00f3e6209452d3c915976e2ea4848433e7f"
+  },
+  {
+    "id": "reasoning-budget",
+    "source": "https://github.com/anton-abyzov/anymodel/blob/a0fe2077fbc28602c0f0e0d308355daff8b4d1c0/providers/openai.mjs",
+    "commit": "a0fe2077fbc28602c0f0e0d308355daff8b4d1c0",
+    "lines": [
+      [
+        1,
+        922
+      ]
+    ],
+    "sha256": "06e7b121064b5b7aacf33f394afb20e448c20556dd1ec2e01f509d8e23ba8d57"
+  }
+]
