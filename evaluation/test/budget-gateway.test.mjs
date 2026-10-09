@@ -51,3 +51,11 @@ test('reservation includes cache-write and every context-tier surcharge',async t
  assert.equal(r.reservedUsd,r.inputTokenUpperBound*0.000005+2048*0.000015);
  assert.throws(()=>conservativeRates({...pricing,input_cache_write:'NaN'}));
 });
+
+test('real OpenCode request fields remain bounded and usage shape is explicit',async t=>{
+ const f=await fixture(t);
+ for(const body of [{reasoningEffort:'low',stream:true},{usage:{include:true},prompt_cache_key:'fixture-session',tools:[{type:'function',function:{name:'read',parameters:{type:'object'}}}],tool_choice:'auto',stream:true}])assert.equal((await f.request(body)).status,200);
+ assert.equal(f.calls.length,2);
+ for(const body of [{reasoningEffort:'unregistered'},{usage:{include:true,plugins:[{id:'web'}]}},{prompt_cache_key:{preset:'other'}}])assert.equal((await f.request(body)).status,400);
+ assert.equal(f.calls.length,2);
+});

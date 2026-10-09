@@ -59,7 +59,7 @@ export async function createBudgetGateway({key,token,model,catalogRow,ledgerPath
   const record=event=>{events.push(event);if(eventPath)appendFileSync(eventPath,JSON.stringify(event)+'\n');};
   // Explicitly stateless text requests only. An allowlist rejects newly introduced
   // server-side services and prior-response references that bypass byte accounting.
-  const fields=new Set(['model','messages','input','system','instructions','max_tokens','max_completion_tokens','max_output_tokens','stream','stream_options','tools','tool_choice','parallel_tool_calls','response_format','text','temperature','top_p','top_k','frequency_penalty','presence_penalty','repetition_penalty','seed','stop','stop_sequences','logit_bias','logprobs','top_logprobs','reasoning','reasoning_effort','thinking','output_config','user','metadata','verbosity','provider','n','service_tier','store']);
+  const fields=new Set(['model','messages','input','system','instructions','max_tokens','max_completion_tokens','max_output_tokens','stream','stream_options','tools','tool_choice','parallel_tool_calls','response_format','text','temperature','top_p','top_k','frequency_penalty','presence_penalty','repetition_penalty','seed','stop','stop_sequences','logit_bias','logprobs','top_logprobs','reasoning','reasoning_effort','reasoningEffort','thinking','output_config','user','metadata','verbosity','provider','n','service_tier','store','usage','prompt_cache_key']);
   const paths=new Set(['/api/v1/messages','/api/v1/chat/completions','/api/v1/responses']);
   const server=http.createServer(async(req,res)=>{
     const fail=(code,message)=>{if(!res.headersSent)res.writeHead(code,{'content-type':'application/json'});res.end(JSON.stringify({error:{type:'evaluation_gate',message}}));};
@@ -75,6 +75,9 @@ export async function createBudgetGateway({key,token,model,catalogRow,ledgerPath
       if(body.model!==model)return fail(400,'Requested model differs from pinned evaluation model.');
       if(hasRemoteMedia(body))return fail(400,'Pilot accepts text-only requests.');
       if(Object.keys(body).some(k=>!fields.has(k))||(body.n!==undefined&&body.n!==1))return fail(400,'Pilot rejects unregistered fields, billing multipliers, fallback models and server services.');
+      if(body.reasoningEffort!==undefined&&!['none','minimal','low','medium','high','xhigh','max'].includes(body.reasoningEffort))return fail(400,'Unregistered reasoning effort.');
+      if(body.usage!==undefined&&(!body.usage||Array.isArray(body.usage)||typeof body.usage!=='object'||Object.keys(body.usage).some(k=>k!=='include')||typeof body.usage.include!=='boolean'))return fail(400,'Unregistered usage options.');
+      if(body.prompt_cache_key!==undefined&&typeof body.prompt_cache_key!=='string')return fail(400,'Invalid prompt cache key.');
       if(body.service_tier!==undefined&&!['default','auto'].includes(body.service_tier))return fail(400,'Pilot rejects premium service tiers.');
       if(body.tools!==undefined&&(!Array.isArray(body.tools)||body.tools.some(tool=>!tool||typeof tool!=='object'||(tool.type!==undefined&&!['function','custom'].includes(tool.type)))))return fail(400,'Pilot accepts only client-executed tools.');
       // OpenRouter max_price uses USD per million prompt/completion tokens.
