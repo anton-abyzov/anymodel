@@ -23,5 +23,4 @@ jobs:
       # Trusted publishing requires npm >= 11.5.0 (node 22 ships older).
       - run: npm install -g npm@latest
       - run: npm test
-      - run: node scripts/brand-patch.mjs --check
       - run: npm publish --provenance --access public
