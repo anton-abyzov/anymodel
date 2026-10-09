@@ -1,10 +1,12 @@
-# Running Claude Code locally through AnyModel → LMStudio
+# Legacy local-provider setup
 
-A zero-cloud setup: **Claude Code → AnyModel proxy → LMStudio → Qwen3-Coder-30B**. Designed for speed — ≤3 s first response, sub-second subsequent turns.
+This guide preserves existing local configuration options. It is not the default recommendation for frontier coding and was not revalidated with local inference in the October 2026 hosted release. Historical model names, memory figures and timings depend on the hardware and provider version; they are not current performance promises. See [the current product boundary](README.md) and [2.0 migration](docs/migration-2.md).
+
+The explicit route is **your maintained Claude Code client → AnyModel proxy → your local provider**. AnyModel does not install, replace or warm up a local model during public catalog commands.
 
 ## What 1.11.0 changed
 
-Starting with `anymodel@1.11.0`, **local providers automatically suppress globally-configured MCP servers**. This is the single biggest perf win for local models (dropping 50–60 K tokens of MCP tool schemas that local models can't handle). No flags required.
+Starting with `anymodel@1.11.0`, **local providers automatically suppress globally-configured MCP servers**. This reduces the tool-schema payload for those configurations. The performance effect must be measured for your model and workspace.
 
 - Local provider (`lmstudio` / `llamacpp` / `ollama`) → auto-suppresses global MCP, loads project `./.claude/.mcp.json` if present
 - Remote provider (`openrouter` / `openai`) → unchanged, keeps all global MCP
@@ -29,7 +31,7 @@ From here on this guide uses plain `anymodel` instead of `npx anymodel`. If you 
 | Apple Silicon Mac, ≥32 GB RAM | `sysctl -n hw.memsize` → at least `34359738368` |
 | LMStudio installed | `open /Applications/LM\ Studio.app` |
 | `lms` CLI on PATH | `which lms` (see [setup](#step-0) below) |
-| Claude-compatible client | bundled `cli.js` ships with AnyModel; `which claude` is only the fallback |
+| Claude-compatible client | Separately maintained `claude` on PATH, or an explicit authorized `ANYMODEL_CLIENT` path; no bundled client in 2.0 |
 | Node ≥ 20 | `node --version` |
 | `anymodel@1.16.0+` | `anymodel --help` should list `--local-fidelity` |
 
@@ -201,7 +203,7 @@ your-project/
 SKILL.md is one shared open standard — Claude Code, OpenAI/Codex, Gemini/Antigravity,
 Cursor, and Copilot all write the same `<name>/SKILL.md` format. Since `anymodel@1.16.0`,
 AnyModel auto-discovers skills from the **other ecosystems'** roots and bridges them into
-the bundled client with **zero format translation**. No flags needed.
+the selected compatible client through its existing skill reader. No flags needed.
 
 It scans these foreign roots, in precedence order, under **both** the project cwd **and**
 `$HOME`:
@@ -343,7 +345,7 @@ anymodel
 
 That's it. Three commands. Global MCP suppression handled automatically.
 
-## Local agentic profile (recommended for real coding loops)
+## Historical local agentic profile
 
 Local coding models are strong at single tool calls but degrade on long, multi-turn agentic
 tasks — they lose plan state and revert to RLHF refusals ("I can't browse / deploy"). The
@@ -362,15 +364,7 @@ It sets (without overriding anything you set explicitly):
 | `LOCAL_REFUSAL_RETRY` | `on` | re-issue once with a "use your tools" nudge on a capability-disclaimer refusal |
 | `LOCAL_NUM_CTX` | `65536` | Qwen3-Coder's recommended agentic budget — keeps plan state from being truncated |
 
-**Also relax hook-heavy repos.** In a SpecWeave (or similar) project, the surviving `CLAUDE.md`
-can order things a local model cannot satisfy, producing the plan-mode loop. For local sessions:
-set `incrementAssist.mandatory=false` in `.specweave/config.json`, drop the "ALWAYS enter plan
-mode (MANDATORY)" and "SKILL FIRST = BLOCKING PRECONDITION" language, and keep `--full-mcp`
-whenever the project depends on the Skill tool (the preset does this for you).
-
-**Realistic expectations.** Local 30B is great for bounded edits, refactors, exploration, and
-tight tool-attached loops under ~65K context — not a drop-in autonomous Claude for long
-multi-turn tasks with screenshot verification.
+**Keep project boundaries intact.** A model that cannot satisfy required planning, permissions or acceptance checks is not a reason to remove those gates. Reduce the assigned task or select a more capable supported runtime. The historical local profile is not a guarantee of reliable multi-step coding.
 
 ## Further reading
 
