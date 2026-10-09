@@ -1,5 +1,7 @@
 # Migrating to AnyModel 2.0
 
+Use Node.js 22 or newer. Version 2.0 raises the declared minimum to the release verification baseline; older Node versions are no longer part of its support matrix.
+
 Version 2.0 makes the maintained-client, optional-proxy workflow primary. Existing explicit provider configuration and local settings remain; there is no automatic model or account migration.
 
 ## Install your coding client separately

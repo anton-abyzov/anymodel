@@ -36,6 +36,8 @@ Legacy presets (`gpt`, `codex`, `gemini`, `deepseek`, `mistral`, `gemma`, `qwen`
 
 ## Use the adapter when needed
 
+AnyModel 2.0 supports Node.js 22 or newer. Release checks run on Node.js 22.
+
 Install and maintain your client separately. Version 2.0 no longer distributes or automatically discovers the legacy bundled client. The launcher uses `claude` on your PATH, or an explicit `ANYMODEL_CLIENT` path you are authorized to use. See [migration](docs/migration-2.md).
 
 ```bash

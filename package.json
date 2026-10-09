@@ -1,7 +1,7 @@
 {
   "name": "anymodel",
-  "version": "1.17.0",
-  "description": "Universal AI model proxy — route any coding tool through OpenRouter, Ollama, LMStudio, llama.cpp, or any LLM provider",
+  "version": "2.0.0",
+  "description": "Optional API compatibility adapter for maintained coding agents, with explicit hosted model selection",
   "type": "module",
   "bin": {
     "anymodel": "./cli.mjs"
@@ -9,18 +9,18 @@
   "main": "proxy.mjs",
   "files": [
     "cli.mjs",
-    "cli.js",
     "proxy.mjs",
     "providers/",
+    "catalog/",
     "README.md",
     "LOCAL_SETUP.md",
+    "NOTICE.md",
+    "docs/",
     "LICENSE"
   ],
   "scripts": {
-    "test": "node --test test/*.test.mjs worker/test/*.test.mjs",
-    "start": "node cli.mjs",
-    "sync-version": "node -e \"const v=require('./package.json').version; const fs=require('fs'); let c=fs.readFileSync('cli.js','utf8'); c=c.replace(/VERSION:\\\"[0-9][^\\\"]*\\\",FEEDBACK/g,'VERSION:\\\"'+v+'\\\",FEEDBACK'); c=c.replace(/version:\\\"1\\.[0-9]+\\.[0-9]+\\\"/g,'version:\\\"'+v+'\\\"'); fs.writeFileSync('cli.js',c);\"",
-    "prepublishOnly": "npm run sync-version"
+    "test": "node scripts/verification/offline-tests.mjs",
+    "start": "node cli.mjs"
   },
   "keywords": [
     "openrouter",
@@ -41,6 +41,6 @@
   },
   "homepage": "https://anymodel.dev",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   }
 }
