@@ -259,4 +259,3 @@ export function sanitizeBody(body, { keepCache = false, preserveNative = false }
 
   return body;
 }
-
