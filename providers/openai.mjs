@@ -9,8 +9,7 @@ export const INTERNAL_EFFORT_FIELD = '__anymodel_effort';
 export function normalizeReasoningEffort(effort) {
   if (typeof effort !== 'string') return null;
   const normalized = effort.toLowerCase();
-  if (normalized === 'low' || normalized === 'medium' || normalized === 'high') return normalized;
-  if (normalized === 'max') return 'high';
+  if (['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].includes(normalized)) return normalized;
   return null;
 }
 
@@ -30,7 +29,7 @@ export function shouldForwardReasoningEffort(model, {
   }
 
   const m = String(model || '').toLowerCase();
-  return /(^|[/_-])(gpt-5|o[1-9])/.test(m) || m.includes('codex');
+  return /(^|[/_-])(?:gpt-(?:[5-9]|[1-9]\d)(?:[.\-/]|$)|o[1-9])/.test(m) || m.includes('codex');
 }
 
 // P1.2: resolve an Anthropic image block to an OpenAI `image_url` data/URL string.
@@ -148,17 +147,19 @@ export function extractToolResultParts(block, { visionCapable = true } = {}) {
   return { text, imageUrls };
 }
 
-export function translateRequest(anthropicBody, { visionCapable = true, effortCapable = false } = {}) {
+export function translateRequest(anthropicBody, { visionCapable = true, effortCapable = false, completionTokenLimit = false, streamUsage = false } = {}) {
   const openaiBody = {
     model: anthropicBody.model,
     // P1.4: fall back to the newer `max_output_tokens` when `max_tokens` is absent.
     // sanitizeBody clamps each to >=16 independently but never bridges the two, so
     // a client sending only `max_output_tokens` would otherwise get `max_tokens:
     // undefined` and over-generate.
-    max_tokens: anthropicBody.max_tokens ?? anthropicBody.max_output_tokens,
+    [completionTokenLimit ? 'max_completion_tokens' : 'max_tokens']: anthropicBody.max_tokens ?? anthropicBody.max_output_tokens,
     stream: anthropicBody.stream || false,
     messages: [],
   };
+
+  if (openaiBody.stream && streamUsage) openaiBody.stream_options = { include_usage: true };
 
   // System messages: Anthropic array → OpenAI system message
   if (anthropicBody.system) {
@@ -231,17 +232,14 @@ export function translateRequest(anthropicBody, { visionCapable = true, effortCa
       const params = t.input_schema ? { ...t.input_schema } : { type: 'object', properties: {} };
       // Ensure type is set
       if (!params.type) params.type = 'object';
-      // Fix empty properties: use the canonical "no-params object" JSON Schema.
-      // Since 1.12.0 we use `additionalProperties: false` instead of injecting a
-      // `_unused` placeholder — accepted by OpenAI, Groq, Together, vLLM, LMStudio,
-      // Ollama, and preserves real tool params named `_unused` end-to-end (US-004).
+      // Empty properties do not imply a closed object. Keep additionalProperties
+      // and its default-open semantics; never inject placeholder arguments.
       if (
         params.type === 'object' &&
         params.properties &&
         typeof params.properties === 'object' &&
         Object.keys(params.properties).length === 0
       ) {
-        params.additionalProperties = false;
         if (!Array.isArray(params.required)) params.required = [];
       }
       return {
@@ -444,7 +442,9 @@ export function mapFinishReason(fr) {
 // ── Response translation (OpenAI → Anthropic) for non-streaming ──
 
 export function translateResponse(openaiResponse, { localProvider = false } = {}) {
+  if (openaiResponse.error) return { type: 'error', error: { type: 'api_error', message: openaiResponse.error.message || 'Upstream returned an error' } };
   const choice = openaiResponse.choices?.[0];
+  if (choice?.finish_reason === 'error') return { type: 'error', error: { type: 'api_error', message: 'Upstream completion failed' } };
   if (!choice) {
     return { type: 'error', error: { type: 'api_error', message: 'No choices in response' } };
   }
@@ -514,8 +514,8 @@ export function translateResponse(openaiResponse, { localProvider = false } = {}
     stop_reason: recoveredToolCall ? 'tool_use' : mappedStop,
     stop_sequence: null,
     usage: {
-      input_tokens: openaiResponse.usage?.prompt_tokens || 0,
-      output_tokens: openaiResponse.usage?.completion_tokens || 0,
+      input_tokens: openaiResponse.usage?.prompt_tokens ?? null,
+      output_tokens: openaiResponse.usage?.completion_tokens ?? null,
     },
   };
 }
@@ -599,10 +599,10 @@ export function createStreamTranslator(opts) {
   // emit `completion_tokens` in a dedicated usage-only chunk AFTER the
   // finish_reason chunk, so we can't read usage on finish_reason alone.
   let accumulatedStopReason = null;
-  let accumulatedOutputTokens = 0;
+  let accumulatedOutputTokens = null;
   // P2.1: streaming previously reported input_tokens:0, under-counting prompt
   // tokens for every streamed turn (the default mode) → unreliable /context budgets.
-  let accumulatedInputTokens = 0;
+  let accumulatedInputTokens = null;
   // US-1 (0009): buffered text channel for end-of-message tool-call recovery (local).
   let bufferedText = '';
   let bufferConsumed = false;
@@ -699,6 +699,7 @@ export function createStreamTranslator(opts) {
 
   return {
     transform(chunk) {
+      if (stopEmitted) return '';
       buffer += chunk;
       const lines = buffer.split('\n');
       buffer = lines.pop(); // keep incomplete line
@@ -714,6 +715,13 @@ export function createStreamTranslator(opts) {
 
         try {
           const parsed = JSON.parse(data);
+          if (parsed.error || parsed.choices?.[0]?.finish_reason === 'error') {
+            stopEmitted = true;
+            output.push(formatSSE('error', { type: 'error', error: {
+              type: 'api_error', message: parsed.error?.message || 'Upstream stream failed',
+            } }));
+            break;
+          }
 
           // US-006: accumulate usage from any chunk that carries it — OpenAI-compat
           // streams may emit a dedicated usage-only chunk after finish_reason.
@@ -748,7 +756,7 @@ export function createStreamTranslator(opts) {
                 content: [],
                 model: parsed.model,
                 stop_reason: null,
-                usage: { input_tokens: 0, output_tokens: 0 },
+                usage: { input_tokens: null, output_tokens: null },
               },
             }));
             started = true;
@@ -896,11 +904,20 @@ export default {
     };
   },
 
+  buildWireRequest(url, payload, apiKey, method = 'POST') {
+    const options = this.buildRequest(url, payload, apiKey);
+    const base = new URL(process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1');
+    const path = url.replace(/^\/v1(?=\/)/, '');
+    return { ...options, path: `${base.pathname.replace(/\/+$/, '')}${path}`, method };
+  },
+
   // Transform the body before sending (Anthropic → OpenAI)
   transformRequest(body) {
     const baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
     return translateRequest(body, {
       effortCapable: shouldForwardReasoningEffort(body?.model, { baseUrl }),
+      completionTokenLimit: /(^|[\/_-])(?:gpt-(?:[5-9]|[1-9]\d)(?:[.\-/]|$)|o[1-9])/.test(String(body?.model || '').toLowerCase()),
+      streamUsage: new URL(baseUrl).hostname === 'api.openai.com' || process.env.ANYMODEL_STREAM_USAGE === '1',
     });
   },
 

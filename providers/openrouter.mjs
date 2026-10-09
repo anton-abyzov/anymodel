@@ -21,6 +21,10 @@ export default {
     };
   },
 
+  buildWireRequest(url, payload, apiKey, method = 'POST') {
+    return { ...this.buildRequest(url, payload, apiKey), method };
+  },
+
   displayInfo(model) {
     return model ? `(${model})` : '(passthrough model)';
   },

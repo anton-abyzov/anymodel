@@ -57,7 +57,7 @@ describe('createStreamTranslator — usage.output_tokens forwarding (US-006)', (
     assert.equal(md.usage.output_tokens, 17);
   });
 
-  it('handles upstream that never emits usage (remains 0, does NOT throw)', () => {
+  it('handles upstream that never emits usage (remains unknown, does NOT throw)', () => {
     const t = createStreamTranslator();
     const chunks = [
       'data: {"id":"1","model":"qwen","choices":[{"delta":{"content":"Hi"}}]}\n\n',
@@ -67,7 +67,7 @@ describe('createStreamTranslator — usage.output_tokens forwarding (US-006)', (
     const out = runStream(t, chunks);
     const md = extractMessageDelta(out);
     assert.ok(md);
-    assert.equal(md.usage.output_tokens, 0);
+    assert.equal(md.usage.output_tokens, null);
   });
 
   it('emits only one final message_delta (not two) even when both finish_reason chunk and [DONE] arrive', () => {

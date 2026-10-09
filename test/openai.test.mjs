@@ -164,10 +164,9 @@ describe('translateRequest', () => {
     });
   });
 
-  it('uses additionalProperties:false for empty properties (1.12.0+)', () => {
-    // Pre-1.12 we injected _unused placeholder into empty schemas. Now we use
-    // standard JSON Schema `additionalProperties:false` — accepted by every
-    // OpenAI-compat endpoint and preserves real params named `_unused`.
+  it('preserves default-open semantics for empty properties', () => {
+    // An empty properties map can be a dictionary. Absence of additionalProperties
+    // permits keys by JSON Schema; only the tool owner may close it.
     const result = translateRequest({
       model: 'x',
       tools: [{
@@ -177,7 +176,7 @@ describe('translateRequest', () => {
     });
     const params = result.tools[0].function.parameters;
     assert.deepEqual(params.properties, {}, 'properties stays empty — no _unused injection');
-    assert.equal(params.additionalProperties, false);
+    assert.equal(params.additionalProperties, undefined);
   });
 
   it('translates tool_choice string passthrough', () => {
@@ -221,14 +220,14 @@ describe('translateRequest', () => {
     assert.equal(result.reasoning_effort, 'medium');
   });
 
-  it('downgrades max effort to high for OpenAI Chat compatibility', () => {
+  it('preserves max effort for models that support it', () => {
     const body = { model: 'gpt-5.4', messages: [] };
     Object.defineProperty(body, INTERNAL_EFFORT_FIELD, {
       value: 'max',
       enumerable: false,
     });
     const result = translateRequest(body, { effortCapable: true });
-    assert.equal(result.reasoning_effort, 'high');
+    assert.equal(result.reasoning_effort, 'max');
   });
 
   it('does not forward preserved effort unless the provider opts in', () => {
@@ -245,7 +244,7 @@ describe('translateRequest', () => {
     assert.equal(normalizeReasoningEffort('low'), 'low');
     assert.equal(normalizeReasoningEffort('medium'), 'medium');
     assert.equal(normalizeReasoningEffort('high'), 'high');
-    assert.equal(normalizeReasoningEffort('max'), 'high');
+    assert.equal(normalizeReasoningEffort('max'), 'max');
     assert.equal(normalizeReasoningEffort(100), null);
     assert.equal(normalizeReasoningEffort('ultra'), null);
   });
@@ -362,8 +361,8 @@ describe('translateResponse', () => {
       model: 'gpt-4o',
       choices: [{ message: { content: 'hi' }, finish_reason: 'stop' }],
     });
-    assert.equal(result.usage.input_tokens, 0);
-    assert.equal(result.usage.output_tokens, 0);
+    assert.equal(result.usage.input_tokens, null);
+    assert.equal(result.usage.output_tokens, null);
   });
 
   it('generates fallback id when missing', () => {
