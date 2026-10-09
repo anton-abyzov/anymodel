@@ -150,5 +150,41 @@ describe('Worker route, resource and model policies', () => {
     assert.deepEqual(forwarded.output_config, payload.output_config);
     assert.deepEqual(forwarded.thinking, payload.thinking);
     assert.deepEqual(forwarded.tools[0].input_schema, schema);
+    assert.deepEqual(forwarded.provider, { allow_fallbacks: false, max_price: { prompt: 0, completion: 0, request: 0, image: 0 } });
+  });
+});
+
+describe('Worker free-only whole-request policy', () => {
+  beforeEach(() => { handleRequest._rateState = {}; });
+  const prohibited = [
+    { fallbacks: [{ model: 'openai/gpt-6.1-sol' }] }, { models: ['openai/gpt-6.1-sol'] },
+    { preset: '@preset/paid-tools' }, { plugins: [{ id: 'web' }] },
+    { tools: [{ type: 'openrouter:subagent', parameters: { model: 'paid' } }] },
+    { tools: [{ type: 'web_search_20250305', name: 'web_search' }] },
+    { model: 'fixture/model:online:free' }, { model: '@preset/paid:free' },
+    { provider: { allow_fallbacks: true } }, { provider: { max_price: { request: 1 } } },
+    { provider: { unknown: 'routing' } }, { route: 'fallback' }, { future_option: 'paid' },
+    { messages: [{ role: 'user', content: [{ type: 'document', source: { type: 'url', url: 'https://fixture.invalid/file.pdf' } }] }] },
+  ];
+  for (const path of ['/v1/messages', '/v1/messages/count_tokens']) {
+    it(`${path}: rejects alternate spend before any server-funded or BYOK fetch`, async t => {
+      const upstream = stubUpstream(t);
+      for (const env of [baseEnv, {}]) {
+        for (const patch of prohibited) {
+          const response = await handleRequest(request({ path, headers: { authorization: token, 'x-api-key': callerKey }, payload: { ...body, ...patch } }), env);
+          assert.equal(response.status, 403, JSON.stringify(patch));
+          assert.equal((await response.json()).error.type, 'permission_error');
+          assert.equal(upstream.mock.callCount(), 0);
+        }
+      }
+    });
+  }
+  it('preserves paid routing options when the operator explicitly disables free-only', async t => {
+    const upstream = stubUpstream(t);
+    const options = { fallbacks: [{ model: 'paid' }], models: ['paid'], preset: '@preset/paid', plugins: [{ id: 'web' }], tools: [{ type: 'openrouter:subagent', parameters: { model: 'paid' } }], provider: { allow_fallbacks: true } };
+    const response = await handleRequest(request({ headers: { authorization: token }, payload: { ...body, ...options } }), { ...baseEnv, FREE_ONLY: 'false' });
+    assert.equal(response.status, 200);
+    const forwarded = JSON.parse(upstream.mock.calls[0].arguments[1].body);
+    for (const [key, value] of Object.entries(options)) assert.deepEqual(forwarded[key], value);
   });
 });
