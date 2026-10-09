@@ -13,6 +13,7 @@
     "providers/",
     "catalog/",
     "README.md",
+    "CHANGELOG.md",
     "LOCAL_SETUP.md",
     "NOTICE.md",
     "docs/",
