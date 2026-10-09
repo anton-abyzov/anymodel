@@ -530,10 +530,12 @@ describe('createStreamTranslator', () => {
     assert.equal(output, '');
   });
 
-  it('handles malformed JSON gracefully', () => {
+  it('surfaces malformed hosted JSON without fabricating completion', () => {
     const translator = createStreamTranslator();
     const output = translator.transform('data: {not-valid-json}\n\n');
-    assert.equal(output, '');
+    assert.match(output, /event: error/);
+    assert.doesNotMatch(output, /event: message_stop/);
+    assert.equal(translator.flush(), '');
   });
 });
 

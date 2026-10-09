@@ -731,6 +731,7 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
               if (tail && !res.writableEnded) res.write(tail);
             } catch (e) {
               console.error(`${C.red('[STREAM]')} flush error: ${e.message}`);
+              if (!res.writableEnded) res.write(`event: error\ndata: ${JSON.stringify({ type: 'error', error: { type: 'api_error', message: 'Upstream stream could not be finalized' } })}\n\n`);
             }
           }
           if (!res.writableEnded) res.end();
@@ -774,8 +775,9 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
       upstream.on('end', () => res.end());
       upstream.on('error', (e) => {
         console.error(`${C.red('[STREAM]')} Upstream error: ${e.message}`);
-        if (!res.writableEnded) res.end();
+        if (!res.writableEnded) res.destroy(e);
       });
+      upstream.on('aborted', () => { if (!res.writableEnded) res.destroy(new Error('Upstream stream aborted')); });
       res.on('close', () => upstream.destroy());
       return;
 
