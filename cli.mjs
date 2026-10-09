@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// anymodel CLI — Universal AI coding tool
+// AnyModel CLI — optional API compatibility adapter
 //
 // Usage:
 //   npx anymodel                              # show usage
@@ -10,29 +10,18 @@
 //   npx anymodel gemini                       # connect to running proxy with Gemini
 //   npx anymodel proxy ollama                 # start proxy with Ollama
 
-import { spawn, execSync } from 'child_process';
-import { existsSync, writeFileSync, mkdirSync, rmSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { join, dirname } from 'path';
+import { spawn, execFileSync } from 'child_process';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, rmSync } from 'fs';
+import { join } from 'path';
 import { tmpdir } from 'os';
 import { createProxy, loadEnv } from './proxy.mjs';
 import { buildSkillBridge } from './providers/skill-bridge.mjs';
+import { MODEL_PRESETS, preflightOpenRouterModel, runCatalogCommand } from './catalog/openrouter.mjs';
 
 const PROVIDERS = ['openrouter', 'ollama', 'openai', 'lmstudio', 'llamacpp'];
 const LOCAL_PROVIDERS = ['ollama', 'lmstudio', 'llamacpp'];
 
-// Model presets — short aliases for popular models
-const MODEL_PRESETS = {
-  gpt:      'openai/gpt-5.4',
-  codex:    'openai/gpt-5.3-codex',
-  gemini:   'google/gemini-3.1-flash-lite-preview',
-  deepseek: 'deepseek/deepseek-r1-0528',
-  mistral:  'mistralai/devstral-2512',
-  gemma:    'google/gemma-4-31b-it',
-  qwen:     'qwen/qwen3-coder:free',
-  nemotron: 'nvidia/nemotron-3-super-120b-a12b:free',
-  llama:    'meta-llama/llama-3.3-70b-instruct:free',
-};
+// Legacy preset IDs are preserved in catalog/openrouter.mjs and checked live.
 
 // Free-tier detection — trust OpenRouter's `:free` suffix convention (documented,
 // stable) instead of a hardcoded allowlist that goes stale every quarter as the
@@ -105,7 +94,7 @@ export function parseArgs(argv) {
       // Local skill-fidelity tier: lean | balanced | full (default balanced). 0010.
       const v = arg.includes('=') ? arg.split('=')[1] : argv[++i];
       opts.localFidelity = (v || '').toLowerCase();
-    } else if (!arg.startsWith('-') && MODEL_PRESETS[arg] && !opts.model) {
+    } else if (!arg.startsWith('-') && Object.hasOwn(MODEL_PRESETS, arg) && !opts.model) {
       opts.model = MODEL_PRESETS[arg];
     }
   }
@@ -218,130 +207,86 @@ export async function detectProvider(model) {
   return null;
 }
 
-function printQuickUsage() {
-  console.log(`
-${C.magenta('anymodel')} — universal AI coding tool
-
-${C.bold('Quick start:')}
-  ${C.cyan('Terminal 1:')} OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy deepseek
-  ${C.cyan('Terminal 2:')} npx anymodel
-
-${C.bold('Commands:')}
-  anymodel                          Connect to running proxy
-  anymodel proxy <preset>           Start proxy with a preset model
-  anymodel proxy --model <id>       Start proxy with any model
-  anymodel claude                   Run Claude Code directly (no proxy)
-
-${C.bold('Presets:')} gpt, codex, gemini, deepseek, mistral, gemma, qwen, nemotron, llama
-
-Run ${C.bold('anymodel --help')} for full options.
-`);
-}
+function printQuickUsage() { printHelp(); }
 
 function printHelp() {
   console.log(`
-${C.magenta('  anymodel')} — universal AI coding tool
+${C.magenta('AnyModel')} — optional API compatibility adapter
 
-  ${C.bold('Commands:')}
-    anymodel                                      ${C.cyan('# connect to running proxy')}
-    anymodel proxy deepseek                       ${C.cyan('# start proxy with DeepSeek R1')}
-    anymodel proxy --model <id>                   ${C.cyan('# start proxy with any model')}
-    anymodel proxy ollama --model llama3          ${C.cyan('# start proxy with local Ollama')}
-    anymodel proxy lmstudio --model qwen2.5-coder ${C.cyan('# start proxy with local LM Studio')}
-    anymodel proxy llamacpp --model qwen2.5-coder ${C.cyan('# start proxy with local llama.cpp')}
-    anymodel proxy openai --model gpt-4o          ${C.cyan('# start proxy with OpenAI-compatible')}
-    anymodel claude                               ${C.cyan('# run Claude Code directly (no proxy)')}
+Use your maintained native coding agent directly when its provider already works.
+SpecWeave Studio keeps native frontier sessions, plans and approvals; it does not
+require AnyModel. An API model listing is not native subscription entitlement.
 
-  ${C.bold('Model Presets:')}
-    gpt       → openai/gpt-5.4
-    codex     → openai/gpt-5.3-codex            ${C.cyan('(coding)')}
-    gemini    → google/gemini-3.1-flash-lite-preview
-    deepseek  → deepseek/deepseek-r1-0528
-    mistral   → mistralai/devstral-2512         ${C.cyan('(coding)')}
-    gemma     → google/gemma-4-31b-it
-    qwen      → qwen/qwen3-coder:free          ${C.cyan('(free)')}
-    nemotron  → nvidia/nemotron-3-super-120b-a12b:free ${C.cyan('(free)')}
-    llama     → meta-llama/llama-3.3-70b-instruct:free ${C.cyan('(free)')}
+${C.bold('Discover hosted models (public catalog; no API key or inference):')}
+  anymodel models [--search text] [--free] [--tools] [--json]
+  anymodel check <model-id|preset> [--free] [--tools] [--json]
 
-  ${C.bold('Proxy Options:')} (only apply to ${C.bold('anymodel proxy')})
-    --model, -m     Model to use (e.g., qwen/qwen3-coder:free)
-    --port, -p      Proxy port (default: 9090)
-    --host          Bind address (default: 127.0.0.1 loopback). Use 0.0.0.0 to expose on LAN — pair with --token
-    --free-only     Only allow free models
-    --token, -t     Require auth token for requests
-    --rpm           Rate limit: requests per minute (default: 60)
+${C.bold('Only when you need an adapter:')}
+  anymodel proxy openrouter --model <explicit-model-id>
+  anymodel proxy openai --model <explicit-model-id>
+  anymodel [--port 9090] [--token <proxy-token>] -- <client args>
+  anymodel claude                     Run your installed client directly
 
-  ${C.bold('General Options:')}
-    --port, -p      Port to check/connect (for presets, default: 9090)
-    --full-mcp      Keep all globally-configured MCP servers (default on local: suppress global MCP)
-    --local-agentic Preset for agentic local coding: keeps the Skill tool (--full-mcp), balanced
-                    fidelity, refusal-retry on, 64K ctx, + guidance to relax hook-heavy repos.
-    --local-fidelity <tier>  Local skill-fidelity: lean | balanced | full (default balanced).
-                    balanced re-injects a compact skill catalog so skills auto-trigger on local models.
-    --help, -h      Show this help
+${C.bold('Presets are legacy aliases, never automatic upgrades:')}
+${Object.entries(MODEL_PRESETS).map(([alias, id]) => `  ${alias.padEnd(10)} ${id}`).join('\n')}
+OpenRouter startup verifies the exact ID against its live public catalog.
+Missing aliases fail; former free models are never replaced with paid models.
+Use anymodel models --free for currently listed zero-priced entries.
 
-  ${C.bold('Client passthrough:')} everything after ${C.bold('--')} is forwarded to Claude Code
-    ${C.cyan('npx anymodel -- --bare                                  # skip global config')}
-    ${C.cyan('npx anymodel -- --append-system-prompt "$(cat CLAUDE.md)"  # inject project context')}
+${C.bold('Proxy options:')}
+  --model, -m     Explicit model ID
+  --port, -p      Port (default: 9090)
+  --host         Bind address (default: 127.0.0.1); LAN needs --token
+  --token, -t    Proxy access token (client and server must match)
+  --free-only    Require a free-tier model; catalog pricing checked on startup
+  --rpm          Request limit per minute (default: 60)
+  --help, -h     Show help
+  --version, -v  Show installed package version
 
-  ${C.bold('Workflow:')}
-    ${C.cyan('Terminal 1:')} OPENROUTER_API_KEY=sk-or-v1-... npx anymodel proxy deepseek
-    ${C.cyan('Terminal 2:')} npx anymodel
+${C.bold('Client and provider configuration:')}
+  Install and maintain Claude Code separately, or set ANYMODEL_CLIENT to an
+  explicit client path you are authorized to use. No bundled client is selected.
+  OPENROUTER_API_KEY   OpenRouter API billing, separate from subscriptions
+  OPENROUTER_MODEL     Explicit default model ID
+  OPENAI_API_KEY       OpenAI-compatible provider API key
+  OPENAI_BASE_URL      OpenAI-compatible endpoint
+  ANYMODEL_TOKEN      Token used when connecting to your proxy
+  PROXY_PORT          Proxy port
 
-  ${C.bold('How it works:')}
-    ${C.bold('anymodel proxy deepseek')} = starts proxy with DeepSeek R1 preset
-    ${C.bold('anymodel proxy --model X')} = starts proxy with any OpenRouter model
-    ${C.bold('anymodel')}                = connects to the running proxy
-    ${C.bold('anymodel claude')}          = runs Claude Code directly (no proxy)
+Existing local providers remain explicit options: ollama, lmstudio, llamacpp.
+Their legacy --full-mcp, --local-fidelity and --local-agentic settings remain.
+No local model is contacted by models/check. See LOCAL_SETUP.md for legacy setup.
 
-  ${C.bold('Environment:')}
-    OPENROUTER_API_KEY   Your OpenRouter API key (for ${C.bold('proxy')} command)
-    OPENROUTER_MODEL     Default model override
-    OPENAI_API_KEY       API key for OpenAI-compatible endpoints
-    OPENAI_BASE_URL      Base URL (default: https://api.openai.com/v1)
-    LMSTUDIO_BASE_URL    LM Studio base URL (default: http://127.0.0.1:1234/v1)
-    LLAMACPP_BASE_URL    llama.cpp base URL (default: http://127.0.0.1:8080/v1)
-    ANYMODEL_TOKEN       Auth token for remote mode
-    PROXY_PORT           Default port override
-
-  https://anymodel.dev
+Docs and 2.0 migration: https://anymodel.dev
 `);
 }
 
-// ── Find a client to launch ──────────────────────────
-function findClient() {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-
-  // 0. ANYMODEL_CLIENT env var — explicit path to custom cli.js (highest priority)
-  const envClient = process.env.ANYMODEL_CLIENT;
-  if (envClient && existsSync(envClient)) {
-    return { cmd: process.execPath, args: [envClient], label: 'cli.js (ANYMODEL_CLIENT)' };
+// ── Maintained native client, or an explicit user-owned client ──────────
+export function findClient({ env = process.env, exists = existsSync, locateNative } = {}) {
+  const explicit = env.ANYMODEL_CLIENT;
+  if (explicit) {
+    if (!exists(explicit)) throw new Error('ANYMODEL_CLIENT does not exist. Set an explicit client path you are authorized to use, or unset it to use installed Claude Code.');
+    return /\.[cm]?js$/i.test(explicit)
+      ? { cmd: process.execPath, args: [explicit], label: 'explicit user-supplied client' }
+      : { cmd: explicit, args: [], label: 'explicit user-supplied client' };
   }
-
-  // 1. cli.js next to this script (bundled with npm package)
-  const siblingCli = join(__dirname, 'cli.js');
-  if (existsSync(siblingCli)) {
-    return { cmd: process.execPath, args: [siblingCli], label: 'cli.js (bundled)' };
-  }
-
-  // 2. cli.js in current directory (local dev clone)
-  const localCli = join(process.cwd(), 'cli.js');
-  if (existsSync(localCli)) {
-    return { cmd: process.execPath, args: [localCli], label: 'cli.js (local)' };
-  }
-
-  // 3. claude in PATH (global install — fallback)
   try {
-    const isWin = process.platform === 'win32';
-    const findCmd = isWin ? 'where claude 2>nul' : 'which claude 2>/dev/null';
-    const claudePath = execSync(findCmd, { encoding: 'utf8' }).trim().split('\n')[0];
-    if (claudePath && existsSync(claudePath)) {
-      return { cmd: claudePath, args: [], label: 'claude (global)' };
-    }
+    const native = locateNative ? locateNative() : execFileSync(process.platform === 'win32' ? 'where' : 'which', ['claude'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().split(/\r?\n/)[0];
+    if (native && exists(native)) return { cmd: native, args: [], label: 'installed Claude Code' };
   } catch {}
-
   return null;
+}
+
+export function proxyClientEnvironment(port, model, token, base = process.env) {
+  return {
+    ...base,
+    ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}`,
+    ANTHROPIC_API_KEY: '',
+    ANTHROPIC_AUTH_TOKEN: token || 'anymodel-proxy',
+    CLAUDE_CODE_OAUTH_TOKEN: '',
+    CLAUDE_CODE_USE_BEDROCK: '', CLAUDE_CODE_USE_VERTEX: '', CLAUDE_CODE_USE_FOUNDRY: '',
+    ...(model ? { ANTHROPIC_MODEL: model, ANYMODEL_MODEL: model } : {}),
+  };
 }
 
 // ── Wait for proxy to be ready ───────────────────────
@@ -502,14 +447,7 @@ async function connectToProxy(args) {
   const clientChild = spawn(client.cmd, clientArgs, {
     stdio: 'inherit',
     env: {
-      ...process.env,
-      ANTHROPIC_BASE_URL: `http://localhost:${port}`,
-      // Suppress "Not logged in" — proxy handles auth, Claude Code doesn't need its own key
-      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || 'anymodel-proxy',
-      // Override Claude Code's displayed model so /context shows the actual backend model
-      // instead of the default claude-opus-*. Respects user's ANTHROPIC_MODEL if already set.
-      ...(modelName && !process.env.ANTHROPIC_MODEL ? { ANTHROPIC_MODEL: modelName } : {}),
-      ...(modelName ? { ANYMODEL_MODEL: modelName } : {}),
+      ...proxyClientEnvironment(port, modelName, opts.token || process.env.ANYMODEL_TOKEN),
     },
   });
 
@@ -540,7 +478,7 @@ async function startProxyOnly(args) {
   if (opts.localAgentic) {
     applyLocalAgenticEnv(process.env, opts);
     console.log(`${C.green('[anymodel]')} ${C.bold('--local-agentic')}: LOCAL_REFUSAL_RETRY=on, LOCAL_NUM_CTX=${process.env.LOCAL_NUM_CTX}, LOCAL_FIDELITY=${process.env.LOCAL_FIDELITY}, full MCP (Skill tool kept)`);
-    console.log(`${C.yellow('[anymodel]')} For SpecWeave/hook-heavy repos, relax local-hostile gates: set ${C.bold('incrementAssist.mandatory=false')} and drop "ALWAYS plan mode" / "SKILL FIRST (BLOCKING)" from the project CLAUDE.md — a local model cannot satisfy hard meta-directives and will loop.`);
+    console.log(`${C.yellow('[anymodel]')} Legacy local mode does not establish coding parity. Keep project acceptance checks and permission boundaries intact.`);
   }
 
   let providerName = opts.provider;
@@ -683,7 +621,8 @@ async function startProxyOnly(args) {
     }
   }
 
-  // Fall back to default for cloud providers
+  // The OpenRouter default retains its historical free ID; never choose a paid replacement.
+  if (!model && providerName === 'openai') throw new Error('An OpenAI-compatible endpoint requires an explicit --model ID.');
   if (!model) {
     model = DEFAULT_PROXY_MODEL;
     console.log(`${C.cyan('[MODEL]')} Defaulting to ${C.bold(model)}`);
@@ -691,7 +630,7 @@ async function startProxyOnly(args) {
 
   if (opts.freeOnly && !isFreeTierModel(model)) {
     console.error(`${C.red('Error:')} --free-only is active but model "${model}" is not free.`);
-    console.error('  Use a :free-suffixed model (e.g. qwen/qwen3-coder:free) or disable --free-only');
+    console.error('  Run anymodel models --free and select an explicit current :free model.');
     process.exit(1);
   }
 
@@ -699,7 +638,17 @@ async function startProxyOnly(args) {
     console.log(`${C.cyan('[AUTH]')} Token authentication enabled`);
   }
 
+  if (providerName === 'openrouter') {
+    const available = await preflightOpenRouterModel(model, { freeOnly: opts.freeOnly });
+    console.log(`${C.green('[CATALOG]')} ${available.id} is listed (${available.checkedAt}). API availability is not native subscription entitlement.`);
+  }
+
   createProxy(provider, { port, host: opts.host, model, freeOnly: opts.freeOnly, token: opts.token, rpm: opts.rpm });
+}
+
+function reportCommandError(error) {
+  console.error(`${C.red('Error:')} ${error.message}`);
+  process.exitCode = error.code === 'model_unavailable' || error.code === 'free_model_unverified' ? 2 : 1;
 }
 
 // ── Entry point ──────────────────────────────────────
@@ -710,7 +659,7 @@ const firstArg = rawArgs[0];
 const isHelpFlag = rawArgs.includes('--help') || rawArgs.includes('-h');
 const isProxyMode = firstArg === 'proxy' || PROVIDERS.includes(firstArg) || firstArg === 'remote';
 const isClientMode = firstArg === 'claude';
-const isPreset = firstArg && MODEL_PRESETS[firstArg];
+const isPreset = firstArg && Object.hasOwn(MODEL_PRESETS, firstArg);
 const isBare = rawArgs.length === 0;
 const isConnectWithFlags = !isBare && firstArg && firstArg.startsWith('-') && !isHelpFlag;
 
@@ -721,22 +670,27 @@ const isMain = process.argv[1] && (
 );
 
 if (isMain) {
-  if (isBare || isConnectWithFlags) {
+  if (firstArg === '--version' || firstArg === '-v') {
+    console.log(JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version);
+  } else if (firstArg === 'models' || firstArg === 'check') {
+    if (isHelpFlag) printHelp();
+    else runCatalogCommand(firstArg, rawArgs.slice(1)).catch(reportCommandError);
+  } else if (isBare || isConnectWithFlags) {
     // `anymodel` or `anymodel --port 9092` — connect to running proxy
-    connectToProxy(rawArgs);
+    connectToProxy(rawArgs).catch(reportCommandError);
   } else if (isHelpFlag && !isProxyMode) {
     // `anymodel --help` — show full help (but let proxy mode handle its own --help)
     printHelp();
   } else if (isClientMode) {
     // `anymodel claude` — launch Claude Code directly (no proxy)
-    launchClaude();
+    try { launchClaude(); } catch (error) { reportCommandError(error); }
   } else if (isProxyMode) {
     // `anymodel proxy [preset|provider] ...` — start proxy (presets resolved in parseArgs)
     const proxyArgs = firstArg === 'proxy' ? rawArgs.slice(1) : rawArgs;
-    startProxyOnly(proxyArgs);
+    startProxyOnly(proxyArgs).catch(reportCommandError);
   } else if (isPreset) {
     // `anymodel gpt` — treated as `anymodel proxy gpt` (start proxy with preset)
-    startProxyOnly(rawArgs);
+    startProxyOnly(rawArgs).catch(reportCommandError);
   } else {
     // Unknown command — show quick usage
     console.error(`${C.red('Error:')} Unknown command "${firstArg}"`);
