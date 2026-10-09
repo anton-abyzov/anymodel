@@ -27,6 +27,7 @@ const C = {
 import { INTERNAL_EFFORT_FIELD, copyInternalEffort, sendError, extractUpstreamErrorMessage, resolveBindHost, isLoopbackHost, stripAuthHeaders, maxBodyBytes, readCappedBody, safeJsonParse, sanitizeToolUseResponse, sanitizeBody } from './providers/message-utils.mjs';
 export { INTERNAL_EFFORT_FIELD, copyInternalEffort, sendError, extractUpstreamErrorMessage, resolveBindHost, isLoopbackHost, stripAuthHeaders, maxBodyBytes, readCappedBody, safeJsonParse, sanitizeToolUseResponse, sanitizeBody } from './providers/message-utils.mjs';
 import { handleCloudWire } from './providers/cloud-wire.mjs';
+import { applyFreeRequestPolicy, isExplicitFreeModel } from './providers/request-policy.mjs';
 
 // Calculate exponential backoff delay, capped at 8s
 export function calcDelay(attempt) {
@@ -161,7 +162,7 @@ function sendRequest(provider, url, payload) {
   });
 }
 
-async function handleMessages(req, res, provider, model, isFreeTierModel) {
+async function handleMessages(req, res, provider, model, isFreeTierModel, freeOnly = false) {
   let raw;
   try {
     raw = await readCappedBody(req);
@@ -181,6 +182,10 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
     return;
   }
   const parsed = jp.value;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    sendError(res, 400, 'invalid_request_error', 'Expected a JSON request object');
+    return;
+  }
 
   const originalModel = parsed.model;
   if (model) parsed.model = model;
@@ -189,6 +194,11 @@ async function handleMessages(req, res, provider, model, isFreeTierModel) {
   if (isFreeTierModel && !isFreeTierModel(parsed.model)) {
     console.log(`${C.red('[FREE-ONLY]')} Blocked paid model: ${parsed.model}`);
     sendError(res, 403, 'permission_error', `Model "${parsed.model}" is not free. Use --model with a :free model or disable --free-only.`);
+    return;
+  }
+  const policyError = applyFreeRequestPolicy(parsed, { freeOnly, provider: provider.name });
+  if (policyError) {
+    sendError(res, 403, 'permission_error', policyError);
     return;
   }
 
@@ -1128,9 +1138,7 @@ export function createProxy(provider, { port = 9090, host = null, model, maxPort
   // duplicated locally to avoid a cross-module import in this hot path.
   function isFreeTierModel(modelId) {
     if (!freeOnly) return true;
-    if (!modelId) return !!model; // using default model which was already validated
-    if (modelId === 'openrouter/free') return true;
-    return modelId.endsWith(':free');
+    return isExplicitFreeModel(modelId);
   }
 
   const server = http.createServer((req, res) => {
@@ -1175,7 +1183,7 @@ export function createProxy(provider, { port = 9090, host = null, model, maxPort
       return;
     }
     if (wire && !isLocalProvider) {
-      handleCloudWire(req, res, provider, { model, isFreeTierModel, sendRequest }).catch(e => {
+      handleCloudWire(req, res, provider, { model, freeOnly, isFreeTierModel, sendRequest }).catch(e => {
         if (res.headersSent) res.destroy(e);
         else openaiError(res, e.status || (e.code === 'BODY_TOO_LARGE' ? 413 : 502), e.message);
       });
@@ -1226,7 +1234,7 @@ export function createProxy(provider, { port = 9090, host = null, model, maxPort
         return;
       }
 
-      handleMessages(req, res, provider, model, isFreeTierModel).catch(e => {
+      handleMessages(req, res, provider, model, isFreeTierModel, freeOnly).catch(e => {
         console.error(`${C.red('[PROXY]')} Unhandled error: ${e.message}`);
         sendError(res, 502, 'api_error', 'Internal proxy error');
       });

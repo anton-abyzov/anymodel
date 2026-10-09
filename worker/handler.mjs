@@ -1,6 +1,7 @@
 // anymodel Cloudflare Worker handler
 // Shared logic for both CF Workers and local testing
 // Uses fetch() API — no Node.js http/https modules
+import { applyFreeRequestPolicy, isExplicitFreeModel } from '../providers/request-policy.mjs';
 
 export const DEFAULT_FREE_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
 
@@ -14,8 +15,7 @@ export function checkAuth(headers, token) {
 
 export function isFreeTierModel(modelId, freeOnly) {
   if (!freeOnly) return true;
-  if (typeof modelId !== 'string' || !modelId) return false;
-  return modelId === 'openrouter/free' || modelId.endsWith(':free');
+  return isExplicitFreeModel(modelId);
 }
 
 // Rate limiter factory — returns a stateful checker
@@ -241,6 +241,8 @@ export async function handleRequest(request, env = {}, context = {}) {
   if (freeOnly && !isFreeTierModel(body.model, true)) {
     return errorResponse(403, 'permission_error', 'Free-only policy requires an explicit :free model or openrouter/free. No replacement model was selected.');
   }
+  const policyError = applyFreeRequestPolicy(body, { freeOnly });
+  if (policyError) return errorResponse(403, 'permission_error', policyError);
 
   sanitizeBody(body);
   const payload = JSON.stringify(body);

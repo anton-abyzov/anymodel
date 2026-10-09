@@ -1,12 +1,13 @@
 // Native OpenAI wire forwarding: no conversion, model substitution, or auth fallback.
 import { readCappedBody, safeJsonParse } from './message-utils.mjs';
+import { applyFreeRequestPolicy } from './request-policy.mjs';
 
 function fail(res, status, message, type = 'invalid_request_error') {
   res.writeHead(status, { 'content-type': 'application/json' });
   res.end(JSON.stringify({ error: { message, type, code: null } }));
 }
 
-export async function handleCloudWire(req, res, provider, { model, isFreeTierModel, sendRequest }) {
+export async function handleCloudWire(req, res, provider, { model, freeOnly = false, isFreeTierModel, sendRequest }) {
   if (typeof provider.buildWireRequest !== 'function') {
     req.resume();
     fail(res, 501, `Provider ${provider.name} does not support this OpenAI endpoint`);
@@ -24,6 +25,11 @@ export async function handleCloudWire(req, res, provider, { model, isFreeTierMod
     if (model) body.model = model;
     if (!isFreeTierModel(body.model)) {
       fail(res, 403, 'Model is not permitted in free-only mode', 'permission_error');
+      return;
+    }
+    const policyError = applyFreeRequestPolicy(body, { freeOnly, provider: provider.name });
+    if (policyError) {
+      fail(res, 403, policyError, 'permission_error');
       return;
     }
     payload = JSON.stringify(body);

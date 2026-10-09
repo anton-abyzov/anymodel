@@ -202,6 +202,9 @@ export function sanitizeBody(body, { keepCache = false, preserveNative = false }
   // Strip unsupported tool fields; preserve explicit and implicit dictionary semantics.
   if (Array.isArray(body.tools)) {
     body.tools = body.tools.map(tool => {
+      // Native server tools have provider-defined shapes, not client function
+      // schemas. Free-only policy rejects them before reaching this sanitizer.
+      if (preserveNative && typeof tool?.type === 'string' && !['custom', 'function'].includes(tool.type)) return tool;
       const stripFields = keepCache
         ? { defer_loading: true, eager_input_streaming: true, strict: true }
         : { cache_control: true, defer_loading: true, eager_input_streaming: true, strict: true };
