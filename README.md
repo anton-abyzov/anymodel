@@ -4,20 +4,24 @@
 
 Use your maintained coding agent and provider directly when they already work together. AnyModel is useful when a particular endpoint needs request, tool-schema or response adaptation. It does not make models equally capable, supply subscription access, or replace an agent's planning, permissions and session history.
 
-[Website](https://anymodel.dev) · [2.0 migration](docs/migration-2.md) · [Studio boundary](docs/studio-boundary.md) · [License and legacy notices](NOTICE.md)
+AnyModel is a free, open-source tool under the MIT license. It does not sell, resell or pool model access: there is no AnyModel account, balance or plan to buy. Other products also use the AnyModel name; this project lives at [anymodel.dev](https://anymodel.dev) and [github.com/anton-abyzov/anymodel](https://github.com/anton-abyzov/anymodel).
+
+[Website](https://anymodel.dev) · [2.0 migration](docs/migration-2.md) · [SpecWithCode boundary](docs/studio-boundary.md) · [License and legacy notices](NOTICE.md)
 
 ## Choose the simplest supported route
 
 | Your task | Recommended route |
 |---|---|
-| Frontier coding in SpecWeave Studio | Studio → official native Codex/Claude runtime → your selected provider account |
+| Frontier coding in [SpecWithCode](https://specwithcode.com/?utm_source=anymodel&utm_medium=readme) | SpecWithCode → official native Codex/Claude runtime → your selected provider account |
 | Hosted models through OpenRouter | Existing OpenCode or Pi integration → OpenRouter; evaluate the model on your actual tasks |
 | Claude Code with OpenRouter | Use [OpenRouter's direct integration](https://openrouter.ai/docs/cookbook/coding-agents/claude-code-integration) where compatible |
 | A demonstrated protocol mismatch | Maintained client → AnyModel proxy → explicitly selected API provider/model |
 
 OpenRouter documents its Claude Code compatibility guarantee for Anthropic first-party only. Non-Anthropic models need their own validation. [OpenCode supports OpenRouter directly](https://opencode.ai/docs/providers/#openrouter), without this proxy.
 
-SpecWeave owns portable specs, task claims and acceptance evidence. Studio owns native execution, approvals, workspaces and sessions. AnyModel belongs outside Studio's default native path. **API billing and native subscription capacity are separate.**
+SpecWeave owns portable specs, task claims and acceptance evidence. SpecWithCode owns native execution, approvals, workspaces and sessions. AnyModel belongs outside SpecWithCode's default native path. **API billing and native subscription capacity are separate.**
+
+[SpecWithCode](https://specwithcode.com/?utm_source=anymodel&utm_medium=readme), by the same author, is a free, open-source (MIT) desktop app that runs Claude Code, Codex and other agents with your own sign-ins on machines you own. For OpenRouter or a local model server it uses OpenCode or Pi directly, so it needs no AnyModel proxy.
 
 ## Check current hosted availability
 
