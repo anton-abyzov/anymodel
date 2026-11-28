@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.1 — 2026-11-27
+
+- The hosted endpoint `api.anymodel.dev` is retired and answers `410 Gone`. The package itself is unchanged and runs locally with your own key or a local model; see "Hosted endpoint retired" in the README.
+
 ## 2.0.0 — 2026-10-09
 
 AnyModel is an optional API compatibility adapter. SpecWeave Studio keeps native frontier execution as its default; direct OpenRouter support in existing agents remains the first route to consider.

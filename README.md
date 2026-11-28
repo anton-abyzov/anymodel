@@ -8,6 +8,10 @@ AnyModel is a free, open-source tool under the MIT license. It does not sell, re
 
 [Website](https://anymodel.dev) · [2.0 migration](docs/migration-2.md) · [SpecWithCode boundary](docs/studio-boundary.md) · [License and legacy notices](NOTICE.md)
 
+## Hosted endpoint retired
+
+The hosted endpoint `https://api.anymodel.dev` was retired on November 27, 2026 and now answers `410 Gone` to every request. In its last four weeks it served no successful model calls, and no npm release since 1.5.0 uses it. Nothing else changes: AnyModel runs on your machine with your own API key or a local model server, and the commands below work as before.
+
 ## Choose the simplest supported route
 
 | Your task | Recommended route |

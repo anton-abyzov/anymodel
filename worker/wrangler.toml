@@ -8,6 +8,8 @@ routes = [
 ]
 
 [vars]
+# Retired November 27, 2026: every request answers 410. Remove to restore.
+RETIRED = "true"
 FREE_ONLY = "true"
 RPM = "60"
 ANYMODEL_MAX_BODY_BYTES = "4194304"
