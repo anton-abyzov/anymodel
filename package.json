@@ -1,6 +1,6 @@
 {
   "name": "anymodel",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Optional API compatibility adapter for maintained coding agents, with explicit hosted model selection",
   "type": "module",
   "bin": {
